@@ -1,0 +1,8 @@
+# Keep LF in the repo and in working copies on every OS (test fixtures compare exact text)
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.zip binary

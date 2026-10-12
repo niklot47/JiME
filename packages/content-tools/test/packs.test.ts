@@ -11,6 +11,11 @@ test("csv round trip with quotes, commas and newlines", () => {
   assert.deepEqual(parseCsv(writeCsv(rows)).slice(0, 3), rows);
 });
 
+test("CRLF files (Windows) parse the same as LF", () => {
+  const lf = 'key,text\na,"x\ny"\nb,z\n';
+  assert.deepEqual(parseCsv(lf.replace(/\n/g, "\r\n")), parseCsv(lf));
+});
+
 test("semver ranges", () => {
   assert.ok(satisfies("1.2.0", "^1.0.0"));
   assert.ok(!satisfies("2.0.0", "^1.0.0"));

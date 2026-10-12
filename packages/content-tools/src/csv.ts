@@ -11,6 +11,9 @@ export function parseCsv(text: string): string[][] {
     if (quoted) {
       if (c === '"') {
         if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false;
+      } else if (c === "\r" && text[i + 1] === "\n") {
+        // Normalize CRLF inside quoted fields (files edited on Windows) to LF
+        field += "\n"; i++;
       } else field += c;
     } else if (c === '"') quoted = true;
     else if (c === ",") { row.push(field); field = ""; }
