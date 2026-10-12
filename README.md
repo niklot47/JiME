@@ -27,7 +27,7 @@
 | Путь | Что это |
 |---|---|
 | `packages/schema/` | JSON Schema + типы TS: пак, сценарий, база (`docs/PACKS.md`) |
-| `packages/engine/` | Движок без UI (TS). Пока: ГСЧ с сидом; перенос `engine-py` — Этап 2 |
+| `packages/engine/` | Движок без UI (TS): интерпретатор FSM, бот, фаззер, сверка с `engine-py` (`docs/ENGINE.md`) |
 | `packages/content-tools/` | Загрузка паков, зависимости, слои, CSV-локализация, CLI проверки |
 | `apps/app/` | Приложение: Tauri 2 + React + Vite |
 | `scripts/` | Мелкие кроссплатформенные обёртки для `pnpm` |
@@ -47,7 +47,9 @@ pnpm install
 pnpm test                 # тесты пакетов (node --test, TS без сборки)
 pnpm packs:build          # data/export → data/packs/core-ffg
 pnpm packs:validate       # проверка всех паков по схемам
-pnpm fuzz                 # бот по всем приключениям (пока engine-py)
+pnpm fuzz                 # бот по всем 72 приключениям (TS, ~10 с)
+pnpm play 1 7             # одна партия A1 с сидом 7
+pnpm parity               # сверка TS-движка с engine-py
 pnpm dev                  # интерфейс в браузере, http://localhost:1420
 pnpm tauri dev            # то же в окне Tauri
 pnpm tauri build          # установщик Windows

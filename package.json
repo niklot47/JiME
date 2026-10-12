@@ -6,22 +6,37 @@
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.34.7",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "test": "pnpm -r --filter \"./packages/*\" test",
     "typecheck": "pnpm -r --filter \"./packages/*\" typecheck",
     "packs:build": "node scripts/run-python.mjs tools/importer/make_pack.py",
     "packs:validate": "pnpm --filter @jime/content-tools validate",
-    "fuzz": "node scripts/run-python.mjs engine-py/fuzz_all.py 10",
+    "fuzz": "node packages/engine/cli/fuzz-all.ts 10",
     "dev": "pnpm --filter @jime/app dev",
-    "tauri": "pnpm --filter @jime/app tauri"
+    "tauri": "pnpm --filter @jime/app tauri",
+    "fuzz:py": "node scripts/run-python.mjs engine-py/fuzz_all.py 10",
+    "parity": "node packages/engine/cli/parity.ts all 0 5",
+    "play": "node packages/engine/cli/run.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
   },
   "pnpm": {
-    "supportedArchitectures": { "os": ["win32", "linux"], "cpu": ["x64"] },
-    "onlyBuiltDependencies": ["esbuild"]
+    "supportedArchitectures": {
+      "os": [
+        "win32",
+        "linux"
+      ],
+      "cpu": [
+        "x64"
+      ]
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
