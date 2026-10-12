@@ -7,6 +7,7 @@
 import { Bot, Game, keyOf, newCampaign, type Campaign, type ContentSource, type Difficulty, type EnemyGroup,
   type LogEntry, type Option, type Player } from "./game.ts";
 import { gd } from "./py.ts";
+import type { GeneratedMap } from "./map/mapgen.ts";
 import { PyRandom } from "./pyrandom.ts";
 
 // ---------------------------------------------------------------- decisions (plain JSON, for UI)
@@ -103,6 +104,7 @@ export class ScriptedPlayer implements Player {
   }
 
   choose(_g: Game, key: any, choices: any[], canCancel: boolean): any {
+    if (!choices.length) return null; // nothing to choose (all options gated): no question, like the bot
     const a = this.next({ kind: "choice", key, choices: choices.map((c) => ({ key: keyOf(gd(c, "Localization")) })), canCancel });
     return a === null ? null : choices[a];
   }
@@ -150,6 +152,7 @@ export class RecordingPlayer implements Player {
 
   choose(g: Game, key: any, choices: any[], canCancel: boolean): any {
     const v = this.inner.choose(g, key, choices, canCancel);
+    if (!choices.length) return v; // not a question (see ScriptedPlayer.choose)
     return this.rec(v === null ? null : choices.indexOf(v), v);
   }
 
@@ -182,7 +185,17 @@ export interface SessionSetup {
   difficulty?: Difficulty;
   campaign?: Campaign;
   maxRounds?: number;
+  mapMode?: "ffg" | "legacy";
+  mapSeed?: number;
+  products?: number[];
+  language?: string;
 }
+
+const gameOpts = (s: SessionSetup) => ({
+  seed: s.seed, players: s.players, difficulty: s.difficulty, maxRounds: s.maxRounds,
+  mapMode: s.mapMode, mapSeed: s.mapSeed, products: s.products, language: s.language,
+  campaign: structuredClone(s.campaign ?? newCampaign()),
+});
 
 export interface SaveData {
   format: "jime-save";
@@ -228,6 +241,8 @@ export class Session {
   readonly answers: Answer[] = [];
   game!: Game;
   pending: Decision | null = null;
+  /** Board of the first replay, reused by later replays (map generation can take up to seconds) */
+  private board: GeneratedMap | undefined;
 
   constructor(src: ContentSource, setup: SessionSetup, answers: Answer[] = []) {
     this.src = src;
@@ -240,10 +255,8 @@ export class Session {
   private replay(): void {
     const s = this.setup;
     const player = new ScriptedPlayer(this.answers);
-    const g = new Game(this.src, s.adv, {
-      seed: s.seed, players: s.players, difficulty: s.difficulty, player,
-      campaign: structuredClone(s.campaign ?? newCampaign()), maxRounds: s.maxRounds,
-    });
+    const g = new Game(this.src, s.adv, { ...gameOpts(s), player, board: this.board });
+    this.board ??= g.board ?? undefined;
     this.pending = null;
     try {
       g.run();
@@ -301,10 +314,7 @@ export class Session {
  */
 export function recordBotGame(src: ContentSource, setup: SessionSetup, botSeed = setup.seed + 1_000_003): { game: Game; answers: Answer[] } {
   const rec = new RecordingPlayer(new Bot(new PyRandom(botSeed)));
-  const g = new Game(src, setup.adv, {
-    seed: setup.seed, players: setup.players, difficulty: setup.difficulty, player: rec,
-    campaign: structuredClone(setup.campaign ?? newCampaign()), maxRounds: setup.maxRounds,
-  });
+  const g = new Game(src, setup.adv, { ...gameOpts(setup), player: rec });
   g.run();
   return { game: g, answers: rec.answers };
 }

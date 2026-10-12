@@ -68,7 +68,15 @@
 
 ## База (`jime-db`)
 
-`scenario/db.json` — модели FFG (16 типов), стандартные тайлы, 350 глобальных переменных.
+`scenario/db.json` содержит:
+
+- модели FFG (16 типов);
+- стандартные тайлы;
+- 350 глобальных переменных;
+- `tiles` — геометрия стандартных тайлов для генератора карты, в порядке корзины StandardTiles;
+- `productOrder` — порядок продуктов в базе FFG.
+
+Кастомные тайлы приключения лежат в `ext.customTiles` файла приключения (id объекта → геометрия).
 
 ## Версии формата
 
@@ -79,6 +87,7 @@
 ## Сборка и проверка
 
 ```bash
+python3 tools/importer/export_tiles.py  # геометрия тайлов из игры → data/export/tiles.json
 python3 tools/importer/make_pack.py   # data/export + data/out/loc.json → data/packs/core-ffg
 pnpm packs:validate                  # все паки в data/packs (или $JIME_PACKS)
 ```

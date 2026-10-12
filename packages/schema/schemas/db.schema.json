@@ -5,6 +5,18 @@
   "type": "object",
   "required": ["format", "formatVersion", "models", "standardTiles", "globals"],
   "additionalProperties": false,
+  "definitions": {
+    "tileGeometry": {
+      "type": "object",
+      "required": ["code", "hexes", "spaces", "edges"],
+      "properties": {
+        "code": { "type": "string" },
+        "hexes": { "type": "array", "items": { "type": "object", "required": ["x", "y", "z", "space"] } },
+        "spaces": { "type": "array", "items": { "type": "object", "required": ["traits", "hexes"] } },
+        "edges": { "type": "array", "items": { "type": "object", "required": ["hex", "dir", "traits", "open"] } }
+      }
+    }
+  },
   "properties": {
     "$schema": { "type": "string" },
     "format": { "const": "jime-db" },
@@ -35,6 +47,12 @@
         }
       }
     },
+    "tiles": {
+      "type": "array",
+      "description": "Standard tiles in FFG StandardTiles bucket order, with geometry for the map generator",
+      "items": { "$ref": "#/definitions/tileGeometry" }
+    },
+    "productOrder": { "type": "array", "items": { "type": "integer" }, "description": "JIME_Database.Products order" },
     "globals": {
       "type": "object",
       "additionalProperties": {

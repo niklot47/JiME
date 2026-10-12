@@ -6,6 +6,7 @@ import { PyRandom } from "./pyrandom.ts";
 import { keysOf, valuesOf } from "./ojson.ts";
 import { Counter, gd, isDict, or, pyStr, toInt, truthy } from "./py.ts";
 import { ACTIONS } from "./actions.ts";
+import { generateMap, type GeneratedMap } from "./map/mapgen.ts";
 
 /** Supplies scenario data (pack on disk, in-memory, network ...) */
 export interface ContentSource {
@@ -175,6 +176,8 @@ export class Tile {
   explored = false;
   exploreToken = true;
   readonly adjacentSections = new Set<number>();
+  /** FFG mode: adjacent section ids in FFG order (ConnectedSpaces discovery order) */
+  adjacentOrdered: number[] | null = null;
   readonly code: string;
   readonly id: number;
   readonly section: number;
@@ -262,6 +265,21 @@ export interface GameOptions {
   player?: Player;
   /** Rounds before the game stops with ended = "max_rounds" */
   maxRounds?: number;
+  /**
+   * Map generation: "ffg" = exact port of FFG's MapBuilder (needs tile geometry in the pack; default when present),
+   * "legacy" = simplified engine-py generator (kept for parity checks against Python)
+   */
+  mapMode?: "ffg" | "legacy";
+  /** MapBuilder seed (FFG picks a random one per adventure); defaults to the game seed */
+  mapSeed?: number;
+  /** Owned product ids (affects tiles and encounters); default: all products in the pack */
+  products?: number[];
+  /** Game language for FFG's per-language encounter exclusions (English/Russian/... or en/ru/...) */
+  language?: string;
+  /** Party inventory (GroupItemIds) for item encounters */
+  groupItems?: number[];
+  /** A board generated earlier for the same setup (Session replays reuse it instead of regenerating) */
+  board?: GeneratedMap;
   campaign?: Campaign;
   logRoundPrefix?: number;
 }
@@ -314,6 +332,10 @@ export class Game {
   readonly src: ContentSource;
   readonly advId: number;
   readonly maxRounds: number;
+  readonly mapMode: "ffg" | "legacy";
+  /** The generated board (FFG mode): sections, tile positions and rotations, encounters */
+  board: GeneratedMap | null = null;
+  private readonly opts: GameOptions;
 
   constructor(src: ContentSource, advId: number, opts: GameOptions = {}) {
     this.src = src;
@@ -328,6 +350,8 @@ export class Game {
     this.player = opts.player ?? new Bot(this.rng);
     this.advIndex = opts.logRoundPrefix ?? 1;
     this.maxRounds = opts.maxRounds ?? 40;
+    this.opts = opts;
+    this.mapMode = opts.mapMode ?? (this.D.tiles ? "ffg" : "legacy");
     this.campaign = opts.campaign ?? newCampaign();
     for (const k of keysOf(this.D.globals)) this.globals[k] = structuredClone(this.D.globals[k].value);
     for (const [k, v] of Object.entries(this.campaign.flags)) this.globals[k] = v;
@@ -344,7 +368,8 @@ export class Game {
     }
     this.heroes = Array.from({ length: this.players }, () => ({ damage: 0, fear: 0, defeated: false }));
     this.buildAdventureScene();
-    this.buildMap();
+    if (this.mapMode === "ffg") this.buildMapFfg();
+    else this.buildMap();
   }
 
   // ------------------------------------------------------------ helpers
@@ -543,6 +568,73 @@ export class Game {
       if (this.sections[b]!.tiles.length) this.rng.choice(this.sections[b]!.tiles).adjacentSections.add(a);
     }
     this.placeEncounters(mb);
+  }
+
+  /** Board from the FFG MapBuilder port; encounters are spawned in FFG order */
+  private buildMapFfg(): void {
+    for (const o of this.advObjs.values()) {
+      const gn = gd(o.components, "GameNode", null);
+      if (gn !== null && o.node === null) {
+        const kind = NODE_KINDS[or(gd(gn, "NodeType", 0), 0)]!;
+        this.advNodes.push(new GameNode(this, o, null, 0, kind, gd(gn, "EncounterId")));
+      }
+    }
+    const hasBuilder = [...this.advObjs.values()].some((o) => Object.hasOwn(o.components, "MapBuilder"));
+    if (!hasBuilder) return;
+    const c = this.campaign;
+    const products = this.opts.products ?? (this.D.productOrder ?? keysOf(this.D.models.ProductModel).map(Number));
+    const m = this.opts.board ?? generateMap(this.D, this.adv, {
+      seed: this.opts.mapSeed ?? this.seed, players: this.players, products, language: this.opts.language ?? "English",
+      unlockedChain: c.unlocked_chain, usedEncounters: c.used_encounters, usedGroups: c.used_groups ?? [],
+      groupItems: this.opts.groupItems ?? c.items,
+    });
+    this.board = m;
+    const byHash = new Map<number, Tile>();
+    for (const s of m.sections) {
+      const tiles: Tile[] = [];
+      for (const gt of s.tiles) {
+        const custom = gt.customPid !== null ? this.advObjs.get(gt.customPid) ?? null : null;
+        const geo = custom ? this.adv.ext.customTiles[String(gt.customPid)] : this.D.tiles.find((t: any) => t.code === gt.code);
+        const t = new Tile(gt.code, gt.hashId, geo.spaces, s.id, custom);
+        gt.encounters.forEach((e, i) => { t.spaces[i]!.encounter = e < 0 ? null : e; });
+        tiles.push(t);
+        this.tiles.set(t.id, t);
+        byHash.set(t.id, t);
+      }
+      this.sections.push({ id: s.id, builder: null, tiles, visible: false });
+    }
+    // adjacency to other sections (Adventure.CoroutineExploreTile: ConnectedSpaces of each space, in order)
+    for (const s of m.sections) {
+      for (const gt of s.tiles) {
+        const t = byHash.get(gt.hashId)!;
+        const adj: number[] = [];
+        for (const conn of gt.connected) {
+          for (const [th] of conn) {
+            const other = byHash.get(th);
+            if (other && other.section !== t.section && !adj.includes(other.section)) adj.push(other.section);
+          }
+        }
+        t.adjacentOrdered = adj;
+        for (const a of adj) t.adjacentSections.add(a);
+      }
+    }
+    const s0 = this.sections.find((s) => s.id === 0);
+    this.startTileId = s0 && s0.tiles.length ? s0.tiles[0]!.id : -1;
+    this.encounterGroup = m.encounterGroup !== null ? gd(this.D.models.EncounterGroupModel[String(m.encounterGroup)], "m_Name") : null;
+    c.used_groups = m.usedGroups;
+    // spawn encounter instances in FFG order
+    this.nodes = [];
+    for (const [th, si, encId] of m.spawnOrder) {
+      const t = byHash.get(th)!;
+      const sp = t.spaces[si]!;
+      const pf = this.src.encounter(encId);
+      if (pf === null) { this.warn(`no prefab for encounter ${encId}`); continue; }
+      const objs = this.instantiate(pf, `enc${encId}`);
+      const nd = new GameNode(this, objs.get(pf.root)!, t, si, "Encounter", encId);
+      sp.node = nd;
+      this.nodes.push(nd);
+      if (!c.used_encounters.includes(encId)) c.used_encounters.push(encId);
+    }
   }
 
   private usedCodes(): Set<string> {
@@ -850,7 +942,7 @@ export class Game {
       for (const fs of nd.obj.fsms) if (fs.usesEvent("REVEALED")) fs.send("REVEALED");
     }
     if (!truthy(skipAdjacent) && t.adjacentSections.size && this.advFsm && this.advFsm.usesEvent("ADJACENT_TILE_EXPLORED")) {
-      for (const sid of [...t.adjacentSections].sort((a, b) => a - b)) {
+      for (const sid of t.adjacentOrdered ?? [...t.adjacentSections].sort((a, b) => a - b)) {
         this.advFsm.vars.AdjacentSectionId = sid;
         this.advFsm.send("ADJACENT_TILE_EXPLORED");
       }

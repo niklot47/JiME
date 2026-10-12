@@ -86,11 +86,21 @@ export interface GlobalVar {
   value: unknown;
 }
 
+/** Tile geometry for the map generator (cube hex coords, spaces, outside edges with EdgeTraits) */
+export interface TileGeometry {
+  code: string;
+  hexes: { x: number; y: number; z: number; space: number }[];
+  spaces: { traits: number; hexes: number[]; connected: number[] }[];
+  edges: { hex: number; dir: number; traits: number; open: boolean }[];
+}
+
 export interface ContentDb {
   $schema?: string;
   format: "jime-db";
   formatVersion: 1;
   models: Record<string, Record<string, Record<string, unknown>>>;
   standardTiles: Record<string, { model: Record<string, unknown>; spaces: TileSpace[] }>;
+  tiles?: TileGeometry[];
+  productOrder?: number[];
   globals: Record<string, GlobalVar>;
 }

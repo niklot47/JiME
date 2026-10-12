@@ -18,11 +18,18 @@ def dump(path, obj):
         json.dump(obj, f, ensure_ascii=False, separators=(",", ":"))
 
 
+TILES = os.path.join(EXPORT, "tiles.json")
+GEO = json.load(open(TILES, encoding="utf-8")) if os.path.exists(TILES) else None
+
+
 def scenario(kind, data):
     model = data["model"]
     env = {"format": "jime-scenario", "formatVersion": FORMAT_VERSION, "kind": kind,
            "id": model.get("_id"), "source": "ffg"}
     env.update(data)
+    custom = (GEO or {}).get("custom", {}).get(str(model.get("_id")))
+    if kind == "adventure" and custom:
+        env.setdefault("ext", {})["customTiles"] = custom  # GameObject pid -> tile geometry
     return env
 
 
@@ -40,6 +47,11 @@ def main():
 
     with open(os.path.join(EXPORT, "db.json"), encoding="utf-8") as f:
         db = json.load(f)
+    if GEO:
+        db["tiles"] = GEO["standard"]          # StandardTiles bucket order + hex/edge geometry
+        db["productOrder"] = GEO["products"]   # JIME_Database.Products order
+    else:
+        print("warning: no export/tiles.json (run export_tiles.py): map generator geometry missing")
     dump(os.path.join(OUT, "scenario", "db.json"), {"format": "jime-db", "formatVersion": FORMAT_VERSION, **db})
 
     contents = [{"type": "scenario", "path": "scenario"}]

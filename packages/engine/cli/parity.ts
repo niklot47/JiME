@@ -35,7 +35,7 @@ const ts: Trace[] = [];
 for (const adv of advs) {
   for (let seed = Number(from); seed < Number(to); seed++) {
     try {
-      ts.push(traceOf(new Game(src, adv, { seed }).run()));
+      ts.push(traceOf(new Game(src, adv, { seed, mapMode: "legacy" }).run())); // engine-py has only the simplified map
     } catch (e) {
       ts.push({ adv, seed, error: String(e) });
     }

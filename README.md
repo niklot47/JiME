@@ -65,6 +65,7 @@ python3 engine-py/run.py 1 7 > /tmp/a1.log        # одна партия бот
 python3 engine-py/fuzz.py 1 300 data/ref/LogA_slot2.txt   # 300 партий + сверка с реальной
 python3 engine-py/fuzz_all.py 10                  # все 72 приключения
 python3 engine-py/story.py 1 7 ru > story.md      # читаемая история партии
+python3 tools/importer/export_tiles.py            # геометрия тайлов (нужна папка игры)
 python3 tools/importer/make_pack.py               # собрать пак core-ffg
 bash tools/vm-node.sh test                        # JS: зеркало в $HOME/jime_build, pnpm install, тесты
 bash tools/vm-node.sh packs:validate
