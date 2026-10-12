@@ -1,8 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { discoverPacks, loadLang, parseCsv, resolvePacks, satisfies, writeCsv, type LoadedPack } from "../src/index.ts";
 
-const fixtures = new URL("./fixtures/", import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: the latter yields "/D:/..." on Windows
+const fixtures = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
 test("csv round trip with quotes, commas and newlines", () => {
   const rows = [["key", "text"], ["a", 'he said "hi", ok'], ["b", "x\ny"]];
