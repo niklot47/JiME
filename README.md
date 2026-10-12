@@ -38,7 +38,7 @@
 
 ## Быстрые команды: Windows (PowerShell)
 
-Нужны Node ≥ 22.18, pnpm 10 (`npm install -g pnpm@10.34.7`; `corepack enable` без прав администратора падает с EPERM), Python 3; для окна приложения — Rust и [зависимости Tauri](https://tauri.app/start/prerequisites/).
+Нужны Node ≥ 22.18, pnpm 10 (`npm install -g pnpm@10.34.7`; `corepack enable` без прав администратора падает с EPERM), Python 3; для окна приложения — Rust (`winget install Rustlang.Rustup`) и VS Build Tools с набором «Разработка классических приложений на C++» (иначе `link.exe not found`). Первая сборка Tauri — несколько минут.
 
 ```powershell
 pnpm install

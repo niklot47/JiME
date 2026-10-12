@@ -27,7 +27,7 @@
    - ✅ `pnpm test` — 12 тестов;
    - ✅ `pnpm fuzz` — пока обёртка над `engine-py`;
    - ⏳ GitHub Actions;
-   - ⏳ проверить `pnpm install` / `pnpm tauri dev` на Windows (пользователь).
+   - ✅ Windows: `pnpm install`, `pnpm test`, `pnpm dev`, `pnpm tauri dev` работают (Rust + VS Build Tools C++).
 
 ## Этап 2 — Движок на TypeScript ⏳
 1. Перенос `engine-py` в `packages/engine`:
@@ -88,3 +88,4 @@
   - формат пака и схемы, пак `core-ffg` проходит валидацию;
   - решения: React, MIT, ПК + планшет;
   - `tools/vm-node.sh` — JS в VM без `node_modules` в репозитории.
+- 13.10.2026: Этап 1 проверен на Windows — окно Tauri запускается. Исправлен путь фикстур в тесте (URL.pathname → fileURLToPath). Осталось: GitHub Actions.
