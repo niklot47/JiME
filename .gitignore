@@ -1,0 +1,12 @@
+# FFG content and generated data never go to git
+data/
+Декомпилированые файлы/
+prototype_3d/jime3d.html
+prototype_3d/*.png
+# build artefacts
+node_modules/
+dist/
+target/
+__pycache__/
+*.pyc
+jime_data.zip

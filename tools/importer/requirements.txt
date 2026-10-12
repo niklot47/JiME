@@ -1,0 +1,6 @@
+UnityPy==1.25.4
+dnfile
+TypeTreeGeneratorAPI
+numpy
+Pillow
+attrs>=23
