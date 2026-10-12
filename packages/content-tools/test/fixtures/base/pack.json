@@ -1,0 +1,2 @@
+{ "formatVersion": 1, "id": "base", "version": "1.2.0", "priority": 0,
+  "contents": [{ "type": "lang", "lang": "ru", "path": "lang/ru.csv" }] }

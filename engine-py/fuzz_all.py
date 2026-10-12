@@ -31,4 +31,4 @@ for r in rows:
 print("\nunimplemented:", dict(unimpl.most_common()))
 print("errors:", dict(errs.most_common(10)))
 print("warnings:", dict(warns.most_common(15)))
-json.dump(rows, open(os.path.join(os.environ.get("JIME_WORK", os.path.expanduser("~/jime")), "out", "fuzz_all.json"), "w"))
+json.dump(rows, open(os.path.join(os.environ.get("JIME_WORK", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")), "out", "fuzz_all.json"), "w"))

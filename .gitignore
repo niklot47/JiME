@@ -10,3 +10,6 @@ target/
 __pycache__/
 *.pyc
 jime_data.zip
+.tmp*/
+apps/app/src-tauri/gen/
+*.tsbuildinfo

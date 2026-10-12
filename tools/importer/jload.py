@@ -3,7 +3,7 @@ import UnityPy, struct, os
 from UnityPy.helpers.TypeTreeGenerator import TypeTreeGenerator
 UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.62f2"
 # Paths: JIME_WORK = working/output folder, JIME_DATA = game's JiME_Data folder (or a copy), JIME_MANAGED = its Managed folder
-ROOT = os.environ.get("JIME_WORK", os.path.expanduser("~/jime"))
+ROOT = os.environ.get("JIME_WORK", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data"))
 DATA = os.environ.get("JIME_DATA", os.path.join(ROOT, "data"))
 MANAGED = os.environ.get("JIME_MANAGED") or (os.path.join(DATA, "Managed") if os.path.isdir(os.path.join(DATA, "Managed")) else os.path.join(ROOT, "managed"))
 env = UnityPy.load(*[os.path.join(DATA, f) for f in os.listdir(DATA) if not os.path.isdir(os.path.join(DATA, f))], *([os.path.join(DATA, "StreamingAssets", "bundles")] if os.path.isdir(os.path.join(DATA, "StreamingAssets", "bundles")) else []))

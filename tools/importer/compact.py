@@ -1,6 +1,6 @@
 # Compact decoded FSM params: drop defaults, render localization packets as keys
 import json, os
-_LOCP = os.path.join(os.environ.get("JIME_WORK", os.path.expanduser("~/jime")), "out", "loc.json")
+_LOCP = os.path.join(os.environ.get("JIME_WORK", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")), "out", "loc.json")
 LOC = json.load(open(_LOCP, encoding="utf-8")) if os.path.exists(_LOCP) else {}
 LOCK = {}
 for k, v in LOC.items():

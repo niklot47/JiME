@@ -1,0 +1,17 @@
+{
+  "name": "@jime/content-tools",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "bin": { "jime-packs": "./src/cli.ts" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "tsc -p .",
+    "validate": "node src/cli.ts validate"
+  },
+  "dependencies": {
+    "@jime/schema": "workspace:*"
+  }
+}

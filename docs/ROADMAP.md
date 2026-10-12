@@ -1,6 +1,6 @@
 # План реализации
 
-Стек: **TypeScript + Tauri 2**. 3D — Three.js, UI — React (предложение; можно Svelte).
+Стек: **TypeScript + Tauri 2**. 3D — Three.js, UI — React.
 Движок — отдельный пакет без UI. Всё заменяемое — паки с приоритетами.
 Импортёр остаётся на Python: на JS нет надёжного читателя ассетов Unity.
 
@@ -15,20 +15,19 @@
 - ✅ 3D-прототип (Three.js): оригинальные тайлы, жетоны, облака, частицы, боевое поле.
 - ✅ Перенос рабочих материалов на ПК, рабочий процесс (`WORKFLOW.md`).
 
-## Этап 1 — Основа репозитория ⏳
-1. Монорепо (pnpm workspaces):
-   - `packages/engine`, `packages/schema`, `packages/content-tools`;
-   - `apps/app` (Tauri + React + Vite);
+## Этап 1 — Основа репозитория 🔄
+1. ✅ Монорепо (pnpm 10 workspaces):
+   - `packages/schema`, `packages/engine`, `packages/content-tools`;
+   - `apps/app` (Tauri 2 + React 18 + Vite 6): каркас, иконки, сборка фронтенда проверена в VM;
    - `tools/importer` (Python).
-2. **Формат пака** `packs/<id>/pack.json` — id, версия, приоритет, зависимости. Типы содержимого:
-   - `scenario` — приключения, встречи, модели;
-   - `lang` — CSV ключ→текст;
-   - `voice` — mp3 по ключу;
-   - `theme` — CSS-переменные, картинки, шрифты;
-   - `models` — glTF;
-   - `rules`.
-3. JSON Schema для сценариев (формат FFG + наши расширения) с версией. Импортёр пишет пак `core-ffg` в `data/packs/`.
-4. CI-скрипты: `npm test` (движок), `npm run fuzz` (бот по всем приключениям).
+   - TS запускается без сборки (Node ≥ 22.18, type stripping), тесты — `node --test`.
+2. ✅ **Формат пака** `pack.json` (`docs/PACKS.md`): id, версия, приоритет, зависимости, `origin`. Слои: зависимости → приоритет. Типы `scenario`, `lang` работают; `voice`, `theme`, `models`, `rules` — только в схеме.
+3. ✅ JSON Schema: `pack`, `scenario` (конверт над FFG prefab+FSM), `db`; `formatVersion: 1`. `make_pack.py` пишет `data/packs/core-ffg`: 72 + 680 сценариев, en/ru/it. Валидация: 753 файла, 0 ошибок.
+4. 🔄 CI-скрипты:
+   - ✅ `pnpm test` — 12 тестов;
+   - ✅ `pnpm fuzz` — пока обёртка над `engine-py`;
+   - ⏳ GitHub Actions;
+   - ⏳ проверить `pnpm install` / `pnpm tauri dev` на Windows (пользователь).
 
 ## Этап 2 — Движок на TypeScript ⏳
 1. Перенос `engine-py` в `packages/engine`:
@@ -72,10 +71,10 @@
 - 💡 Сетевая игра / несколько устройств за столом.
 
 ## Открытые решения (за пользователем)
-- [ ] Окончательно: React или Svelte (по умолчанию React).
-- [ ] Название проекта и лицензия кода (предложение: MIT для своего кода; GPL только если берём код Your Journey).
-- [ ] Основное устройство за столом: ПК или планшет (влияет на разметку UI).
-- [ ] Приватный репозиторий на GitHub (удобно для облачных сессий).
+- [x] UI: React.
+- [x] Лицензия кода: MIT. Название пока рабочее — «JiME Reborn».
+- [x] Устройство за столом: ПК и планшет одинаково → адаптивная разметка, цели касания ≥ 48 px, без hover-only действий.
+- [x] Репозиторий GitHub: https://github.com/niklot47/JiME (сделать приватным).
 
 ## Журнал
 - 12.10.2026:
@@ -83,3 +82,9 @@
   - 3D-прототип;
   - выбор стека (предложен TS + Tauri);
   - перенос всего на ПК (`D:\JiME_Claude`).
+- 12.10.2026 (вечер): репозиторий выложен на GitHub (коммит 336bfbe). Следующая сессия начинается с Этапа 1.
+- 12.10.2026 (ночь), Этап 1:
+  - монорепо pnpm, пакеты schema / engine / content-tools, каркас Tauri + React;
+  - формат пака и схемы, пак `core-ffg` проходит валидацию;
+  - решения: React, MIT, ПК + планшет;
+  - `tools/vm-node.sh` — JS в VM без `node_modules` в репозитории.

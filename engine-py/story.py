@@ -2,7 +2,7 @@
 import sys, re, json, os
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from engine import Game
-LOC = json.load(open(os.path.join(os.environ.get("JIME_WORK", os.path.expanduser("~/jime")), "out", "loc.json"), encoding="utf-8"))
+LOC = json.load(open(os.path.join(os.environ.get("JIME_WORK", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")), "out", "loc.json"), encoding="utf-8"))
 L = {}
 for k, v in LOC.items(): L.setdefault(k.split("|", 1)[1], v)
 def tr(key, lang):

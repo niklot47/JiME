@@ -1,0 +1,3 @@
+{ "formatVersion": 1, "id": "addon", "version": "0.1.0", "priority": -5,
+  "dependencies": { "base": "^1.0.0" },
+  "contents": [{ "type": "lang", "lang": "ru", "path": "lang/ru.csv" }] }

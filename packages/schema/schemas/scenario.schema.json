@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jime.local/schemas/scenario.schema.json",
+  "title": "JiME scenario file (adventure or encounter), FFG prefab + PlayMaker FSM format",
+  "type": "object",
+  "required": ["format", "formatVersion", "kind", "id", "root", "gameObjects", "fsms", "model"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "jime-scenario" },
+    "formatVersion": { "const": 1 },
+    "kind": { "enum": ["adventure", "encounter"] },
+    "id": { "type": ["integer", "string"] },
+    "source": { "enum": ["ffg", "custom"] },
+    "root": { "type": "integer" },
+    "model": { "type": "object", "description": "FFG ScriptableObject model (AdventureModel / EncounterModel), fields as exported" },
+    "gameObjects": {
+      "type": "object",
+      "propertyNames": { "pattern": "^-?\\d+$" },
+      "additionalProperties": { "$ref": "#/definitions/gameObject" }
+    },
+    "fsms": { "type": "array", "items": { "$ref": "#/definitions/fsm" } },
+    "ext": { "type": "object", "description": "Our extensions (not present in FFG data); keyed by feature name" }
+  },
+  "definitions": {
+    "gameObject": {
+      "type": "object",
+      "required": ["name", "parent", "components"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "parent": { "type": ["integer", "null"] },
+        "components": { "type": "object", "description": "Unity component name -> serialized fields (or list for repeated components)" }
+      }
+    },
+    "fsm": {
+      "type": "object",
+      "required": ["name", "start", "states", "variables", "global", "go"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "start": { "type": "string" },
+        "go": { "type": "integer", "description": "Owning gameObject id" },
+        "variables": {
+          "type": "object",
+          "additionalProperties": { "type": ["integer", "number", "string", "boolean", "object", "array", "null"] }
+        },
+        "global": {
+          "type": "object",
+          "description": "Global event name -> state that receives it",
+          "additionalProperties": { "type": "string" }
+        },
+        "states": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/state" } }
+      }
+    },
+    "state": {
+      "type": "object",
+      "required": ["name", "transitions", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "transitions": { "type": "object", "description": "event -> target state", "additionalProperties": { "type": "string" } },
+        "actions": { "type": "array", "items": { "$ref": "#/definitions/action" } }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["action", "enabled", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "type": "string", "description": "PlayMaker action class name (FFG or ours, ours prefixed 'X')" },
+        "enabled": { "type": "boolean" },
+        "params": { "type": "object" }
+      }
+    }
+  }
+}

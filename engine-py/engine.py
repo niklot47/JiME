@@ -1,7 +1,7 @@
 # Prototype interpreter for exported JiME scenario data (PlayMaker FSM semantics + simplified board/enemies)
 import json, os, random, re, collections, copy
 
-EXPORT = os.path.join(os.environ.get("JIME_WORK", os.path.expanduser("~/jime")), "export")
+EXPORT = os.path.join(os.environ.get("JIME_WORK", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")), "export")
 _DB = None
 def db():
     global _DB

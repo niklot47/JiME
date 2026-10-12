@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jime.local/schemas/db.schema.json",
+  "title": "JiME content database (models, standard tiles, global variables)",
+  "type": "object",
+  "required": ["format", "formatVersion", "models", "standardTiles", "globals"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "jime-db" },
+    "formatVersion": { "const": 1 },
+    "models": {
+      "type": "object",
+      "description": "Model type (AdventureModel, HeroModel, ...) -> id -> fields",
+      "additionalProperties": { "type": "object", "additionalProperties": { "type": "object" } }
+    },
+    "standardTiles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["model", "spaces"],
+        "properties": {
+          "model": { "type": "object" },
+          "spaces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["traits", "connected"],
+              "properties": {
+                "traits": { "type": "integer" },
+                "connected": { "type": "array", "items": { "type": "integer" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "globals": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "value"],
+        "properties": {
+          "type": { "enum": ["bool", "int", "float", "string", "vector3", "array"] },
+          "value": {}
+        }
+      }
+    }
+  }
+}
