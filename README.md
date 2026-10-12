@@ -1,5 +1,7 @@
 # JiME Reborn (рабочее название)
 
+[![CI](https://github.com/niklot47/JiME/actions/workflows/ci.yml/badge.svg)](https://github.com/niklot47/JiME/actions/workflows/ci.yml)
+
 Лицензия кода: MIT (`LICENSE`). Контент FFG под неё не подпадает.
 
 Фанатский движок-компаньон для «Властелин колец: Путешествия по Средиземью» (Journeys in Middle-earth, FFG).

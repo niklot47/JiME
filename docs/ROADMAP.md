@@ -15,7 +15,7 @@
 - ✅ 3D-прототип (Three.js): оригинальные тайлы, жетоны, облака, частицы, боевое поле.
 - ✅ Перенос рабочих материалов на ПК, рабочий процесс (`WORKFLOW.md`).
 
-## Этап 1 — Основа репозитория 🔄
+## Этап 1 — Основа репозитория ✅
 1. ✅ Монорепо (pnpm 10 workspaces):
    - `packages/schema`, `packages/engine`, `packages/content-tools`;
    - `apps/app` (Tauri 2 + React 18 + Vite 6): каркас, иконки, сборка фронтенда проверена в VM;
@@ -23,10 +23,10 @@
    - TS запускается без сборки (Node ≥ 22.18, type stripping), тесты — `node --test`.
 2. ✅ **Формат пака** `pack.json` (`docs/PACKS.md`): id, версия, приоритет, зависимости, `origin`. Слои: зависимости → приоритет. Типы `scenario`, `lang` работают; `voice`, `theme`, `models`, `rules` — только в схеме.
 3. ✅ JSON Schema: `pack`, `scenario` (конверт над FFG prefab+FSM), `db`; `formatVersion: 1`. `make_pack.py` пишет `data/packs/core-ffg`: 72 + 680 сценариев, en/ru/it. Валидация: 753 файла, 0 ошибок.
-4. 🔄 CI-скрипты:
+4. ✅ CI-скрипты:
    - ✅ `pnpm test` — 12 тестов;
    - ✅ `pnpm fuzz` — пока обёртка над `engine-py`;
-   - ⏳ GitHub Actions;
+   - ✅ GitHub Actions (`.github/workflows/ci.yml`): Ubuntu + Windows — typecheck, тесты, сборка фронтенда; проверка синтаксиса Python. Без контента FFG;
    - ✅ Windows: `pnpm install`, `pnpm test`, `pnpm dev`, `pnpm tauri dev` работают (Rust + VS Build Tools C++).
 
 ## Этап 2 — Движок на TypeScript ⏳
@@ -88,4 +88,4 @@
   - формат пака и схемы, пак `core-ffg` проходит валидацию;
   - решения: React, MIT, ПК + планшет;
   - `tools/vm-node.sh` — JS в VM без `node_modules` в репозитории.
-- 13.10.2026: Этап 1 проверен на Windows — окно Tauri запускается. Исправлен путь фикстур в тесте (URL.pathname → fileURLToPath). Осталось: GitHub Actions.
+- 13.10.2026: Этап 1 проверен на Windows — окно Tauri запускается. Исправлен путь фикстур в тесте (URL.pathname → fileURLToPath). Добавлен GitHub Actions — Этап 1 закрыт. Следующий шаг: Этап 2 (FSM-ядро на TS + загрузка core-ffg, сверка с Python на A1).
