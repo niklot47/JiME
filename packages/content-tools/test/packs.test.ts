@@ -46,3 +46,12 @@ test("missing, incompatible and cyclic dependencies throw", () => {
   assert.throws(() => resolvePacks([fake("aa", 0, { bb: "^2.0.0" }), fake("bb", 0)]), /needs/);
   assert.throws(() => resolvePacks([fake("aa", 0, { bb: "*" }), fake("bb", 0, { aa: "*" })]), /cycle/);
 });
+
+import { TextDb } from "../src/text.ts";
+
+test("TextDb formats inserts, nested keys and markup", () => {
+  const t = new TextDb([["Main|SPAWN", "Place {0} {1}.\\nDone"], ["Main|ORC", "[i]orcs[/i]"], ["Adv|A1", "x"]]);
+  assert.equal(t.format("SPAWN", ["2", "ORC"], { markup: "strip" }), "Place 2 orcs.\nDone");
+  assert.equal(t.format("Adv|A1"), "x");
+  assert.equal(t.format("MISSING", ["1"]), "MISSING(1)");
+});

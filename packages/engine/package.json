@@ -4,12 +4,18 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "play": "node cli/play.ts"
   },
   "dependencies": {
     "@jime/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@jime/content-tools": "workspace:*"
   }
 }

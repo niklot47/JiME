@@ -39,10 +39,8 @@ export class EndGame extends Error {}
 export const NODE_KINDS = ["Encounter", "Explore", "Threat", "Terrain", "Darkness", "Difficult", "Fortified"];
 
 // ---------------------------------------------------------------- FSM instance
-let fsmIds = 0;
-
 export class Fsm {
-  readonly id = ++fsmIds;
+  readonly id: number;
   readonly name: string;
   vars: Record<string, any>;
   readonly states = new Map<string, any>();
@@ -58,6 +56,7 @@ export class Fsm {
   readonly owner: Obj;
 
   constructor(game: Game, data: any, owner: Obj) {
+    this.id = game.nextId();
     this.game = game;
     this.data = data;
     this.owner = owner;
@@ -145,6 +144,8 @@ export class Obj {
   visible = false;
   node: GameNode | null = null;
   enemyGroup: EnemyGroup | null = null;
+  /** AddThreatEvent override; source prefab data is never mutated (replays reuse it) */
+  threatThreshold: number | null = null;
   readonly game: Game;
   readonly src: string;
   readonly pid: number;
@@ -208,10 +209,8 @@ export class GameNode {
   }
 }
 
-let groupUid = 0;
-
 export class EnemyGroup {
-  readonly uid = ++groupUid;
+  readonly uid: number;
   unitHp: number;
   damage = 0;
   exhausted = false;
@@ -221,7 +220,8 @@ export class EnemyGroup {
   size: number;
   readonly logic: Obj | null;
 
-  constructor(model: any, size: number, logic: Obj | null = null) {
+  constructor(uid: number, model: any, size: number, logic: Obj | null = null) {
+    this.uid = uid;
     this.model = model;
     this.size = size;
     this.logic = logic;
@@ -258,7 +258,10 @@ export interface GameOptions {
   seed?: number;
   players?: number;
   difficulty?: Difficulty;
-  bot?: Bot;
+  /** Who answers decisions: Bot (default), a human via Session, a recorder ... */
+  player?: Player;
+  /** Rounds before the game stops with ended = "max_rounds" */
+  maxRounds?: number;
   campaign?: Campaign;
   logRoundPrefix?: number;
 }
@@ -272,7 +275,8 @@ export class Game {
   readonly model: any;
   readonly players: number;
   readonly difficulty: Difficulty;
-  readonly bot: Bot;
+  readonly player: Player;
+  private ids = 0;
   readonly log: LogEntry[] = [];
   readonly warnings = new Counter();
   readonly coverage = new Counter();
@@ -309,6 +313,7 @@ export class Game {
 
   readonly src: ContentSource;
   readonly advId: number;
+  readonly maxRounds: number;
 
   constructor(src: ContentSource, advId: number, opts: GameOptions = {}) {
     this.src = src;
@@ -320,8 +325,9 @@ export class Game {
     this.model = this.adv.model;
     this.players = opts.players ?? 2;
     this.difficulty = opts.difficulty ?? "adventure";
-    this.bot = opts.bot ?? new Bot(this.rng);
+    this.player = opts.player ?? new Bot(this.rng);
     this.advIndex = opts.logRoundPrefix ?? 1;
+    this.maxRounds = opts.maxRounds ?? 40;
     this.campaign = opts.campaign ?? newCampaign();
     for (const k of keysOf(this.D.globals)) this.globals[k] = structuredClone(this.D.globals[k].value);
     for (const [k, v] of Object.entries(this.campaign.flags)) this.globals[k] = v;
@@ -342,6 +348,10 @@ export class Game {
   }
 
   // ------------------------------------------------------------ helpers
+  nextId(): number {
+    return ++this.ids;
+  }
+
   warn(msg: string): void {
     this.warnings.inc(msg);
   }
@@ -861,7 +871,7 @@ export class Game {
   }
 
   spawnGroup(m: any, size: number, logic: Obj | null = null): EnemyGroup {
-    const g = new EnemyGroup(m, size, logic);
+    const g = new EnemyGroup(this.nextId(), m, size, logic);
     this.enemies.push(g);
     this.emit("UI_SPAWN_GROUP_FORMAT", size, this.enemyName(m, size));
     if (logic !== null) logic.enemyGroup = g;
@@ -949,7 +959,7 @@ export class Game {
     if (this.advFsm && this.advFsm.usesEvent(ev)) this.advFsm.send(ev);
   }
 
-  run(maxRounds = 40): this {
+  run(maxRounds = this.maxRounds): this {
     try {
       for (const f of this.allFsms) f.start();
       this.processRoot("SCENARIO_BEGIN");
@@ -986,7 +996,9 @@ export class Game {
           ...this.enemies.map((g): Option => ["attack", g]),
         ];
         if (!opts.length) break;
-        const [kind, x] = this.bot.pickAction(this, opts);
+        const pick = this.player.pickAction(this, hero, opts);
+        if (pick === null) break; // hero ends their turn early (bot never does)
+        const [kind, x] = pick;
         if (kind === "node") {
           for (const fs of (x as GameNode).obj.fsms) if (fs.canHandle("NODE CLICKED")) { fs.send("NODE CLICKED"); break; }
         } else if (kind === "explore") {
@@ -998,7 +1010,7 @@ export class Game {
           this.explore(x as Tile);
         } else {
           const g = x as EnemyGroup;
-          g.damage += this.rng.randint(1, 4);
+          g.damage += this.player.attackDamage(this, g);
           if (g.damage >= g.unitHp) {
             const killed = Math.floor(g.damage / g.unitHp);
             g.size -= killed;
@@ -1029,7 +1041,7 @@ export class Game {
     this.emit("UI_THREAT_INCREASE", delta);
     this.globals.Threat += delta;
     for (;;) {
-      const thr = (o: Obj) => o.components.ThreatEvent.Threshold;
+      const thr = (o: Obj) => o.threatThreshold ?? o.components.ThreatEvent.Threshold;
       const due = this.activeThreatEvents.filter((o) => thr(o) <= this.globals.Threat).sort((a, b) => thr(a) - thr(b));
       if (!due.length) break;
       const o = due[0]!;
@@ -1044,7 +1056,7 @@ export class Game {
         const lm = this.D.models.LastStandModel[phys ? "1" : "2"];
         const key = this.rng.choice(lm.MessageKeys);
         this.emit(key, this.rng.randint(1, 3));
-        if (this.bot.lastStand(this)) {
+        if (this.player.lastStand(this, this.heroes.indexOf(h), phys)) {
           this.emit("UI_PASS");
           this.emit(phys ? "UI_LAST_STAND_PASSED_PHYSICAL" : "UI_LAST_STAND_PASSED_FEAR");
           h.damage = h.fear = 4;
@@ -1065,9 +1077,30 @@ export class Game {
 
 export type Option = ["node", GameNode] | ["explore", Tile] | ["attack", EnemyGroup];
 
+/**
+ * Everything the players decide. Called synchronously from deep inside the interpreter;
+ * an interactive implementation throws NeedInput (see session.ts) and the game is replayed later.
+ */
+export interface Player {
+  /** Skill test: how many successes the players rolled (top = highest threshold of interest) */
+  successes(g: Game, top: number, key: any): number;
+  /** Confirm/cancel dialog */
+  confirm(g: Game, key: any): boolean;
+  /** Multiple choice: one of `choices`, or null = cancel (only if canCancel) */
+  choose(g: Game, key: any, choices: any[], canCancel: boolean): any;
+  /** "Choose a hero" dialog */
+  playerChoice(g: Game, key: any, canSkip: boolean): { player: number; skip: boolean };
+  /** Last stand test result */
+  lastStand(g: Game, hero: number, physical: boolean): boolean;
+  /** Hero action, or null to end this hero's turn */
+  pickAction(g: Game, hero: number, opts: Option[]): Option | null;
+  /** Damage dealt by an attack on an enemy group */
+  attackDamage(g: Game, group: EnemyGroup): number;
+}
+
 // ---------------------------------------------------------------- bot
 /** Random-but-sensible player: answers dialogs and chooses hero actions */
-export class Bot {
+export class Bot implements Player {
   readonly rng: PyRandom;
   readonly passBias: number;
 
@@ -1081,7 +1114,12 @@ export class Bot {
     return this.rng.random() < this.passBias ? this.rng.randint(top - 1, top + 1) : this.rng.randint(0, Math.max(0, top - 1));
   }
 
-  lastStand(_g: Game): boolean {
+  playerChoice(g: Game, _key: any, canSkip: boolean): { player: number; skip: boolean } {
+    const player = this.rng.randrange(g.players);
+    return { player, skip: canSkip && this.rng.random() < 0.2 };
+  }
+
+  lastStand(_g: Game, _hero: number, _physical: boolean): boolean {
     return this.rng.random() < 0.6;
   }
 
@@ -1094,8 +1132,12 @@ export class Bot {
     return this.rng.choice(choices);
   }
 
-  pickAction(_g: Game, opts: Option[]): Option {
+  pickAction(_g: Game, _hero: number, opts: Option[]): Option {
     const W = { node: 5, explore: 3, attack: 4 } as const;
     return this.rng.choices(opts, opts.map(([k]) => W[k]));
+  }
+
+  attackDamage(_g: Game, _group: EnemyGroup): number {
+    return this.rng.randint(1, 4);
   }
 }

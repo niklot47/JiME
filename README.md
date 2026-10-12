@@ -48,7 +48,8 @@ pnpm test                 # тесты пакетов (node --test, TS без с
 pnpm packs:build          # data/export → data/packs/core-ffg
 pnpm packs:validate       # проверка всех паков по схемам
 pnpm fuzz                 # бот по всем 72 приключениям (TS, ~10 с)
-pnpm play 1 7             # одна партия A1 с сидом 7
+pnpm play 1 7             # сыграть A1 (сид 7) в терминале на русском
+pnpm play:bot 1 7         # та же партия ботом
 pnpm parity               # сверка TS-движка с engine-py
 pnpm dev                  # интерфейс в браузере, http://localhost:1420
 pnpm tauri dev            # то же в окне Tauri

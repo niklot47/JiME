@@ -82,13 +82,13 @@ export const ACTIONS: Record<string, ActionHandler> = {
     g.show(f, gd(p, "Message"));
     const pairs: any[] = or(gd(p, "ResultPairs"), []);
     const top = Math.max(...pairs.map((x) => g.num(f, gd(x, "Sum", 0))), 0);
-    const s = g.bot.successes(g, top, showKey(p));
+    const s = g.player.successes(g, top, showKey(p));
     g.set(f, gd(p, "Sum"), s);
     for (const x of pairs) if (s <= g.num(f, gd(x, "Sum", 0))) return gd(x, "Event");
     return pairs.length ? gd(pairs[pairs.length - 1], "Event") : null;
   },
   DisplayMessageCancelConfirm: (g, f, p) => {
-    if (g.bot.confirm(g, showKey(p))) {
+    if (g.player.confirm(g, showKey(p))) {
       g.show(f, gd(p, "Message"));
       g.emit(or(keyOf(gd(p, "ConfirmLabel")), "UI_CONFIRM"));
       return "CONFIRM";
@@ -98,7 +98,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
   DisplayMessageMultipleChoice: (g, f, p) => {
     const choices = or(gd(p, "Choices"), []).filter((c: any) => !truthy(gd(c, "HasDependencies")) || g.boolean(f, gd(c, "Requirement")));
     const cancel = or(gd(p, "CancelChoice"), {});
-    const c = g.bot.choose(g, showKey(p), choices, truthy(gd(cancel, "Event")));
+    const c = g.player.choose(g, showKey(p), choices, truthy(gd(cancel, "Event")));
     if (c === null) return gd(cancel, "Event");
     g.show(f, gd(p, "Message"));
     g.emit(keyOf(gd(c, "Localization")));
@@ -106,8 +106,9 @@ export const ACTIONS: Record<string, ActionHandler> = {
   },
   DisplayMessagePlayerChoice: (g, f, p) => {
     g.show(f, gd(p, "Message"));
-    g.set(f, gd(p, "PlayerIndex"), g.rng.randrange(g.players));
-    if (truthy(gd(p, "CanSkip")) && g.rng.random() < 0.2) return gd(p, "SkipEvent");
+    const r = g.player.playerChoice(g, showKey(p), truthy(gd(p, "CanSkip")));
+    g.set(f, gd(p, "PlayerIndex"), r.player);
+    if (r.skip) return gd(p, "SkipEvent");
   },
   DisplayMessageSelectHighlight: (g, f, p) => { g.show(f, gd(p, "Message")); },
   SetObjective: (g, _f, p) => { g.objective = keyOf(gd(p, "Message")); },
@@ -235,7 +236,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
   AddThreatEvent: (g, f, p) => {
     const o = g.objRef(f.owner.src, gd(p, "ThreatEvent"));
     if (o === null) return;
-    if (truthy(gd(p, "OverrideDefaultThreat"))) o.components.ThreatEvent.Threshold = g.num(f, gd(p, "ThreatValue"));
+    if (truthy(gd(p, "OverrideDefaultThreat"))) o.threatThreshold = g.num(f, gd(p, "ThreatValue"));
     if (!g.activeThreatEvents.includes(o)) g.activeThreatEvents.push(o);
   },
   RemoveThreatEvent: (g, f, p) => {

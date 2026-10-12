@@ -19,7 +19,8 @@
     "tauri": "pnpm --filter @jime/app tauri",
     "fuzz:py": "node scripts/run-python.mjs engine-py/fuzz_all.py 10",
     "parity": "node packages/engine/cli/parity.ts all 0 5",
-    "play": "node packages/engine/cli/run.ts"
+    "play": "node packages/engine/cli/play.ts",
+    "play:bot": "node packages/engine/cli/run.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

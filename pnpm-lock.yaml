@@ -60,6 +60,10 @@ importers:
       '@jime/schema':
         specifier: workspace:*
         version: link:../schema
+    devDependencies:
+      '@jime/content-tools':
+        specifier: workspace:*
+        version: link:../content-tools
 
   packages/schema:
     dependencies:
