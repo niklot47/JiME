@@ -1,7 +1,8 @@
 // Top and bottom of the original's game screen (UI_Game) from the exported layout, driven like UIThreatMeter /
 // UI_Game (decompiled code): threat value "cur/max" (UI_THREAT_VALUE_FORMATTED), markers at percentage * 594 along
 // Widget_ThreatEvents (yellow until reached, then red), darkness token, objective; party, settings, end-round and
-// provoke buttons; the enemy bar. The threat fill itself is a 3D mesh in the game: drawn here inside the meter.
+// provoke buttons; the enemy bar with one EnemyMiniView per group (UI_Game.EnemyMenu: the miniview prefab is not in
+// the scene, the enemy dialog's one is reused in Grid_Enemies). The threat fill itself is a 3D mesh in the game: drawn here inside the meter.
 import type { GameView } from "@jime/engine";
 import { assetUrl } from "../../data/pack.ts";
 import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
@@ -13,10 +14,26 @@ const RED = [191 / 255, 28 / 255, 28 / 255, 1];
 // the fill's span inside the 744-wide meter: Widget_ThreatEvents (-335.4) .. +594
 const FILL_LEFT = (372 - 335.4) / 744, FILL_W = TRACK / 744;
 
-export function NguiHud({ layout, atlas, art, say, view, canEndRound, endTitle, onParty, onSettings, onEndRound }: {
-  layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; say: Say; view: GameView; canEndRound: boolean; endTitle: string;
-  onParty: () => void; onSettings: () => void; onEndRound: () => void;
+/** The layout with the enemy dialog's EnemyMiniView copied into the enemy bar's (runtime-filled) Grid_Enemies */
+const withMiniView = new WeakMap<UiLayoutFile, UiLayoutFile>();
+function hudLayout(layout: UiLayoutFile): UiLayoutFile {
+  let l = withMiniView.get(layout);
+  if (l) return l;
+  const mini = findNode(layout.root, "Sprite_TopInfo/EnemyMiniView");
+  const copy = (n: UiNode): UiNode => n.n === "Grid_Enemies" && mini
+    ? { ...n, ch: [{ ...structuredClone(mini), p: [0, 0], tw: undefined, on: true }] }
+    : n.ch ? { ...n, ch: n.ch.map(copy) } : n;
+  l = { ...layout, root: copy(layout.root) };
+  withMiniView.set(layout, l);
+  return l;
+}
+
+export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, onParty, onSettings, onEndRound, onEnemy }: {
+  layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; enemyArt: Record<string, string>; say: Say; view: GameView;
+  canEndRound: boolean; endTitle: string; attackable: Set<number>;
+  onParty: () => void; onSettings: () => void; onEndRound: () => void; onEnemy: (uid: number) => void;
 }) {
+  const layout = hudLayout(base);
   const game = findNode(layout.root, "UI_Game");
   if (!game) return null;
   const pick = (name: string) => (game.ch ?? []).find((c) => c.n === name) ?? findNode(game, name);
@@ -63,7 +80,18 @@ export function NguiHud({ layout, atlas, art, say, view, canEndRound, endTitle, 
     Button_HeroMenu: { onClick: onParty, title: "Отряд: статус, хроника, снаряжение" },
     Button_EndRound: { onClick: onEndRound, disabled: !canEndRound, title: endTitle, className: canEndRound ? "ng-ready" : "" },
     Button_Provoke: { disabled: true, title: "Провокация (пока не реализована)" },
-    EnemiesScrollView: { show: false },
+    // EnemyMiniView per group: portrait (grey when exhausted), elite frame, ranged mark, highlight while attackable
+    EnemyMiniView: {
+      show: view.enemies.length > 0, step: [105, 0],
+      clones: view.enemies.map((e) => ({
+        EnemyMiniView: { onClick: () => onEnemy(e.uid), title: `${say(e.name) || e.name}${e.size > 1 ? ` ×${e.size}` : ""}` },
+        SpriteEnemy: { tex: enemyArt[String(e.model)], color: e.exhausted ? [0.5, 0.5, 0.5, 1] : undefined },
+        SpriteHighlight: { show: attackable.has(e.uid) },
+        Sprite_UniqueId_Background: { show: false },
+        Sprite_EliteFrame: { show: e.named },
+        Sprite_Ranged: { show: e.ranged },
+      })),
+    },
   };
   for (let i = 1; i < 10; i++) b[`Widget_ThreatMarker (${i})`] = { show: false };
   return <NguiView layout={layout} atlas={atlas} show={show} binds={b} say={say} className="ngui-hud" />;

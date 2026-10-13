@@ -29,6 +29,8 @@ export interface Bind {
   pv?: number;
   /** label alignment override (NGUIText.Alignment) */
   al?: number;
+  /** UIGrid cell size override (e.g. EnemyHealthBar: 350 / max health) */
+  cell?: [number, number];
   /** replace the transform position (UI units, y up) */
   at?: [number, number];
   className?: string;
@@ -78,16 +80,15 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
-      parent: string, at?: [number, number]) => {
-      // "Parent/Child" binds win over "Child" (names repeat across dialogs)
-      const b = bs[`${parent}/${n.n}`] ?? bs[n.n] ?? {};
+      anc: string[], at?: [number, number]) => {
+      const b = bindOf(bs, anc, n.n);
       const entering = !inc && include.has(n.id);
       if (entering) { inc = true; active = true; }
       if (b.clones && !key.endsWith("#")) {
         b.clones.forEach((cb, i) => {
           const step = b.step ?? [0, 0];
           const nb: Binds = { ...bs, ...cb, [n.n]: { ...b, ...(cb[n.n] ?? {}), clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (cb[n.n]?.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (cb[n.n]?.dy ?? 0) } };
-          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, parent, at);
+          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at);
         });
         return;
       }
@@ -133,16 +134,21 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
             z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW });
         }
       } else {
-        // a panel without clipping covers the screen; a bare transform is a point
-        const r0 = n.panel && !n.panel.clip ? screen : { l: x, r: x, b: y, t: y };
+        // a panel without clipping covers the screen, a clipping one its clip region (moved by the clip offset, e.g. a
+        // scrolled UIScrollView); a bare transform is a point
+        const c = n.panel?.clip, co = n.panel?.off ?? [0, 0];
+        const r0 = n.panel && !c ? screen
+          : c ? { l: x + (co[0] + c[0] - c[2] / 2) * sx, r: x + (co[0] + c[0] + c[2] / 2) * sx, b: y + (co[1] + c[1] - c[3] / 2) * sy, t: y + (co[1] + c[1] + c[3] / 2) * sy }
+          : { l: x, r: x, b: y, t: y };
         rects.set(n.id, r0);
         if (n.tr) rects.set(n.tr, r0);
       }
       const kids = n.ch ?? [];
-      const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => (bs[`${n.n}/${c.n}`] ?? bs[c.n])?.show ?? (all && inc ? true : c.on ?? true))) : null;
-      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, n.n, places?.[i] ?? undefined));
+      const na = [...anc, n.n];
+      const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => bindOf(bs, na, c.n).show ?? (all && inc ? true : c.on ?? true)), b.cell) : null;
+      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined));
     };
-    visit(root, 0, 0, 1, 1, 0, true, binds, "", false, "");
+    visit(root, 0, 0, 1, 1, 0, true, binds, "", false, []);
   };
   run(false); // targets laid out once, so anchors can point at later nodes too
   run(true);
@@ -153,7 +159,10 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
 function restState(n: UiNode): { p?: [number, number]; s?: [number, number]; w?: number; h?: number } {
   const out: { p?: [number, number]; s?: [number, number]; w?: number; h?: number } = {};
   for (const t of n.tw ?? []) {
-    if (t.style !== 0 || t.to === null || t.to === undefined) continue;
+    // only plain one-shot entrance tweens: tween groups are state toggles played by UIPlayTween (e.g. the enemy dialog
+    // sliding aside for the combat panel), a scale from 1 is a hover / pulse
+    if (t.style !== 0 || t.to === null || t.to === undefined || t.group !== 0) continue;
+    if (t.k === "scale" && Array.isArray(t.from) && t.from[0] === 1) continue;
     // per axis: only when the saved value is the tween's start (scripts often rewrite from/to before playing,
     // e.g. TitleLogoAnimation keeps x and tweens y), otherwise the saved value is already the rest state
     const at = (saved: number, from: unknown, to: unknown) => (typeof from === "number" && typeof to === "number" && Math.abs(saved - from) < 1 ? to : saved);
@@ -166,10 +175,22 @@ function restState(n: UiNode): { p?: [number, number]; s?: [number, number]; w?:
   return out;
 }
 
+/**
+ * Bind of a node: "Ancestor//Name" (nearest ancestor first) > "Parent/Name" > "Name". Names repeat across dialogs and
+ * inside repeated parts (the three enemy health bars), so a bind can be scoped to an ancestor.
+ */
+function bindOf(bs: Binds, anc: string[], name: string): Bind {
+  for (let i = anc.length - 1; i >= 0; i--) {
+    const b = bs[`${anc[i]}//${name}`];
+    if (b) return b;
+  }
+  return bs[`${anc[anc.length - 1] ?? ""}/${name}`] ?? bs[name] ?? {};
+}
+
 /** UIGrid.ResetPosition: active children laid out by cell, line by line, then shifted to the grid's pivot */
-function gridPlaces(n: UiNode, active: boolean[]): ([number, number] | null)[] {
+function gridPlaces(n: UiNode, active: boolean[], cell?: [number, number]): ([number, number] | null)[] {
   const g = n.grid!;
-  const [cw, ch] = g.cell;
+  const [cw, ch] = cell ?? g.cell;
   const horizontal = g.arr !== 1;
   const list = (n.ch ?? []).map((c, i) => i).filter((i) => !g.hide || active[i]);
   if (g.sort === 1) list.sort((a, b) => n.ch![a]!.n.localeCompare(n.ch![b]!.n));

@@ -28,6 +28,8 @@ export interface UiWidget {
   pv: number;
   d: number;
   c?: number[];
+  /** _Color of the widget's custom material (UITexture.mMat) */
+  mc?: number[];
   an?: Anchor[];
   /** sprite type: 0 simple, 1 sliced, 2 tiled, 3 filled */
   t?: number;
@@ -65,7 +67,7 @@ export interface UiNode {
   s?: [number, number];
   r?: number;
   w?: UiWidget;
-  panel?: { d: number; clip: [number, number, number, number] | null };
+  panel?: { d: number; clip: [number, number, number, number] | null; off?: [number, number] };
   btn?: { hover: number[] | null; pressed: number[] | null; disabled: number[] | null; dur: number; target?: number };
   tw?: UiTween[];
   loc?: string;

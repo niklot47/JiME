@@ -396,7 +396,3 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui .ng-ready { animation: end-ready 2.2s ease-in-out infinite; }
 .ngui .ng-threat-img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* medallions over the NGUI enemy bar: EnemiesScrollView starts 173 UI units from the bar's left (bar: 100 from the screen edge) */
-.bottombar.tracker-only { z-index: 5; }
-.bottombar.tracker-only .enemybar { background: none; left: calc(273 * 100vh / 720); right: 140px; height: 0; }
-.bottombar.tracker-only .tracker { left: 0; right: 0; bottom: calc(8 * 100vh / 720); }
-.bottombar.tracker-only .tracker .medal { width: calc(100 * 100vh / 720); height: calc(100 * 100vh / 720); }

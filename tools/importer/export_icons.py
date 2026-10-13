@@ -20,7 +20,7 @@ def load_res(path):
     o = f.objects.get(ref["m_PathID"])
     if o is None: return None
     if o.type.name == "Sprite":
-        return o.read().image
+        return sprite_image(o.read())
     if o.type.name == "Texture2D":
         return o.read().image
     return None

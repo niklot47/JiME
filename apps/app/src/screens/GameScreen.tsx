@@ -16,6 +16,7 @@ import { BottomBar, GearButton, PhaseBanner, ThreatBar } from "./game/Hud.tsx";
 import { NguiMessage } from "./game/NguiMessage.tsx";
 import { NguiHud } from "./game/NguiHud.tsx";
 import type { UiLayoutFile } from "../ngui/types.ts";
+import { NguiEnemy } from "./game/NguiEnemy.tsx";
 import { DecisionDialog, EnemyInfoDialog, GameOverDialog, GreenButton, MessageDialog, PartyDialog, SettingsDialog } from "./game/Dialogs.tsx";
 
 const AUTOSAVE = "jime.autosave";
@@ -204,6 +205,15 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [unread, setUnread] = useState<LogEntry[]>([]);
   const [modal, setModal] = useState<null | "party" | "settings">(null);
   const [enemyInfo, setEnemyInfo] = useState<number | null>(null);
+  // the NGUI combat card resolves the hits itself: the attack action is answered, then its damage question
+  const attackHits = useRef<{ uid: number; hp: number } | null>(null);
+  useEffect(() => {
+    const d = game?.state.pending;
+    const a = attackHits.current;
+    if (!a || !d) return;
+    attackHits.current = null;
+    if (d.kind === "attack" && d.uid === a.uid) update({ type: "answer", answer: a.hp });
+  }, [game?.state]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const prev = prevState.current;
     const next = game?.state ?? null;
@@ -305,7 +315,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   // the original's message popup from the exported layout when it covers this kind of message (else the React dialogs)
   const nguiOk = (d: typeof pending) => !!d && ["choice", "test", "confirm", "lastStand", "lastStandType", "hero"].includes(d.kind)
     && !(d.kind === "choice" && d.choices.length > 5);
-  const dialog = banner ? null
+  const dialog = banner || attackHits.current ? null
     : uiLayout && talking ? <NguiMessage layout={uiLayout} atlas={atlas} say={say}
         content={{ kind: "message", entry: head!, left: messages.length, onNext: () => drop(head!), onSkipAll: () => setUnread([]) }} />
     : uiLayout && !talking && nguiOk(pending) ? <NguiMessage key={state.answers} layout={uiLayout} atlas={atlas} say={say}
@@ -319,7 +329,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
         <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d}
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         {uiLayout ? (
-          <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
+          <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
+            attackable={new Set(attackable.keys())} onEnemy={(uid) => setEnemyInfo(uid)}
             endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
             onParty={() => setModal("party")} onSettings={() => setModal("settings")} onEndRound={() => answer(null)} />
         ) : (
@@ -339,10 +350,10 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
             {others.map((o) => <GreenButton key={o.i} atlas={atlas} onClick={() => answer(o.i)}>{o.label}</GreenButton>)}
           </div>
         )}
-        <BottomBar view={view} atlas={atlas} enemyArt={enemyArt} say={say} attackable={new Set(attackable.keys())}
+        {!uiLayout && <BottomBar view={view} atlas={atlas} enemyArt={enemyArt} say={say} attackable={new Set(attackable.keys())}
           canEndRound={!!action && !talking} busy={busy}
           endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
-          onParty={() => setModal("party")} onEnemy={(uid) => setEnemyInfo(uid)} onEndRound={() => answer(null)} trackerOnly={!!uiLayout} />
+          onParty={() => setModal("party")} onEnemy={(uid) => setEnemyInfo(uid)} onEndRound={() => answer(null)} />}
         {error && <div className="toast error" onClick={() => setError(null)}>{error}</div>}
         {modal === "party" && <PartyDialog view={view} atlas={atlas} say={say} log={state.log} items={items}
           lastStands={talking || busy ? new Map() : lastStands} onLastStand={(i) => { setModal(null); answer(i); }} onClose={() => setModal(null)} />}
@@ -352,7 +363,13 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
             onSave={() => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save)}
             onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
         )}
-        {enemy && (
+        {enemy && uiLayout && (
+          <NguiEnemy key={enemy.uid} layout={uiLayout} atlas={atlas} say={say} art={enemyArt} enemy={enemy}
+            canAttack={attackable.has(enemy.uid) && !talking && !busy}
+            onAttack={(hp) => { setEnemyInfo(null); attackHits.current = { uid: enemy.uid, hp }; answer(attackable.get(enemy.uid)!); }}
+            onClose={() => setEnemyInfo(null)} />
+        )}
+        {enemy && !uiLayout && (
           <EnemyInfoDialog atlas={atlas} say={say} art={enemyArt} enemy={enemy} canAttack={attackable.has(enemy.uid) && !talking && !busy}
             onAttack={() => { setEnemyInfo(null); answer(attackable.get(enemy.uid)!); }} onClose={() => setEnemyInfo(null)} />
         )}

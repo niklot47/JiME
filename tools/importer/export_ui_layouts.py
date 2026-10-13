@@ -3,7 +3,7 @@
 #   images/ui/layouts/ui.json   { "root": <node>, "fonts": {<UIFont path id>: "text"|"title"}, "size": [1280, 720] }
 #   images/ui/tex/<file>_<pid>.png   UITexture / UI2DSprite images
 # node: { n: name, id: GameObject path id, tr: Transform path id (anchor targets), on: active, p: [x, y], s: [sx, sy], r: z degrees, ch: [nodes],
-#         w: widget (see widget()), panel: {d: depth, clip: [cx, cy, w, h] | null}, btn: {hover, pressed, disabled, dur},
+#         w: widget (see widget()), panel: {d: depth, clip: [cx, cy, w, h] | null, off: clip offset}, btn: {hover, pressed, disabled, dur},
 #         tw: [tweens], loc: localization key }
 # Coordinates are NGUI's: UI units (1280 x 720 reference, UIRoot fits height), y up, origin at the parent's position.
 import os, sys, json, math
@@ -23,6 +23,23 @@ def col(c, default=(1, 1, 1, 1)):
 
 def enabled(co): return co.get_raw_data()[12] != 0
 
+_mat = {}
+def material_color(af, ref):
+    """_Color of a custom material on a UITexture (the enemy health bar fills: red health, grey armor, dark lethal)"""
+    if not ref or not ref.get("m_PathID"): return None
+    key = (af.name, ref["m_FileID"], ref["m_PathID"])
+    if key not in _mat:
+        c = None
+        o = deref(af, ref["m_FileID"], ref["m_PathID"])
+        try:
+            if o is not None and o.type.name == "Material":
+                cols = dict(o.read_typetree().get("m_SavedProperties", {}).get("m_Colors", []))
+                c = col(cols.get("_Color"))
+        except Exception as e:
+            print("material failed", key, e)
+        _mat[key] = c
+    return _mat[key]
+
 _tex = {}
 def texture(af, ref):
     """Export a Texture2D / Sprite referenced by a widget; returns the pack path"""
@@ -33,7 +50,7 @@ def texture(af, ref):
     path = None
     try:
         if o is not None and o.type.name in ("Texture2D", "Sprite"):
-            img = o.read().image
+            img = sprite_image(o.read()) if o.type.name == "Sprite" else o.read().image
             img.thumbnail((1024, 1024))
             fn = f"{o.assets_file.name.split('.')[0]}_{o.path_id}.png"
             img.save(os.path.join(TEX, fn))
@@ -80,6 +97,9 @@ def widget(cls, d, af):
     if cls == "sprite": w["sp"] = d.get("mSpriteName") or None
     if cls == "texture": w["tex"] = texture(af, d.get("mTexture"))
     if cls == "sprite2d": w["tex"] = texture(af, d.get("mSprite"))
+    if cls in ("texture", "sprite2d"):
+        mc = material_color(af, d.get("mMat"))
+        if mc: w["mc"] = mc
     if cls == "label":
         lb = {"text": d.get("mText", ""), "size": d.get("mFontSize", 20), "font": font_role(af, d.get("mFont")) or "text",
               "al": d.get("mAlignment", 0), "ov": d.get("mOverflow", 0), "style": d.get("mFontStyle", 0)}
@@ -126,6 +146,8 @@ def node(gid):
             clip = d.get("mClipping", 0)
             cr = d.get("mClipRange") or {}
             n["panel"] = {"d": d.get("mDepth", 0), "clip": [r3(cr.get("x", 0)), r3(cr.get("y", 0)), r3(cr.get("z", 0)), r3(cr.get("w", 0))] if clip else None}
+            off = d.get("mClipOffset") or {}
+            if clip and (off.get("x") or off.get("y")): n["panel"]["off"] = [r3(off.get("x", 0)), r3(off.get("y", 0))]
         elif cls in ("UIButton", "UIButtonColor"):
             n["btn"] = {"hover": col(d.get("hover")), "pressed": col(d.get("pressed")), "disabled": col(d.get("disabledColor")), "dur": r3(d.get("duration", 0.2)),
                         "target": (d.get("tweenTarget") or {}).get("m_PathID")}

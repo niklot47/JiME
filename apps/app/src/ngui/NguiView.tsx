@@ -40,11 +40,17 @@ function tintUrl(src: string, c: number[]): string | null {
 }
 
 // ---------------------------------------------------------------- widget styles
+const MAT_GAIN = 1.6;
 const isWhite = (c?: number[]) => !c || (c[0] === 1 && c[1] === 1 && c[2] === 1);
 
 function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
   const { w, bind } = box;
-  const color = bind.color ?? w.c;
+  let color = bind.color ?? w.c;
+  // a custom material's _Color (lit/emissive shaders in the game): multiplied in, brightened to stand for the emission
+  if (w.mc) {
+    const c = color ?? [1, 1, 1, 1];
+    color = [0, 1, 2].map((i) => Math.min(1, c[i]! * w.mc![i]! * MAT_GAIN)).concat([c[3] ?? 1]);
+  }
   let url: string | undefined;
   let border: [number, number, number, number] = [0, 0, 0, 0];
   if (w.k === "sprite" && bind.tex) {

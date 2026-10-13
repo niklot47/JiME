@@ -58,3 +58,19 @@ def mbs_of(cls_name, file_filter=None):
             if o.type.name != "MonoBehaviour": continue
             si = script_info(o)
             if si and si[1] == cls_name: yield o
+
+
+def sprite_image(s):
+    """Image of a read Sprite in its full m_Rect: tight-packed sprites come trimmed, the UI draws the whole rect"""
+    from PIL import Image
+    img = s.image.convert("RGBA")
+    try:
+        rw, rh = round(s.m_Rect.width), round(s.m_Rect.height)
+        ox, oy = s.m_RD.textureRectOffset.x, s.m_RD.textureRectOffset.y
+        if (rw, rh) != img.size and rw >= img.width and rh >= img.height:
+            full = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
+            full.paste(img, (round(ox), round(rh - oy - img.height)))
+            return full
+    except AttributeError:
+        pass
+    return img

@@ -257,12 +257,15 @@ export class EnemyGroup {
   obj: Obj | null = null;
   readonly model: any;
   size: number;
+  /** FFG EnemyGroup.UnitStartCount: units the group was spawned with (health bars in the enemy dialog) */
+  readonly startSize: number;
   readonly logic: Obj | null;
 
   constructor(uid: number, model: any, size: number, logic: Obj | null = null) {
     this.uid = uid;
     this.model = model;
     this.size = size;
+    this.startSize = size;
     this.logic = logic;
     this.unitHp = toInt(or(gd(model, "Health"), 3));
   }

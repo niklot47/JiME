@@ -267,6 +267,8 @@ export interface GameView {
   /** model = EnemyModel id (icon), armor = EnemyModel.Armor */
   enemies: {
     uid: number; model: number; name: string; size: number; damage: number; unitHp: number; armor: number; exhausted: boolean;
+    /** FFG EnemyGroup.UnitStartCount, EnemyModel.Sorcery, KeySingular, Traits has Range (0x400) */
+    startSize: number; sorcery: number; nameOne: string; ranged: boolean;
     /** EnemyModel.IsNamed (a unique, named foe). FFG shows the elite frame for groups with bonuses; bonuses are not modelled yet */
     named: boolean;
   }[];
@@ -291,6 +293,8 @@ export function viewOf(g: Game): GameView {
       uid: e.uid, model: Number(e.model?._id ?? -1), name: String(g.enemyName(e.model, e.size)), size: e.size,
       damage: e.damage, unitHp: e.unitHp, armor: Number(e.model?.Armor ?? 0), exhausted: e.exhausted,
       named: !!Number(e.model?.IsNamed ?? 0),
+      startSize: Math.max(e.startSize, e.size), sorcery: Number(e.model?.Sorcery ?? 0), nameOne: String(g.enemyName(e.model, 1)),
+      ranged: (Number(e.model?.Traits ?? 0) & 0x400) !== 0,
     })),
     campaign: { lore: g.campaign.lore, xp: g.campaign.xp, items: [...g.campaign.items], titles: [...g.campaign.titles], next: g.campaign.next_adventure },
   };
