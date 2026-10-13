@@ -18,6 +18,8 @@ export interface TileArt {
   hexes: HexArt[];
   /** Tile.ExploreNode position in tile space: where the (square) explore token lies, on the printed mark */
   explore?: [number, number] | null;
+  /** TileSpace.NodePosition per space (tile geometry order): where encounter tokens lie */
+  nodes?: ([number, number] | null)[];
 }
 
 /** Distance between neighbouring hex centres / sqrt(3) in Unity units (tiles measure 1.013–1.019) */
@@ -40,6 +42,8 @@ export interface TileMesh {
   hexCenters: [number, number][];
   /** World position of the explore token (null if the art has none) */
   explore: [number, number] | null;
+  /** World position of each space's node (encounter tokens), null where the art has none */
+  nodes: ([number, number] | null)[];
   /** Tile rotation in radians (board space), e.g. to align the square explore token with the printed mark */
   angle: number;
 }
@@ -71,7 +75,8 @@ export function layoutTile(t: GeneratedTile, art: TileArt): TileMesh {
     for (const tri of h.tris) for (const k of tri) indices.push(base + k);
   }
   const ex = art.explore ? rot(art.explore[0], art.explore[1]) : null;
-  return { tile: t, texture: art.texture, positions, uvs, indices, hexCenters, explore: ex ? [ex[0] + tx, ex[1] + ty] : null, angle: a };
+  return { tile: t, texture: art.texture, positions, uvs, indices, hexCenters, explore: ex ? [ex[0] + tx, ex[1] + ty] : null, angle: a,
+    nodes: (art.nodes ?? []).map((p) => { if (!p) return null; const [x, y] = rot(p[0], p[1]); return [x + tx, y + ty]; }) };
 }
 
 /** Largest error between the art's own hex layout (rotated) and the generated positions, in hex sizes */

@@ -207,12 +207,28 @@ export const installFonts = () => once("fonts", async () => {
   }
 });
 
+/** One token's art: top face crop (2D), the mesh's whole texture (3D) and which mesh it uses */
+export interface TokenArt { top: string; raw?: string; mesh?: string }
+/** Token mesh from the game: positions (z up), UVs, triangles */
+export interface TokenMeshData { pos: [number, number, number][]; uv: [number, number][]; faces: [number, number, number][] }
+
 /** Token art by Token3DType id (images/tokens/tokens.json from tools/importer/export_tokens.py); {} if absent */
 export const loadTokenArt = () => once("tokens", async () => {
   try {
-    return JSON.parse(await packText("images/tokens/tokens.json")) as Record<string, string>;
+    const raw = JSON.parse(await packText("images/tokens/tokens.json")) as Record<string, TokenArt | string>;
+    // older packs: id -> top image path
+    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, typeof v === "string" ? { top: v } : v])) as Record<string, TokenArt>;
   } catch {
-    return {} as Record<string, string>;
+    return {} as Record<string, TokenArt>;
+  }
+});
+
+/** Token meshes by name (images/tokens/meshes.json); {} if absent */
+export const loadTokenMeshes = () => once("tokenMeshes", async () => {
+  try {
+    return JSON.parse(await packText("images/tokens/meshes.json")) as Record<string, TokenMeshData>;
+  } catch {
+    return {} as Record<string, TokenMeshData>;
   }
 });
 

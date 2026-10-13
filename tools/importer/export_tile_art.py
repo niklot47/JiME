@@ -52,7 +52,24 @@ def tile_art(f, tile_obj, tm):
         center = (W @ np.array([0, 0, 0, 1.0]))[:2]
         hexes.append({"center": np.round(center, 4).tolist(), "verts": np.round(Vw[:, :2], 4).tolist(),
                       "uvs": np.round(np.array(uvs), 5).tolist(), "tris": [list(x) for x in F]})
-    return hexes, explore_pos(f, t, inv)
+    return hexes, explore_pos(f, t, inv), space_nodes(f, t, inv)
+
+def space_nodes(f, t, inv):
+    """TileSpace.NodePosition of each space (Tile.Spaces order = tile geometry order): where encounter tokens lie"""
+    out = []
+    for ref in t.get("Spaces") or []:
+        pos = None
+        try:
+            _, sp = read_mb(f.objects[ref["m_PathID"]])
+            np_ref = sp.get("NodePosition") or {}
+            if np_ref.get("m_PathID"):
+                tr = f.objects[np_ref["m_PathID"]]
+                p = inv @ world_matrix(f, tr) @ np.array([0, 0, 0, 1.0])
+                pos = np.round(p[:2], 4).tolist()
+        except Exception as e:
+            print("no node position:", e)
+        out.append(pos)
+    return out
 
 def explore_pos(f, t, inv):
     """Tile.ExploreNode position in the same tile space as the hexes (where the explore token lies: the printed mark)"""
@@ -99,8 +116,8 @@ if __name__ == "__main__":
         _, t = read_mb(to)
         code = ch.read().m_Name
         tm = tms.get(code, {})
-        hexes, explore = tile_art(l4, to, tm)
-        art["standard"][code] = {"texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore}
+        hexes, explore, nodes = tile_art(l4, to, tm)
+        art["standard"][code] = {"texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore, "nodes": nodes}
     print("standard", len(art["standard"]))
     db = json.load(open(os.path.join(ROOT, "export", "db.json"), encoding="utf-8"))
     for aid, a in db["models"]["AdventureModel"].items():
@@ -114,8 +131,8 @@ if __name__ == "__main__":
                     mo = deref(RA, t["Model"]["m_FileID"], t["Model"]["m_PathID"])
                     code = read_mb(mo)[1].get("_id") if mo else name
                     tm = tms.get(code, {})
-                    hexes, explore = tile_art(RA, co, tm)
-                    art["custom"].setdefault(aid, {})[str(pid)] = {"code": code, "texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore}
+                    hexes, explore, nodes = tile_art(RA, co, tm)
+                    art["custom"].setdefault(aid, {})[str(pid)] = {"code": code, "texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore, "nodes": nodes}
     print("custom", sum(len(v) for v in art["custom"].values()))
     json.dump(art, open(os.path.join(PACK, "scenario", "tileart.json"), "w"))
     print("->", PACK)

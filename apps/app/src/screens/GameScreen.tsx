@@ -8,7 +8,7 @@ import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadFx, loadEnemyArt, loadUiArt, themeChoice, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, themeChoice, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
@@ -97,7 +97,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const client = useRef<GameClient | null>(null);
   const [db, setDb] = useState<any>(null);
   const [art, setArt] = useState<TileArtDb | null>(null);
-  const [tokenArt, setTokenArt] = useState<Record<string, string>>({});
+  const [tokenArt, setTokenArt] = useState<Record<string, TokenArt>>({});
+  const [tokenMeshes, setTokenMeshes] = useState<Record<string, TokenMeshData>>({});
   const [fx, setFx] = useState<Record<string, string>>({});
   const [enemyArt, setEnemyArt] = useState<Record<string, string>>({});
   const [uiArt, setUiArt] = useState<Record<string, string>>({});
@@ -125,8 +126,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     client.current = new GameClient();
     void installFonts();
     loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
-    Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt(), loadUiArt()])
-      .then(([d, a, t, f, e, u]) => { setDb(d); setArt(a); setTokenArt(t); setFx(f); setEnemyArt(e); setUiArt(themeChoice() === "original" ? u : {}); })
+    Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt(), loadUiArt(), loadTokenMeshes()])
+      .then(([d, a, t, f, e, u, tm]) => { setDb(d); setArt(a); setTokenArt(t); setTokenMeshes(tm); setFx(f); setEnemyArt(e); setUiArt(themeChoice() === "original" ? u : {}); })
       .catch((e) => setError(String(e)));
     return () => { client.current?.dispose(); client.current = null; };
   }, []);
@@ -235,7 +236,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="game-screen">
       <div className="board-wrap">
-        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d} onAnswer={answer} />
+        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d} onAnswer={answer} />
         <EnemyTracker view={view} pending={pending} art={enemyArt} say={say} disabled={busy} onAnswer={answer} />
       </div>
       <aside className={busy ? "game-panel busy" : "game-panel"}>
@@ -260,8 +261,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, fx, table, labels, view3d, onAnswer }: {
-  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; fx: Record<string, string>; table?: string; labels: boolean; view3d: boolean;
+function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, view3d, onAnswer }: {
+  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, TokenArt>; tokenMeshes: Record<string, TokenMeshData>; fx: Record<string, string>; table?: string; labels: boolean; view3d: boolean;
   onAnswer: (a: Answer) => void;
 }) {
   const { board, adv, state: { view, pending } } = game;
@@ -286,7 +287,11 @@ function GameBoard({ game, db, art, tokenArt, fx, table, labels, view3d, onAnswe
     const colors = new Map<number, number>();
     const sepia = new Set<number>();
     const shapeOf = (t: number): Token["shape"] => (t === 1 ? "square" : tokenFamily(t) === "hexagon" ? "hex" : "circle");
-    const look = (t: number) => ({ ...TOKEN_LOOK[tokenFamily(t)]!, image: tokenArt[String(t)], shape: shapeOf(t) });
+    const look = (t: number) => {
+      const a = tokenArt[String(t)];
+      const m = a?.mesh ? tokenMeshes[a.mesh] : undefined;
+      return { ...TOKEN_LOOK[tokenFamily(t)]!, image: a?.top, shape: shapeOf(t), skin: a?.raw && m ? { texture: a.raw, mesh: a.mesh!, data: m } : undefined };
+    };
     const meshById = new Map(meshes.map((m) => [m.tile.hashId, m]));
     for (const t of view.tiles) {
       if (!t.visible) continue;
@@ -304,13 +309,14 @@ function GameBoard({ game, db, art, tokenArt, fx, table, labels, view3d, onAnswe
     for (const n of view.nodes) {
       if (!n.visible || n.tileId === null) continue;
       const gt = genTiles.get(n.tileId);
-      const p = gt && db ? spaceCenter(db, adv, gt, n.space) : null;
+      // the space's node position from the tile art (TileSpace.NodePosition), else the centre of its hexes
+      const p = meshById.get(n.tileId)?.nodes[n.space] ?? (gt && db ? spaceCenter(db, adv, gt, n.space) : null);
       if (!p) continue;
       const id = `n:${n.uid}`;
       tokens.push({ x: p[0], y: p[1], id, label: labels ? shortName(n.name) : "", ...look(n.token), active: targets.has(id) });
     }
     return { tokens, shown, colors, sepia };
-  }, [view, targets, labels, genTiles, db, adv, tokenArt, meshes]);
+  }, [view, targets, labels, genTiles, db, adv, tokenArt, tokenMeshes, meshes]);
 
   function pick(p: Pick) {
     const i = targets.get(p.kind === "token" ? p.id : `t:${p.id}`);

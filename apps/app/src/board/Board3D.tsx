@@ -171,17 +171,43 @@ function squareFrame(a: number, b: number): THREE.ShapeGeometry {
 
 const sideMat = new THREE.MeshStandardMaterial({ color: 0x3a3127, roughness: 0.8 });
 
+const skinGeometry = new Map<string, THREE.BufferGeometry>();
+
+/** Geometry of a game token mesh (z up in the export -> y up here); cached by mesh name */
+function skinGeo(name: string, d: NonNullable<Token["skin"]>["data"]): THREE.BufferGeometry {
+  let g = skinGeometry.get(name);
+  if (!g) {
+    g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(d.pos.flatMap(([x, y, z]) => [x, z, -y]), 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(d.uv.flat(), 2));
+    g.setIndex(d.faces.flat());
+    g.computeVertexNormals();
+    skinGeometry.set(name, g);
+  }
+  return g;
+}
+
+/** Token mesh with its base at y = 0 */
 function tokenMesh(tk: Token): THREE.Mesh {
+  if (tk.skin) {
+    const map = texture(tk.skin.texture);
+    const mat = new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0x3a3a3a, roughness: 0.6, metalness: 0.05, side: THREE.DoubleSide });
+    return withShadows(new THREE.Mesh(skinGeo(tk.skin.mesh, tk.skin.data), mat));
+  }
+  return fallbackToken(tk);
+}
+
+function fallbackToken(tk: Token): THREE.Mesh {
   const map = tk.image ? texture(tk.image) : glyphTexture(tk.glyph ?? "", tk.color);
   // a little self-light so the art stays readable on the tilted, shadowed board
   const top = new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0x3a3a3a, roughness: 0.6, metalness: 0.05, transparent: !!tk.image, alphaTest: 0.3 });
   if (tk.shape === "square") {
     // box groups: +x, -x, +y (top), -y, +z, -z
-    return withShadows(new THREE.Mesh(new THREE.BoxGeometry(SQUARE, TOKEN_H, SQUARE), [sideMat, sideMat, top, sideMat, sideMat, sideMat]));
+    return withShadows(new THREE.Mesh(new THREE.BoxGeometry(SQUARE, TOKEN_H, SQUARE).translate(0, TOKEN_H / 2, 0), [sideMat, sideMat, top, sideMat, sideMat, sideMat]));
   }
   const hexagon = tk.shape === "hex";
   // cylinder groups: 0 = side, 1 = top, 2 = bottom
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(TOKEN_R, TOKEN_R, TOKEN_H, hexagon ? 6 : 40), [sideMat, top, sideMat]);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(TOKEN_R, TOKEN_R, TOKEN_H, hexagon ? 6 : 40).translate(0, TOKEN_H / 2, 0), [sideMat, top, sideMat]);
   if (hexagon) m.rotation.y = Math.PI / 6;
   return withShadows(m);
 }
@@ -484,22 +510,13 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       const g = new THREE.Group();
       g.userData.token = true;
       const m = tokenMesh(tk);
-      m.position.y = TILE_H + TOKEN_H / 2 + 0.002;
+      m.position.y = TILE_H + 0.002;
       // square tokens lie aligned with their tile; round art faces the viewer's default direction
       m.rotation.y += tk.shape === "square" ? tk.angle ?? 0 : -rot;
       if (tk.id !== undefined) m.userData.pick = { kind: "token", id: tk.id } satisfies Pick;
       g.add(m);
-      if (tk.active) {
-        const square = tk.shape === "square";
-        const ring = new THREE.Mesh(square ? squareFrame(SQUARE / 2 + 0.03, SQUARE / 2 + 0.1) : new THREE.RingGeometry(TOKEN_R + 0.03, TOKEN_R + 0.1, 48),
-          new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
-        ring.rotation.x = -Math.PI / 2;
-        if (square) ring.rotation.z = tk.angle ?? 0;
-        ring.position.y = TILE_H + 0.004;
-        if (tk.id !== undefined) ring.userData.pick = { kind: "token", id: tk.id } satisfies Pick;
-        g.add(ring);
-        s.pulses.push(ring);
-      }
+      // no highlight ring (the original has none); a valid target sits a touch higher
+      if (tk.active) m.position.y += 0.03;
       if (showLabels && tk.label) {
         const l = labelSprite(tk.label);
         l.position.set(0, TILE_H + 0.75, 0);
