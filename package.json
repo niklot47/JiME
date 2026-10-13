@@ -21,7 +21,8 @@
     "parity": "node packages/engine/cli/parity.ts all 0 5",
     "play": "node packages/engine/cli/play.ts",
     "play:bot": "node packages/engine/cli/run.ts",
-    "mapgen": "node packages/engine/cli/mapgen.ts"
+    "mapgen": "node packages/engine/cli/mapgen.ts",
+    "verify:maps": "node packages/engine/cli/verify-saves.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
