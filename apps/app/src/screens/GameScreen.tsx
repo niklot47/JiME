@@ -8,11 +8,14 @@ import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, type AtlasSprite, themeChoice, loadPackSet, packConfig } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, loadUiLayout, type AtlasSprite, themeChoice, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 import { sound } from "../audio/sound.ts";
 import { PHASE_KEYS, gameSounds } from "../audio/gameFx.ts";
 import { BottomBar, GearButton, PhaseBanner, ThreatBar } from "./game/Hud.tsx";
+import { NguiMessage } from "./game/NguiMessage.tsx";
+import { NguiHud } from "./game/NguiHud.tsx";
+import type { UiLayoutFile } from "../ngui/types.ts";
 import { DecisionDialog, EnemyInfoDialog, GameOverDialog, GreenButton, MessageDialog, PartyDialog, SettingsDialog } from "./game/Dialogs.tsx";
 
 const AUTOSAVE = "jime.autosave";
@@ -107,6 +110,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [enemyArt, setEnemyArt] = useState<Record<string, string>>({});
   const [uiArt, setUiArt] = useState<Record<string, string>>({});
   const [atlas, setAtlas] = useState<Record<string, AtlasSprite>>({});
+  const [uiLayout, setUiLayout] = useState<UiLayoutFile | null>(null);
   const [lang, setLang] = useState("ru");
   const [langs, setLangs] = useState(LANGS);
   const [text, setText] = useState<TextDb | null>(null);
@@ -129,6 +133,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     client.current = new GameClient();
+    void loadUiLayout().then(setUiLayout);
     void installFonts();
     loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
     Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt(), loadUiArt(), loadTokenMeshes(), loadUiAtlas()])
@@ -297,7 +302,14 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     return { id: Number(id), key: m?.NameKey ?? null, name: m ? shortName(m.m_Name) : `#${id}` };
   });
   const enemy = enemyInfo !== null ? view.enemies.find((e) => e.uid === enemyInfo) ?? null : null;
+  // the original's message popup from the exported layout when it covers this kind of message (else the React dialogs)
+  const nguiOk = (d: typeof pending) => !!d && ["choice", "test", "confirm", "lastStand", "lastStandType", "hero"].includes(d.kind)
+    && !(d.kind === "choice" && d.choices.length > 5);
   const dialog = banner ? null
+    : uiLayout && talking ? <NguiMessage layout={uiLayout} atlas={atlas} say={say}
+        content={{ kind: "message", entry: head!, left: messages.length, onNext: () => drop(head!), onSkipAll: () => setUnread([]) }} />
+    : uiLayout && !talking && nguiOk(pending) ? <NguiMessage key={state.answers} layout={uiLayout} atlas={atlas} say={say}
+        content={{ kind: "decision", d: pending!, onAnswer: answer }} />
     : talking ? <MessageDialog atlas={atlas} say={say} entry={head!} left={messages.length} onNext={() => drop(head!)} onSkipAll={() => setUnread([])} />
     : pending ? <DecisionDialog key={state.answers} d={pending} view={view} atlas={atlas} say={say} enemyArt={enemyArt} onAnswer={answer} />
     : <GameOverDialog view={view} atlas={atlas} onQuit={() => setGame(null)} />;
@@ -306,8 +318,16 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
       <div className="board-wrap">
         <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d}
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
-        <ThreatBar view={view} art={uiArt} atlas={atlas} say={say} />
-        <GearButton atlas={atlas} onClick={() => setModal("settings")} />
+        {uiLayout ? (
+          <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
+            endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
+            onParty={() => setModal("party")} onSettings={() => setModal("settings")} onEndRound={() => answer(null)} />
+        ) : (
+          <>
+            <ThreatBar view={view} art={uiArt} atlas={atlas} say={say} />
+            <GearButton atlas={atlas} onClick={() => setModal("settings")} />
+          </>
+        )}
         {banner && (
           <PhaseBanner key={unread.indexOf(banner) + ":" + unread.length} text={say(banner[2])}
             round={banner[2] === "UI_PHASE_HERO" ? banner[1] : null} atlas={atlas}
@@ -322,7 +342,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
         <BottomBar view={view} atlas={atlas} enemyArt={enemyArt} say={say} attackable={new Set(attackable.keys())}
           canEndRound={!!action && !talking} busy={busy}
           endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
-          onParty={() => setModal("party")} onEnemy={(uid) => setEnemyInfo(uid)} onEndRound={() => answer(null)} />
+          onParty={() => setModal("party")} onEnemy={(uid) => setEnemyInfo(uid)} onEndRound={() => answer(null)} trackerOnly={!!uiLayout} />
         {error && <div className="toast error" onClick={() => setError(null)}>{error}</div>}
         {modal === "party" && <PartyDialog view={view} atlas={atlas} say={say} log={state.log} items={items}
           lastStands={talking || busy ? new Map() : lastStands} onLastStand={(i) => { setModal(null); answer(i); }} onClose={() => setModal(null)} />}

@@ -91,9 +91,11 @@ export function GearButton({ atlas, onClick }: { atlas: Atlas; onClick: () => vo
  * The bottom of UI_Game: party button (left corner), the enemy bar (Enemy_Bar) with the provoke button and the enemy
  * medallions (EnemyMiniView: Enemy_Frame_Normal / Enemy_Frame_Elite, portrait on top), end-round button (right corner)
  */
-export function BottomBar({ view, atlas, enemyArt, say, attackable, canEndRound, endTitle, busy, onParty, onEnemy, onEndRound }: {
+export function BottomBar({ view, atlas, enemyArt, say, attackable, canEndRound, endTitle, busy, onParty, onEnemy, onEndRound, trackerOnly }: {
   view: GameView; atlas: Atlas; enemyArt: Record<string, string>; say: Say; attackable: Set<number>; canEndRound: boolean; endTitle: string;
   busy: boolean; onParty: () => void; onEnemy: (uid: number) => void; onEndRound: () => void;
+  /** the bar and buttons come from the NGUI layout (NguiHud): only the medallions here */
+  trackerOnly?: boolean;
 }) {
   const frame = spriteUrl(atlas, "Enemy_Frame_Normal");
   const elite = spriteUrl(atlas, "Enemy_Frame_Elite");
@@ -101,10 +103,10 @@ export function BottomBar({ view, atlas, enemyArt, say, attackable, canEndRound,
   const armor = spriteUrl(atlas, "Icon_Armor");
   const strip = text(say);
   return (
-    <div className="bottombar">
-      <RoundButton atlas={atlas} sprite="Button_Party" fallback="👥" title="Отряд: статус, хроника, предметы" className="party" onClick={onParty} />
-      <div className="enemybar" style={bg(atlas, "Enemy_Bar")}>
-        <RoundButton atlas={atlas} sprite="Button_Provoke" fallback="!" title="Провокация (пока не реализована)" className="provoke" disabled />
+    <div className={trackerOnly ? "bottombar tracker-only" : "bottombar"}>
+      {!trackerOnly && <RoundButton atlas={atlas} sprite="Button_Party" fallback="👥" title="Отряд: статус, хроника, предметы" className="party" onClick={onParty} />}
+      <div className="enemybar" style={trackerOnly ? undefined : bg(atlas, "Enemy_Bar")}>
+        {!trackerOnly && <RoundButton atlas={atlas} sprite="Button_Provoke" fallback="!" title="Провокация (пока не реализована)" className="provoke" disabled />}
         <div className="tracker">
           {view.enemies.map((e) => {
             const can = attackable.has(e.uid);
@@ -126,8 +128,8 @@ export function BottomBar({ view, atlas, enemyArt, say, attackable, canEndRound,
           })}
         </div>
       </div>
-      <RoundButton atlas={atlas} sprite="Button_EndRound" fallback="⏳" title={endTitle} className={`endround${canEndRound ? " ready" : ""}`}
-        disabled={!canEndRound || busy} onClick={onEndRound} />
+      {!trackerOnly && <RoundButton atlas={atlas} sprite="Button_EndRound" fallback="⏳" title={endTitle} className={`endround${canEndRound ? " ready" : ""}`}
+        disabled={!canEndRound || busy} onClick={onEndRound} />}
     </div>
   );
 }

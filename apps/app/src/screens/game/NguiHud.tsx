@@ -1,0 +1,70 @@
+// Top and bottom of the original's game screen (UI_Game) from the exported layout, driven like UIThreatMeter /
+// UI_Game (decompiled code): threat value "cur/max" (UI_THREAT_VALUE_FORMATTED), markers at percentage * 594 along
+// Widget_ThreatEvents (yellow until reached, then red), darkness token, objective; party, settings, end-round and
+// provoke buttons; the enemy bar. The threat fill itself is a 3D mesh in the game: drawn here inside the meter.
+import type { GameView } from "@jime/engine";
+import { assetUrl } from "../../data/pack.ts";
+import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
+import { findNode, type UiLayoutFile, type UiNode } from "../../ngui/types.ts";
+import type { Atlas, Say } from "./ui.ts";
+
+const TRACK = 594; // UIThreatMeter.GetXPositionOnTracker
+const RED = [191 / 255, 28 / 255, 28 / 255, 1];
+// the fill's span inside the 744-wide meter: Widget_ThreatEvents (-335.4) .. +594
+const FILL_LEFT = (372 - 335.4) / 744, FILL_W = TRACK / 744;
+
+export function NguiHud({ layout, atlas, art, say, view, canEndRound, endTitle, onParty, onSettings, onEndRound }: {
+  layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; say: Say; view: GameView; canEndRound: boolean; endTitle: string;
+  onParty: () => void; onSettings: () => void; onEndRound: () => void;
+}) {
+  const game = findNode(layout.root, "UI_Game");
+  if (!game) return null;
+  const pick = (name: string) => (game.ch ?? []).find((c) => c.n === name) ?? findNode(game, name);
+  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke"]
+    .map(pick).filter((n): n is UiNode => !!n);
+
+  const max = view.threatMax;
+  const frac = max > 0 ? Math.min(1, view.threat / max) : 0;
+  const url = (p?: string) => (p ? `url("${assetUrl(p)}")` : undefined);
+  const value = (say("UI_THREAT_VALUE_FORMATTED", [String(view.threat), String(max)]) || `${view.threat}/${max}`).replace(/<[^>]+>/g, "");
+  const marks = max > 0 ? view.threatEvents.filter((t) => t <= max) : [];
+
+  const b: Binds = {
+    Dialog_ThreatEventInfo: { show: false },
+    Sprite_ThreatMeterBackground: {
+      title: `Угроза ${view.threat}${max > 0 ? ` из ${max}` : ""}`,
+      content: (
+        <>
+        <div className="ng-threat-track" style={{ left: `${FILL_LEFT * 100}%`, width: `${FILL_W * 100}%` }}>
+          <div className="fill" style={{ width: `${100 * frac}%` }}>
+            <div className="ramp" style={{ width: frac > 0 ? `${100 / frac}%` : "100%", backgroundImage: url(art.threatGradient) }} />
+            {art.threatLiquid && <div className="liquid" style={{ backgroundImage: url(art.threatLiquid) }} />}
+          </div>
+          {frac > 0 && art.threatFire && <span key={view.threat} className="flame" style={{ left: `${100 * frac}%`, backgroundImage: url(art.threatFire) }} />}
+        </div>
+        {art.threatMeter && <img className="ng-threat-img" src={assetUrl(art.threatMeter)} alt="" />}
+        </>
+      ),
+    },
+    "Sprite_ThreatMeterBackground/Label_ThreatValue": { text: value },
+    Label_Objective: { html: view.objective ? say(view.objective, view.objectiveInserts) : say("UI_DEFAULT_OBJECTIVE") },
+    Table_AdventureRules: { show: false },
+    Sprite_Darkness: { show: view.darkness, title: "Тьма" },
+    Widget_ThreatEventSelected: { show: false },
+    // one marker per threat event (the layout has 10; clones of the first keep it simple)
+    Widget_ThreatMarker: {
+      show: marks.length > 0,
+      clones: marks.map((t) => ({
+        Widget_ThreatMarker: { at: [TRACK * (t / max), 4.9], ...(view.threat >= t ? { color: RED } : {}), title: `Событие угрозы на ${t}` },
+        "Widget_ThreatMarker/Label_ThreatValue": { text: String(t) },
+      })),
+    },
+    Sprite_Options: { onClick: onSettings, title: "Меню" },
+    Button_HeroMenu: { onClick: onParty, title: "Отряд: статус, хроника, снаряжение" },
+    Button_EndRound: { onClick: onEndRound, disabled: !canEndRound, title: endTitle, className: canEndRound ? "ng-ready" : "" },
+    Button_Provoke: { disabled: true, title: "Провокация (пока не реализована)" },
+    EnemiesScrollView: { show: false },
+  };
+  for (let i = 1; i < 10; i++) b[`Widget_ThreatMarker (${i})`] = { show: false };
+  return <NguiView layout={layout} atlas={atlas} show={show} binds={b} say={say} className="ngui-hud" />;
+}

@@ -1,7 +1,7 @@
 // Layout tree of the game's NGUI interface (images/ui/layouts/ui.json from tools/importer/export_ui_layouts.py).
 // Units: NGUI UI units of a 1280 x 720 reference screen (UIRoot fits height), y up, positions relative to the parent.
 
-/** [target GameObject id | null, relative (0..1 of the target rect), absolute offset] for left, right, bottom, top */
+/** [target Transform id | null, relative (0..1 of the target rect), absolute offset] for left, right, bottom, top */
 export type Anchor = [number | null, number, number] | null;
 
 export interface UiLabel {
@@ -58,6 +58,8 @@ export interface UiTween {
 export interface UiNode {
   n: string;
   id: number;
+  /** Transform path id: anchor targets refer to it */
+  tr?: number;
   on?: boolean;
   p?: [number, number];
   s?: [number, number];
@@ -67,7 +69,8 @@ export interface UiNode {
   btn?: { hover: number[] | null; pressed: number[] | null; disabled: number[] | null; dur: number; target?: number };
   tw?: UiTween[];
   loc?: string;
-  grid?: { k: string; cell: [number, number]; cols: number; pad: [number, number] | null; arr: number };
+  /** UIGrid (k "grid": cell, cols = maxPerLine, arr 0 horizontal / 1 vertical, pv pivot, sort 1 alphabetic, hide inactive) or UITable */
+  grid?: { k: "grid" | "table"; cell: [number, number]; cols: number; arr: number; pv: number; exp: number; sort: number; hide: number };
   mb?: string[];
   ch?: UiNode[];
 }

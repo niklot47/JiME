@@ -2,7 +2,7 @@
 # for the app's NGUI view (apps/app/src/ngui/), plus the textures it shows.
 #   images/ui/layouts/ui.json   { "root": <node>, "fonts": {<UIFont path id>: "text"|"title"}, "size": [1280, 720] }
 #   images/ui/tex/<file>_<pid>.png   UITexture / UI2DSprite images
-# node: { n: name, id: GameObject path id, on: active, p: [x, y], s: [sx, sy], r: z degrees, ch: [nodes],
+# node: { n: name, id: GameObject path id, tr: Transform path id (anchor targets), on: active, p: [x, y], s: [sx, sy], r: z degrees, ch: [nodes],
 #         w: widget (see widget()), panel: {d: depth, clip: [cx, cy, w, h] | null}, btn: {hover, pressed, disabled, dur},
 #         tw: [tweens], loc: localization key }
 # Coordinates are NGUI's: UI units (1280 x 720 reference, UIRoot fits height), y up, origin at the parent's position.
@@ -104,9 +104,11 @@ WIDGETS = {"UISprite": "sprite", "UITexture": "texture", "UI2DSprite": "sprite2d
 def node(gid):
     go = F.objects[gid].read()
     comps = [F.objects[c.component.path_id] for c in go.m_Component if c.component.file_id == 0 and c.component.path_id in F.objects]
-    tr = next(co for co in comps if co.type.name in ("Transform", "RectTransform")).read()
+    tro = next(co for co in comps if co.type.name in ("Transform", "RectTransform"))
+    tr = tro.read()
     p, s, q = tr.m_LocalPosition, tr.m_LocalScale, tr.m_LocalRotation
-    n = {"n": go.m_Name, "id": gid}
+    # tr: the Transform's path id (NGUI anchors point at Transforms)
+    n = {"n": go.m_Name, "id": gid, "tr": tro.path_id}
     if not go.m_IsActive: n["on"] = False
     if p.x or p.y: n["p"] = [r3(p.x), r3(p.y)]
     if (s.x, s.y) != (1, 1): n["s"] = [r3(s.x), r3(s.y)]
@@ -131,10 +133,15 @@ def node(gid):
             n.setdefault("tw", []).append(tween(TWEENS[cls], d | {"m_Enabled": enabled(co)}))
         elif cls in ("UILocalizationPacket", "UILocalize") and d.get("key"):
             n["loc"] = d["key"]
-        elif cls in ("UIGrid", "UITable"):
-            n["grid"] = {"k": cls, "cell": [d.get("cellWidth"), d.get("cellHeight")], "cols": d.get("maxPerLine", d.get("columns")),
-                         "pad": [d.get("padding", {}).get("x"), d.get("padding", {}).get("y")] if isinstance(d.get("padding"), dict) else None,
-                         "arr": d.get("arrangement", d.get("direction"))}
+        elif cls == "UIGrid":
+            # UIGrid.ResetPosition inputs (the app repositions the active children like Reposition())
+            n["grid"] = {"k": "grid", "cell": [r3(d.get("cellWidth", 200)), r3(d.get("cellHeight", 200))], "cols": d.get("maxPerLine", 0),
+                         "arr": d.get("arrangement", 0), "pv": d.get("pivot", 0), "exp": d.get("expansionStyle", 0),
+                         "sort": d.get("sorting", 0), "hide": d.get("hideInactive", 0)}
+        elif cls == "UITable":
+            n["grid"] = {"k": "table", "cols": d.get("columns", 0), "dir": d.get("direction", 0), "sort": d.get("sorting", 0),
+                         "pv": d.get("pivot", 0), "cpv": d.get("cellAlignment", 0), "hide": d.get("hideInactive", 0),
+                         "pad": [r3(d.get("padding", {}).get("x", 0)), r3(d.get("padding", {}).get("y", 0))] if isinstance(d.get("padding"), dict) else [0, 0]}
         else:
             n.setdefault("mb", []).append(cls)
     ch = [node(F.objects[c.path_id].read().m_GameObject.path_id) for c in tr.m_Children]

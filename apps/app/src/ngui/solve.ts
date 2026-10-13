@@ -25,6 +25,12 @@ export interface Bind {
   dy?: number;
   w?: number;
   h?: number;
+  /** widget pivot override (UIWidget.Pivot 0..8), e.g. MessagePopup turns its label to Top when the text grows */
+  pv?: number;
+  /** label alignment override (NGUIText.Alignment) */
+  al?: number;
+  /** replace the transform position (UI units, y up) */
+  at?: [number, number];
   className?: string;
   /** custom React content inside the widget box */
   content?: ReactNode;
@@ -71,23 +77,25 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
 
   const run = (collect: boolean) => {
     order = 0;
-    const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean) => {
-      const b = bs[n.n] ?? {};
+    const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
+      parent: string, at?: [number, number]) => {
+      // "Parent/Child" binds win over "Child" (names repeat across dialogs)
+      const b = bs[`${parent}/${n.n}`] ?? bs[n.n] ?? {};
       const entering = !inc && include.has(n.id);
       if (entering) { inc = true; active = true; }
       if (b.clones && !key.endsWith("#")) {
         b.clones.forEach((cb, i) => {
           const step = b.step ?? [0, 0];
           const nb: Binds = { ...bs, ...cb, [n.n]: { ...b, ...(cb[n.n] ?? {}), clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (cb[n.n]?.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (cb[n.n]?.dy ?? 0) } };
-          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc);
+          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, parent, at);
         });
         return;
       }
-      const on = active && (b.show ?? (all && inc ? true : n.on ?? true));
+      const on = active && (b.show ?? (entering || (all && inc) ? true : n.on ?? true));
       // one-shot tweens (style 0) are drawn at their end: the scene saves many elements at the start of their entrance
       // animation (title pieces, borders, panels sliding in), the game plays them forward when the screen opens
       const end = restState(n);
-      const lx = (end.p?.[0] ?? n.p?.[0] ?? 0) + (b.dx ?? 0), ly = (end.p?.[1] ?? n.p?.[1] ?? 0) + (b.dy ?? 0);
+      const lx = (b.at?.[0] ?? at?.[0] ?? end.p?.[0] ?? n.p?.[0] ?? 0) + (b.dx ?? 0), ly = (b.at?.[1] ?? at?.[1] ?? end.p?.[1] ?? n.p?.[1] ?? 0) + (b.dy ?? 0);
       let x = n === root && rootIsScreen ? 0 : px + lx * sx;
       let y = n === root && rootIsScreen ? 0 : py + ly * sy;
       const nsx = n === root && rootIsScreen ? 1 : sx * (end.s?.[0] ?? n.s?.[0] ?? 1), nsy = n === root && rootIsScreen ? 1 : sy * (end.s?.[1] ?? n.s?.[1] ?? 1);
@@ -100,13 +108,13 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         const autoW = w.k === "label" && w.lb?.ov === 2;
         let ww = (b.w ?? (autoW && m ? m.w : end.w ?? w.w)) * Math.abs(nsx);
         let hh = (b.h ?? (autoH && m ? m.h : end.h ?? w.h)) * Math.abs(nsy);
-        const [fx, fy] = PIVOT[w.pv] ?? [0.5, 0.5];
+        const [fx, fy] = PIVOT[b.pv ?? w.pv] ?? [0.5, 0.5];
         let rc: Rect = { l: x - fx * ww, r: x - fx * ww + ww, b: y - fy * hh, t: y - fy * hh + hh };
         // NGUI anchors: each anchored side follows its target's rect; the transform follows the rect
         if (w.an) {
           const side = (a: (typeof w.an)[number] | undefined, lo: "l" | "b", hi: "r" | "t") => {
             if (!a || !a[0]) return null;
-            const tr = a[0] === root.id ? screen : rects.get(a[0]) ?? null;
+            const tr = a[0] === root.id || a[0] === root.tr ? screen : rects.get(a[0]) ?? null;
             if (!tr) return null;
             return tr[lo] + a[1] * (tr[hi] - tr[lo]) + a[2];
           };
@@ -119,17 +127,22 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
           x = rc.l + fx * ww; y = rc.b + fy * hh;
         }
         rects.set(n.id, rc);
+        if (n.tr) rects.set(n.tr, rc);
         if (collect && inc && on && !w.off) {
           boxes.push({ key: k, node: n, w, bind: b, left: rc.l + screenW / 2, top: H / 2 - rc.t, width: rc.r - rc.l, height: rc.t - rc.b,
             z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW });
         }
       } else {
         // a panel without clipping covers the screen; a bare transform is a point
-        rects.set(n.id, n.panel && !n.panel.clip ? screen : { l: x, r: x, b: y, t: y });
+        const r0 = n.panel && !n.panel.clip ? screen : { l: x, r: x, b: y, t: y };
+        rects.set(n.id, r0);
+        if (n.tr) rects.set(n.tr, r0);
       }
-      for (const c of n.ch ?? []) visit(c, x, y, nsx, nsy, pd, on, bs, k, inc);
+      const kids = n.ch ?? [];
+      const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => (bs[`${n.n}/${c.n}`] ?? bs[c.n])?.show ?? (all && inc ? true : c.on ?? true))) : null;
+      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, n.n, places?.[i] ?? undefined));
     };
-    visit(root, 0, 0, 1, 1, 0, true, binds, "", false);
+    visit(root, 0, 0, 1, 1, 0, true, binds, "", false, "");
   };
   run(false); // targets laid out once, so anchors can point at later nodes too
   run(true);
@@ -149,6 +162,29 @@ function restState(n: UiNode): { p?: [number, number]; s?: [number, number]; w?:
     else if (t.k === "scale" && Array.isArray(e) && Array.isArray(f)) out.s = [at(n.s?.[0] ?? 1, f[0], e[0]), at(n.s?.[1] ?? 1, f[1], e[1])];
     else if (t.k === "width" && n.w) out.w = at(n.w.w, f, e);
     else if (t.k === "height" && n.w) out.h = at(n.w.h, f, e);
+  }
+  return out;
+}
+
+/** UIGrid.ResetPosition: active children laid out by cell, line by line, then shifted to the grid's pivot */
+function gridPlaces(n: UiNode, active: boolean[]): ([number, number] | null)[] {
+  const g = n.grid!;
+  const [cw, ch] = g.cell;
+  const horizontal = g.arr !== 1;
+  const list = (n.ch ?? []).map((c, i) => i).filter((i) => !g.hide || active[i]);
+  if (g.sort === 1) list.sort((a, b) => n.ch![a]!.n.localeCompare(n.ch![b]!.n));
+  const out: ([number, number] | null)[] = (n.ch ?? []).map(() => null);
+  let col = 0, row = 0, maxCol = 0, maxRow = 0;
+  for (const i of list) {
+    out[i] = horizontal ? [cw * col, -ch * row] : [cw * row, -ch * col];
+    maxCol = Math.max(maxCol, col); maxRow = Math.max(maxRow, row);
+    if (++col >= g.cols && g.cols > 0) { col = 0; row++; }
+  }
+  if (g.pv !== 0) {
+    const [fx, fy] = PIVOT[g.pv] ?? [0, 1];
+    const ox = horizontal ? fx * maxCol * cw : fx * maxRow * cw;
+    const oy = horizontal ? -maxRow * ch * (1 - fy) : -maxCol * ch * (1 - fy);
+    for (const i of list) out[i] = [out[i]![0] - ox, out[i]![1] - oy];
   }
   return out;
 }

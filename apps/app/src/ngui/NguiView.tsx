@@ -47,7 +47,9 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
   const color = bind.color ?? w.c;
   let url: string | undefined;
   let border: [number, number, number, number] = [0, 0, 0, 0];
-  if (w.k === "sprite") {
+  if (w.k === "sprite" && bind.tex) {
+    url = /^(https?:|blob:|data:|\/)/.test(bind.tex) ? bind.tex : assetUrl(bind.tex);
+  } else if (w.k === "sprite") {
     const name = bind.sprite ?? w.sp;
     const s = name ? atlas[name] : undefined;
     if (!s) return null;
@@ -88,6 +90,7 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
 }
 
 const ALIGN: Record<number, CSSProperties["textAlign"]> = { 0: "left", 1: "left", 2: "center", 3: "right", 4: "justify" };
+const AUTO: CSSProperties["textAlign"][] = ["left", "center", "right"];
 const css = (c?: number[] | null) => (c ? `rgba(${Math.round(c[0]! * 255)}, ${Math.round(c[1]! * 255)}, ${Math.round(c[2]! * 255)}, ${c[3] ?? 1})` : undefined);
 
 function labelStyle(box: Box, fontScale: number): CSSProperties {
@@ -99,13 +102,14 @@ function labelStyle(box: Box, fontScale: number): CSSProperties {
     fontSize: `${lb.size * fontScale * 0.8}px`,
     lineHeight: `${(lb.size + (lb.sy ?? 0)) * fontScale}px`,
     color: css([color[0]!, color[1]!, color[2]!, 1]),
-    textAlign: ALIGN[lb.al] ?? "left",
+    // Automatic (0) follows the pivot's horizontal side, as in NGUIText
+    textAlign: (box.bind.al ?? lb.al) === 0 ? AUTO[(box.bind.pv ?? box.w.pv) % 3] : ALIGN[box.bind.al ?? lb.al] ?? "left",
     fontStyle: lb.style === 2 || lb.style === 3 ? "italic" : undefined,
     fontWeight: lb.style === 1 || lb.style === 3 ? "bold" : undefined,
     whiteSpace: "pre-line",
     display: "flex",
     flexDirection: "column",
-    justifyContent: [0, 1, 2].includes(box.w.pv) ? "flex-start" : [6, 7, 8].includes(box.w.pv) ? "flex-end" : "center",
+    justifyContent: [0, 1, 2].includes(box.bind.pv ?? box.w.pv) ? "flex-start" : [6, 7, 8].includes(box.bind.pv ?? box.w.pv) ? "flex-end" : "center",
   };
   if (lb.eff) {
     const [kind, c, d] = lb.eff;
@@ -171,9 +175,12 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;
           const cls = `ng ng-${b.w.k}${click ? " ng-click" : ""}${b.bind.disabled ? " ng-disabled" : ""}${b.node.btn ? " ng-btn" : ""} ${b.bind.className ?? ""}`;
           if (b.w.k === "label") {
-            const html = b.bind.html ?? (b.bind.text !== undefined ? escapeHtml(b.bind.text) : b.node.loc ? say(b.node.loc) : escapeHtml(b.w.lb!.text));
+            // label text: binding, its localization component, a bare key typed into the label (set by code), the saved text
+            const raw = b.w.lb!.text;
+            const keyText = /^[A-Z][A-Z0-9_]+$/.test(raw) ? say(raw) : "";
+            const html = b.bind.html ?? (b.bind.text !== undefined ? escapeHtml(b.bind.text) : b.node.loc ? say(b.node.loc) : keyText || escapeHtml(raw));
             return (
-              <div key={b.key} className={cls} style={{ ...st, ...labelStyle(b, 1) }} title={b.bind.title} onClick={click}
+              <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...labelStyle(b, 1) }} title={b.bind.title} onClick={click}
                 ref={(el) => { if (el) labelRefs.current.set(b.key, el); else labelRefs.current.delete(b.key); }}>
                 <span dangerouslySetInnerHTML={{ __html: html }} />
                 {b.bind.content}
@@ -182,7 +189,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           }
           const img = imageStyle(b, atlas);
           if (!img && !click && !b.bind.content) return null;
-          return <div key={b.key} className={cls} style={{ ...st, ...img }} title={b.bind.title} onClick={click}>{b.bind.content}</div>;
+          return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img }} title={b.bind.title} onClick={click}>{b.bind.content}</div>;
         })}
       </div>
     </div>

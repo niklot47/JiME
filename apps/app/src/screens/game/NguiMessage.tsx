@@ -1,0 +1,96 @@
+// The original's message popup (UI_Game/MessagePopup) drawn from the exported layout, driven like
+// FFG.Common.MessagePopup + MessageButtonController (decompiled code): one label 750 wide under the top of the screen,
+// the background anchored around it, and one button set per mode (continue, confirm/cancel, multiple choice,
+// challenge value, hero choice).
+import { useEffect, useState } from "react";
+import type { Answer, Decision, LogEntry } from "@jime/engine";
+import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
+import { findNode, type UiLayoutFile } from "../../ngui/types.ts";
+import type { Atlas, Say } from "./ui.ts";
+
+/** MessagePopup.InitializePlacement for PopupOptions.PopupCenterOn.Top: LocalPositionTop (0, 215) + 0.5 * label.minHeight (2) */
+const TOP: [number, number] = [0, 216];
+const MAX_CHOICES = 5; // ButtonMultipleChoice0..4 (+ the cancel button) in the layout
+
+export type PopupContent =
+  | { kind: "message"; entry: LogEntry; left: number; onNext: () => void; onSkipAll: () => void }
+  | { kind: "decision"; d: Decision; onAnswer: (a: Answer) => void };
+
+export function NguiMessage({ layout, atlas, say, content }: { layout: UiLayoutFile; atlas: Atlas; say: Say; content: PopupContent }) {
+  const popup = findNode(layout.root, "UI_Game/MessagePopup");
+  const [value, setValue] = useState(0);
+  const dKey = content.kind === "decision" ? content.d : null;
+  useEffect(() => setValue(0), [dKey]);
+  if (!popup) return null;
+
+  const b: Binds = {
+    MessagePopup: { at: TOP },
+    // InitializePlacement: pivot Top at y = 0, width 750, centred (label.height > minHeight always holds)
+    Label_Message: { pv: 1, at: [0, 0], w: 750, al: 2 },
+    // InitializePopup: the extra icon (elite banner) only with PopupOptions.ExtraSpriteId > 0
+    Sprite_ExtraIcon: { show: false },
+  };
+  const btn = (name: string, onClick: () => void, label?: { node: string; html: string }) => {
+    b[name] = { show: true, onClick };
+    if (label) b[`${name}/${label.node}`] = { html: label.html };
+  };
+
+  if (content.kind === "message") {
+    b.Label_Message!.html = say(content.entry[2], content.entry[3]);
+    btn("Button_Continue", content.onNext);
+  } else {
+    const d = content.d;
+    const prompt = "inserts" in d && d.key ? say(d.key, d.inserts) : "";
+    b.Label_Message!.html = prompt;
+    const yes = say("UI_CONFIRM") || "Подтвердить";
+    switch (d.kind) {
+      case "choice": {
+        b.Grid_MultipleChoice = { show: true };
+        d.choices.slice(0, MAX_CHOICES).forEach((c, i) =>
+          btn(`ButtonMultipleChoice${i}`, () => content.onAnswer(i), { node: `Label_Choice${i}`, html: say(c.key, c.inserts) || `#${i + 1}` }));
+        for (let i = d.choices.length; i < MAX_CHOICES; i++) b[`ButtonMultipleChoice${i}`] = { show: false };
+        b.ButtonCancelMultipleChoice = d.canCancel ? { show: true, onClick: () => content.onAnswer(null) } : { show: false };
+        break;
+      }
+      case "test":
+        b.SpriteChallengeValue = { show: true };
+        b.LabelChallengeValue = { show: true, text: String(value) };
+        b.ButtonIncrease = { show: true, onClick: () => setValue((v) => v + 1) };
+        b.ButtonDecrease = { show: true, onClick: () => setValue((v) => Math.max(0, v - 1)) };
+        b.ButtonConfirmChallenge = { show: true, onClick: () => content.onAnswer(value) };
+        b["ButtonConfirmChallenge/Label_Confirm"] = { html: yes };
+        b.ButtonCancelChallenge = { show: false };
+        break;
+      case "confirm":
+        btn("Button_Confirm", () => content.onAnswer(true), { node: "Label_Confirm", html: "Да" });
+        btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: "Нет" });
+        break;
+      case "lastStand":
+        b.Label_Message!.html = `Последний рубеж: Герой ${d.hero + 1} (${d.physical ? "урон" : "страх"})${d.key ? `<br><br>${say(d.key, d.inserts)}` : ""}`;
+        btn("Button_Confirm", () => content.onAnswer(true), { node: "Label_Confirm", html: "Пройден" });
+        btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: "Провален" });
+        break;
+      case "lastStandType":
+        b.Label_Message!.html = say("UI_CHOOSE_LAST_STAND") || "От чего герой повержен?";
+        btn("Button_Confirm", () => content.onAnswer(true), { node: "Label_Confirm", html: say("UI_PHYSICAL") || "Урон" });
+        btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: say("UI_FEAR") || "Страх" });
+        break;
+      case "hero": {
+        // HeroChoice: one portrait frame per player (no portraits yet: the number), skip when allowed
+        b.HeroChoice = { show: true };
+        const names = ["Button_HeroChoice", "Button_HeroChoice (1)", "Button_HeroChoice (2)", "Button_HeroChoice (3)", "Button_HeroChoice (4)"];
+        names.forEach((n, i) => {
+          b[n] = i < d.players
+            ? { show: true, onClick: () => content.onAnswer({ player: i, skip: false }), content: <span className="ng-hero-num">{i + 1}</span>, title: `Герой ${i + 1}` }
+            : { show: false };
+        });
+        b.ButtonConfirmPlayerChoice = { show: false };
+        b.ButtonSkipPlayerChoice = d.canSkip ? { show: true, onClick: () => content.onAnswer({ player: 0, skip: true }) } : { show: false };
+        break;
+      }
+      default:
+        return null;
+    }
+  }
+  return <NguiView layout={layout} atlas={atlas} show={[popup]} binds={b} say={say} className="ngui-popup" />;
+}
