@@ -8,7 +8,7 @@ import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadFx, loadEnemyArt, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadFx, loadEnemyArt, loadUiArt, themeChoice, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
@@ -100,6 +100,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [tokenArt, setTokenArt] = useState<Record<string, string>>({});
   const [fx, setFx] = useState<Record<string, string>>({});
   const [enemyArt, setEnemyArt] = useState<Record<string, string>>({});
+  const [uiArt, setUiArt] = useState<Record<string, string>>({});
   const [lang, setLang] = useState("ru");
   const [langs, setLangs] = useState(LANGS);
   const [text, setText] = useState<TextDb | null>(null);
@@ -124,8 +125,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     client.current = new GameClient();
     void installFonts();
     loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
-    Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt()])
-      .then(([d, a, t, f, e]) => { setDb(d); setArt(a); setTokenArt(t); setFx(f); setEnemyArt(e); })
+    Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt(), loadUiArt()])
+      .then(([d, a, t, f, e, u]) => { setDb(d); setArt(a); setTokenArt(t); setFx(f); setEnemyArt(e); setUiArt(themeChoice() === "original" ? u : {}); })
       .catch((e) => setError(String(e)));
     return () => { client.current?.dispose(); client.current = null; };
   }, []);
@@ -234,7 +235,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="game-screen">
       <div className="board-wrap">
-        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} fx={fx} labels={labels} view3d={view3d} onAnswer={answer} />
+        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d} onAnswer={answer} />
         <EnemyTracker view={view} pending={pending} art={enemyArt} say={say} disabled={busy} onAnswer={answer} />
       </div>
       <aside className={busy ? "game-panel busy" : "game-panel"}>
@@ -259,8 +260,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, fx, labels, view3d, onAnswer }: {
-  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; fx: Record<string, string>; labels: boolean; view3d: boolean;
+function GameBoard({ game, db, art, tokenArt, fx, table, labels, view3d, onAnswer }: {
+  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; fx: Record<string, string>; table?: string; labels: boolean; view3d: boolean;
   onAnswer: (a: Answer) => void;
 }) {
   const { board, adv, state: { view, pending } } = game;
@@ -319,7 +320,7 @@ function GameBoard({ game, db, art, tokenArt, fx, labels, view3d, onAnswer }: {
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Играйте через панель справа.</p></div>;
   if (view3d) {
     return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270}
-      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}:${shown.size}`} fx={fx} />;
+      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}:${shown.size}`} fx={fx} table={table} />;
   }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
     shownTiles={shown} tileColors={colors} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;

@@ -233,3 +233,36 @@ export const loadEnemyArt = () => once("enemies", async () => {
     return {} as Record<string, string>;
   }
 });
+
+/** Interface art of the "Original" theme (images/ui/ui.json from tools/importer/export_ui.py); {} if absent */
+export const loadUiArt = () => once("ui", async () => {
+  try {
+    return JSON.parse(await packText("images/ui/ui.json")) as Record<string, string>;
+  } catch {
+    return {} as Record<string, string>;
+  }
+});
+
+const THEME_KEY = "jime.theme";
+export const themeChoice = (): "original" | "plain" => {
+  try {
+    return localStorage.getItem(THEME_KEY) === "plain" ? "plain" : "original";
+  } catch {
+    return "original";
+  }
+};
+
+/**
+ * Apply the theme: "original" maps the pack's interface art to CSS variables (--ui-frame, --ui-leather, --ui-map,
+ * --ui-paper) and sets the theme-original class on <html>; "plain" (or no art in the packs) keeps the base look.
+ */
+export async function installTheme(choice = themeChoice()): Promise<void> {
+  try { localStorage.setItem(THEME_KEY, choice); } catch { /* not remembered */ }
+  const root = document.documentElement;
+  const art = choice === "original" ? await loadUiArt() : {};
+  for (const role of ["frame", "leather", "map", "paper"]) {
+    if (art[role]) root.style.setProperty(`--ui-${role}`, `url("${assetUrl(art[role]!)}")`);
+    else root.style.removeProperty(`--ui-${role}`);
+  }
+  root.classList.toggle("theme-original", Object.keys(art).length > 0);
+}

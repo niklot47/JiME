@@ -68,6 +68,7 @@ def main():
         ("export_tokens", ["export_tokens.py"]),
         ("export_fx", ["export_fx.py"]),
         ("export_icons", ["export_icons.py"]),
+        ("export_ui", ["export_ui.py"]),
     ]
     say(f"game data: {data}")
     say(f"work: {work}")

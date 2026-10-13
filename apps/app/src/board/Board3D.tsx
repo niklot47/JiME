@@ -23,6 +23,8 @@ interface Props {
   fitKey?: string;
   /** Effect textures by role (cloud, smoke, dust, ember: images/fx/fx.json); missing = no effect */
   fx?: Record<string, string>;
+  /** Table texture (pack path, tiled), e.g. the theme's leather; default: procedural cloth */
+  table?: string;
 }
 
 /** Animation step; returns false when finished */
@@ -301,9 +303,11 @@ interface State {
   fogKey: string;
   /** Token ids already on the board (new ones drop in) */
   seen: Set<string>;
+  table: THREE.Mesh;
+  tablePath: string | undefined;
 }
 
-export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {} }: Props) {
+export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<State | null>(null);
   const pickRef = useRef(onPick);
@@ -333,11 +337,11 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0006;
     scene.add(sun, sun.target);
-    const table = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ map: tableTexture(), roughness: 1 }));
-    table.rotation.x = -Math.PI / 2;
-    table.position.y = -0.01;
-    table.receiveShadow = true;
-    scene.add(table);
+    const tableMesh = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ map: tableTexture(), roughness: 1 }));
+    tableMesh.rotation.x = -Math.PI / 2;
+    tableMesh.position.y = -0.01;
+    tableMesh.receiveShadow = true;
+    scene.add(tableMesh);
     const board = new THREE.Group();
     scene.add(board);
 
@@ -414,7 +418,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     el.addEventListener("pointerup", onUp);
 
     st.current = { renderer, scene, camera, controls, board, sun, tileMats: new Map(), pulses: [], invalidate,
-      effects: [], fog: null, fogKey: "", seen: new Set() };
+      effects: [], fog: null, fogKey: "", seen: new Set(), table: tableMesh, tablePath: undefined };
     resize();
     return () => {
       cancelAnimationFrame(raf);
@@ -433,6 +437,21 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     if (!s) return;
     const rot = (-rotation * Math.PI) / 180;
     s.board.rotation.y = rot;
+    if (table !== s.tablePath) {
+      s.tablePath = table;
+      const mat = s.table.material as THREE.MeshStandardMaterial;
+      if (table) {
+        const t = texture(table);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(24, 24);
+        mat.map = t;
+        mat.color.set(0xffffff);
+      } else {
+        mat.map = tableTexture();
+        mat.color.set(0xffffff);
+      }
+      mat.needsUpdate = true;
+    }
     // tiles: built once per tile, reused across updates (keeps the sepia fade going)
     const shown = tiles.filter((t) => !shownTiles || shownTiles.has(t.tile.hashId));
     const keep = new Set(shown.map((t) => t.tile.hashId));
@@ -536,7 +555,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       s.controls.update();
     }
     s.invalidate();
-  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx]);
+  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table]);
 
   return <div ref={host} className="board" />;
 }

@@ -148,3 +148,29 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .tracker .hp { height: 6px; width: 110px; background: #15130f; border-radius: 3px; overflow: hidden; }
 .tracker .hp div { height: 100%; background: #b03a2e; }
 @media (max-width: 860px) { .board-wrap { flex: 0 0 45dvh; } }
+
+/* ---------------------------------------------------------------- theme "Original" (art from the imported pack) */
+.theme-toggle { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--muted); }
+.theme-original body {
+  background: linear-gradient(rgba(12, 10, 8, 0.55), rgba(12, 10, 8, 0.55)), var(--ui-leather) repeat;
+  background-size: auto, 256px;
+}
+.theme-original main.shell { min-height: 100dvh; max-width: none;
+  background: radial-gradient(ellipse at center, rgba(20, 16, 12, 0.25), rgba(12, 10, 8, 0.85) 75%), var(--ui-map) center / cover no-repeat; }
+.theme-original .card { background: rgba(28, 24, 18, 0.82); backdrop-filter: blur(2px); }
+.theme-original .game-panel, .theme-original .panel {
+  background: linear-gradient(rgba(20, 17, 13, 0.78), rgba(20, 17, 13, 0.86)), var(--ui-leather) repeat;
+  background-size: auto, 256px;
+}
+.theme-original .decision {
+  border: 30px solid transparent;
+  border-image: var(--ui-frame) 72 fill / 30px / 0 stretch;
+  border-radius: 0;
+  background: none;
+  padding: 0 6px;
+}
+.theme-original .decision > button, .theme-original .decision .row button {
+  background: rgba(30, 32, 26, 0.75); border-color: #6b6a5c;
+}
+.theme-original .decision .primary { background: linear-gradient(#d6b25c, #a9833a); color: #1a140c; }
+.theme-original .tracker .enemy { background: linear-gradient(rgba(22, 20, 16, 0.9), rgba(22, 20, 16, 0.9)), var(--ui-leather); }
