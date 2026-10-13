@@ -16,6 +16,8 @@ export interface Token {
   glyph?: string;
   /** Draw a bright ring: the token is a valid target right now */
   active?: boolean;
+  /** Token art (pack asset path); replaces the colored disc and glyph */
+  image?: string;
 }
 
 /** What a tap hit: a token (its id) or a tile (its hash id) */
@@ -240,16 +242,20 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
     }
     const visibleTokens = sections ? tokens.filter((tk) => sections.includes(tk.section ?? -1)) : tokens;
     for (const tk of visibleTokens) {
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.32, 32), new THREE.MeshBasicMaterial({ color: tk.color, depthTest: false }));
+      const disc = tk.image
+        ? new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.76), new THREE.MeshBasicMaterial({ map: texture(tk.image), transparent: true, depthTest: false }))
+        : new THREE.Mesh(new THREE.CircleGeometry(0.32, 32), new THREE.MeshBasicMaterial({ color: tk.color, depthTest: false }));
+      // token art stays upright on screen whatever the view rotation
+      if (tk.image) disc.rotation.z = -rot;
       disc.position.set(tk.x, tk.y, 0.01);
       disc.renderOrder = 2;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.32, tk.active ? 0.44 : 0.38, 32),
+      const ring = new THREE.Mesh(new THREE.RingGeometry(tk.image ? 0.37 : 0.32, tk.active ? 0.45 : tk.image ? 0.39 : 0.38, 32),
         new THREE.MeshBasicMaterial({ color: tk.active ? 0xfff1b0 : 0x1a140c, depthTest: false }));
       ring.position.set(tk.x, tk.y, 0.011);
       ring.renderOrder = 2;
       if (tk.id !== undefined) disc.userData.pick = ring.userData.pick = { kind: "token", id: tk.id } satisfies Pick;
       s.board.add(disc, ring);
-      if (tk.glyph) {
+      if (tk.glyph && !tk.image) {
         const gl = glyphSprite(tk.glyph);
         gl.position.set(tk.x, tk.y, 0.015);
         s.board.add(gl);

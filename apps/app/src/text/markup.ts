@@ -4,8 +4,15 @@ import type { TextDb } from "@jime/content-tools/text";
 const OPEN = "\u0001", CLOSE = "\u0002";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function textHtml(text: TextDb, key: string, inserts: readonly string[] = []): string {
-  const s = text.format(key, inserts, { markup: (tag, open) => (open ? OPEN : CLOSE) + tag });
+/**
+ * fallback: another language (English) for keys missing in `text` - e.g. DLC keys a translation lacks;
+ * applies to the key itself and to inserts that are keys
+ */
+export function textHtml(text: TextDb, key: string, inserts: readonly string[] = [], fallback?: TextDb | null): string {
+  const markup = (tag: "i" | "b", open: boolean) => (open ? OPEN : CLOSE) + tag;
+  const db = !text.has(key) && fallback?.has(key) ? fallback : text;
+  const ins = fallback ? inserts.map((i) => (!text.has(i) && fallback.has(i) ? fallback.format(i, [], { markup }) : i)) : inserts;
+  const s = db.format(key, ins, { markup });
   return esc(s)
     .replace(/\u0001([ib])/g, "<$1>")
     .replace(/\u0002([ib])/g, "</$1>")

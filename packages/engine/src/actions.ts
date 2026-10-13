@@ -111,7 +111,11 @@ export const ACTIONS: Record<string, ActionHandler> = {
     if (r.skip) return gd(p, "SkipEvent");
   },
   DisplayMessageSelectHighlight: (g, f, p) => { g.show(f, gd(p, "Message")); },
-  SetObjective: (g, _f, p) => { g.objective = keyOf(gd(p, "Message")); },
+  SetObjective: (g, f, p) => {
+    g.objective = keyOf(gd(p, "Message"));
+    // inserts resolved now, like FFG (MasterMessageCache.CompressMessage); UI only, so no warnings (engine-py parity)
+    g.objectiveInserts = g.quietly(() => g.msgKey(f, gd(p, "Message"))[1].map(String));
+  },
   StoreKey: (g, f, p) => g.set(f, gd(p, "StoreResult"), keyOf(gd(p, "Key"))),
   AddAdventureRule: (g, _f, p) => g.emit("RULE:" + String(keyOf(gd(p, "AdventureRule")) ?? "None")),
   RemoveAdventureRule: noop,

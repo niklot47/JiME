@@ -1,26 +1,27 @@
-// Game screen (Stage 3.2 MVP): board + log + decision panel on top of the engine Session.
-// The board is generated first (BrowserSource.prepare), then the Session replays on every answer.
+// Game screen (Stage 3.2): board + log + decision panel. The engine (map generation + Session replays)
+// runs in a Web Worker (game/worker.ts); this thread only renders the state it sends back.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Session, keysOf, tokenFamily, type Answer, type Decision, type GameView, type SaveData, type SessionSetup } from "@jime/engine";
+import { keysOf, tokenFamily, type Answer, type Decision, type GameView, type LogEntry, type SaveData, type SessionSetup } from "@jime/engine";
 import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
 import type { TextDb } from "@jime/content-tools/text";
 import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
-import { BrowserSource } from "../data/source.ts";
-import { installFonts, loadText, loadTileArt } from "../data/pack.ts";
+import { GameClient } from "../game/client.ts";
+import type { GameState } from "../game/protocol.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
 const LANGS = ["ru", "en", "it"];
 
 interface Game {
-  session: Session;
+  state: GameState;
   board: GeneratedMap | null;
   adv: any;
 }
 
 const shortName = (n: string) => n.replace(/^\d+_/, "");
 
-// token look by Token3DType family (FFG colors approximated; a theme pack can override later)
+// fallback token look by Token3DType family when the pack has no token art
 const TOKEN_LOOK: Record<string, { color: string; glyph: string }> = {
   explore: { color: "#9cc27a", glyph: "✦" },
   search: { color: "#e2c25b", glyph: "?" },
@@ -31,6 +32,13 @@ const TOKEN_LOOK: Record<string, { color: string; glyph: string }> = {
   none: { color: "#b0a48a", glyph: "·" },
 };
 
+// UI names of token types (TOKEN_TYPES ids); TODO(3.5): move to UI localization
+const TOKEN_NAMES: Record<number, string> = {
+  1: "Исследование", 2: "Поиск", 3: "Угроза", 4: "Гном", 5: "Эльф", 6: "Хоббит", 7: "Человек",
+  31: "Тьма", 32: "Труднопроходимая местность", 33: "Укреплённая позиция",
+};
+const tokenName = (t: number) => TOKEN_NAMES[t] ?? (tokenFamily(t) === "terrain" ? "Местность" : "Жетон");
+
 function readAutosave(): SaveData | null {
   try {
     const s = localStorage.getItem(AUTOSAVE);
@@ -40,9 +48,9 @@ function readAutosave(): SaveData | null {
   }
 }
 
-function writeAutosave(s: Session): void {
+function writeAutosave(save: SaveData): void {
   try {
-    localStorage.setItem(AUTOSAVE, JSON.stringify(s.save()));
+    localStorage.setItem(AUTOSAVE, JSON.stringify(save));
   } catch {
     /* storage unavailable: the file save still works */
   }
@@ -57,8 +65,10 @@ function download(name: string, data: unknown): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+type GenTile = GeneratedMap["sections"][number]["tiles"][number];
+
 /** World position of a tile space: mean of its hex centers */
-function spaceCenter(db: any, adv: any, t: GeneratedMap["sections"][number]["tiles"][number], si: number): [number, number] | null {
+function spaceCenter(db: any, adv: any, t: GenTile, si: number): [number, number] | null {
   const geo = t.customPid !== null ? adv.ext?.customTiles?.[String(t.customPid)] : db.tiles.find((g: any) => g.code === t.code);
   const hs: number[] | undefined = geo?.spaces?.[si]?.hexes;
   if (!hs?.length) return null;
@@ -67,21 +77,23 @@ function spaceCenter(db: any, adv: any, t: GeneratedMap["sections"][number]["til
   return [x, y];
 }
 
-function tileCenter(t: GeneratedMap["sections"][number]["tiles"][number]): [number, number] {
+function tileCenter(t: GenTile): [number, number] {
   let x = 0, y = 0;
   for (const h of t.hexes) { const [wx, wy] = cubeToWorld(h); x += wx / t.hexes.length; y += wy / t.hexes.length; }
   return [x, y];
 }
 
 export function GameScreen({ onBack }: { onBack: () => void }) {
-  const [src, setSrc] = useState<BrowserSource | null>(null);
+  const client = useRef<GameClient | null>(null);
+  const [db, setDb] = useState<any>(null);
   const [art, setArt] = useState<TileArtDb | null>(null);
+  const [tokenArt, setTokenArt] = useState<Record<string, string>>({});
   const [lang, setLang] = useState("ru");
   const [text, setText] = useState<TextDb | null>(null);
+  const [english, setEnglish] = useState<TextDb | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [game, setGame] = useState<Game | null>(null);
-  const [, setVersion] = useState(0);
   // setup form
   const [adv, setAdv] = useState(1);
   const [seed, setSeed] = useState(() => (Math.random() * 2 ** 31) | 0);
@@ -91,30 +103,32 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    client.current = new GameClient();
     void installFonts();
-    Promise.all([BrowserSource.create(), loadTileArt()]).then(([s, a]) => { setSrc(s); setArt(a); }).catch((e) => setError(String(e)));
+    Promise.all([loadDb(), loadTileArt(), loadTokenArt()])
+      .then(([d, a, t]) => { setDb(d); setArt(a); setTokenArt(t); })
+      .catch((e) => setError(String(e)));
+    return () => { client.current?.dispose(); client.current = null; };
   }, []);
   useEffect(() => { loadText(lang).then(setText).catch((e) => setError(String(e))); }, [lang]);
+  useEffect(() => { loadText("en").then(setEnglish).catch(() => setEnglish(null)); }, []);
 
-  const say = (key: string | null | undefined, ins: readonly string[] = []) => (key && text ? textHtml(text, key, ins) : "");
+  const say = (key: string | null | undefined, ins: readonly string[] = []) => (key && text ? textHtml(text, key, ins, lang === "en" ? null : english) : "");
 
   const adventures = useMemo(() => {
-    if (!src) return [];
-    const AM = src.db().models.AdventureModel;
+    if (!db) return [];
+    const AM = db.models.AdventureModel;
     return keysOf(AM).map(Number).sort((a, b) => a - b).filter((k) => AM[k]?.Prefab?.Path)
       .map((k) => ({ id: k, name: (text && AM[k].NameKey && text.raw(AM[k].NameKey)) || shortName(AM[k].m_Name) }));
-  }, [src, text]);
+  }, [db, text]);
 
-  async function start(setup: SessionSetup, save?: SaveData) {
-    if (!src) return;
+  /** Send a request to the worker; the UI stays responsive, decisions are locked while busy */
+  async function run(f: (c: GameClient) => Promise<void>) {
+    if (!client.current || busy) return;
     setBusy(true);
-    setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 0)); // let "busy" render: board generation can take a while
-      const board = await src.prepare(setup);
-      const session = save ? Session.load(src, save, { board }) : new Session(src, setup, [], { board });
-      setGame({ session, board, adv: src.adventure(setup.adv) });
-      writeAutosave(session);
+      await f(client.current);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -122,24 +136,18 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     }
   }
 
-  function answer(a: Answer) {
-    if (!game) return;
-    try {
-      game.session.answer(a);
-      writeAutosave(game.session);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-    setVersion((v) => v + 1);
-  }
+  const start = (setup: SessionSetup, save?: SaveData) => run(async (c) => {
+    const [r, a] = await Promise.all([c.request({ type: "start", setup, save }), loadAdventure(setup.adv)]);
+    setGame({ state: r.state, board: r.board ?? null, adv: a });
+    writeAutosave(r.state.save);
+  });
 
-  function undo() {
-    if (!game || !game.session.answers.length) return;
-    game.session.undo();
-    writeAutosave(game.session);
-    setVersion((v) => v + 1);
-  }
+  const update = (req: { type: "answer"; answer: Answer } | { type: "undo" }) => run(async (c) => {
+    const { state } = await c.request(req);
+    setGame((g) => (g ? { ...g, state } : g));
+    writeAutosave(state.save);
+  });
+  const answer = (a: Answer) => update({ type: "answer", answer: a });
 
   async function loadFile(f: File) {
     try {
@@ -154,11 +162,12 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   // ---------------------------------------------------------------- setup screen
   if (!game) {
     const auto = readAutosave();
+    const ready = !!db && !busy;
     return (
       <div className="shell">
         <button className="link" onClick={onBack}>← Меню</button>
         <h2 className="title">Новая партия</h2>
-        {!src && !error && <p className="muted">Загрузка пака…</p>}
+        {!db && !error && <p className="muted">Загрузка пака…</p>}
         <div className="form">
           <label>Приключение
             <select value={adv} onChange={(e) => setAdv(Number(e.target.value))}>
@@ -182,16 +191,16 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
             </div>
           </label>
           <label className="check"><input type="checkbox" checked={coreOnly} onChange={(e) => setCoreOnly(e.target.checked)} /> Только базовая коробка</label>
-          <button className="primary" disabled={!src || busy}
+          <button className="primary" disabled={!ready}
             onClick={() => start({ adv, seed, players, language: lang, ...(coreOnly ? { products: [0] } : {}) })}>
             {busy ? "Подготовка…" : "Начать"}
           </button>
           {auto && (
-            <button disabled={!src || busy} onClick={() => start(auto.setup, auto)}>
+            <button disabled={!ready} onClick={() => start(auto.setup, auto)}>
               Продолжить: приключение {auto.setup.adv}, ходов {auto.answers.length}
             </button>
           )}
-          <button disabled={!src || busy} onClick={() => fileInput.current?.click()}>Загрузить из файла…</button>
+          <button disabled={!ready} onClick={() => fileInput.current?.click()}>Загрузить из файла…</button>
           <input ref={fileInput} type="file" accept=".json,application/json" hidden
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void loadFile(f); }} />
           {error && <p className="error">{error}</p>}
@@ -201,54 +210,54 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   }
 
   // ---------------------------------------------------------------- game screen
-  const { session } = game;
-  const view = session.view();
-  const pending = session.pending;
+  const { state } = game;
+  const { view, pending } = state;
   return (
     <div className="game-screen">
-      <GameBoard game={game} view={view} art={art} pending={pending} labels={labels} onAnswer={answer} />
-      <aside className="game-panel">
+      <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} labels={labels} onAnswer={answer} />
+      <aside className={busy ? "game-panel busy" : "game-panel"}>
         <div className="row spread">
           <button className="link" onClick={() => setGame(null)}>← Партии</button>
           <div className="row">
-            <button onClick={undo} disabled={!session.answers.length} title="Отменить последний ответ">↶ Отмена</button>
-            <button onClick={() => download(`jime-${view.adv}-${session.setup.seed}.json`, session.save())} title="Сохранить в файл">💾</button>
+            <button onClick={() => update({ type: "undo" })} disabled={!state.answers || busy} title="Отменить последний ответ">↶ Отмена</button>
+            <button onClick={() => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save)} title="Сохранить в файл">💾</button>
           </div>
         </div>
         <Status view={view} say={say} />
         <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Названия жетонов</label>
         {error && <p className="error">{error}</p>}
-        <DecisionPanel key={session.answers.length} d={pending} view={view} say={say} onAnswer={answer} />
-        <GameLog session={session} say={say} />
+        <DecisionPanel key={state.answers} d={pending} view={view} say={say} onAnswer={answer} disabled={busy} labels={labels} />
+        <GameLog log={state.log} say={say} />
       </aside>
     </div>
   );
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, view, art, pending, labels, onAnswer }: {
-  game: Game; view: GameView; art: TileArtDb | null; pending: Decision | null; labels: boolean; onAnswer: (a: Answer) => void;
+function GameBoard({ game, db, art, tokenArt, labels, onAnswer }: {
+  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; labels: boolean; onAnswer: (a: Answer) => void;
 }) {
-  const { board, adv } = game;
-  const db = game.session.src.db();
+  const { board, adv, state: { view, pending } } = game;
   const meshes = useMemo(() => (board && art ? layoutBoard(board, view.adv, art) : []), [board, art, view.adv]);
   const genTiles = useMemo(() => new Map((board?.sections ?? []).flatMap((s) => s.tiles).map((t) => [t.hashId, t])), [board]);
 
   // option index by pick target for the current hero action
-  const targets = new Map<string, number>();
-  if (pending?.kind === "action") {
-    pending.options.forEach((o, i) => {
-      if (o.type === "node") targets.set(`n:${o.uid}`, i);
-      else if (o.type === "explore") targets.set(`t:${o.tileId}`, i);
-    });
-  }
-  const viewKey = JSON.stringify([view.tiles, view.nodes]);
-  const targetKey = [...targets.keys()].join(",");
+  const targets = useMemo(() => {
+    const m = new Map<string, number>();
+    if (pending?.kind === "action") {
+      pending.options.forEach((o, i) => {
+        if (o.type === "node") m.set(`n:${o.uid}`, i);
+        else if (o.type === "explore") m.set(`t:${o.tileId}`, i);
+      });
+    }
+    return m;
+  }, [pending]);
 
   const { tokens, shown, colors } = useMemo(() => {
     const tokens: Token[] = [];
     const shown = new Set<number>();
     const colors = new Map<number, number>();
+    const look = (t: number) => ({ ...TOKEN_LOOK[tokenFamily(t)]!, image: tokenArt[String(t)] });
     for (const t of view.tiles) {
       if (!t.visible) continue;
       shown.add(t.id);
@@ -257,23 +266,22 @@ function GameBoard({ game, view, art, pending, labels, onAnswer }: {
       if (gt && !t.explored && t.token) {
         const [x, y] = tileCenter(gt);
         const id = `t:${t.id}`;
-        tokens.push({ x, y, id, label: labels ? t.code : "", ...TOKEN_LOOK.explore!, active: targets.has(id) });
+        tokens.push({ x, y, id, label: labels ? t.code : "", ...look(1), active: targets.has(id) });
       }
     }
     for (const n of view.nodes) {
       if (!n.visible || n.tileId === null) continue;
       const gt = genTiles.get(n.tileId);
-      const p = gt && spaceCenter(db, adv, gt, n.space);
+      const p = gt && db ? spaceCenter(db, adv, gt, n.space) : null;
       if (!p) continue;
       const id = `n:${n.uid}`;
-      tokens.push({ x: p[0], y: p[1], id, label: labels ? shortName(n.name) : "", ...TOKEN_LOOK[tokenFamily(n.token)]!, active: targets.has(id) });
+      tokens.push({ x: p[0], y: p[1], id, label: labels ? shortName(n.name) : "", ...look(n.token), active: targets.has(id) });
     }
     return { tokens, shown, colors };
-  }, [viewKey, targetKey, labels, genTiles]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, targets, labels, genTiles, db, adv, tokenArt]);
 
   function pick(p: Pick) {
-    const id = p.kind === "token" ? p.id : `t:${p.id}`;
-    const i = targets.get(id);
+    const i = targets.get(p.kind === "token" ? p.id : `t:${p.id}`);
     if (i !== undefined) onAnswer(i);
   }
 
@@ -294,7 +302,7 @@ function Status({ view, say }: { view: GameView; say: Say }) {
         <span>Угроза <b>{view.threat}</b>{view.threatMax > 0 ? ` / ${view.threatMax}` : ""}</span>
       </div>
       {view.threatMax > 0 && <div className="bar"><div style={{ width: `${pct}%` }} /></div>}
-      {view.objective && <p className="objective" dangerouslySetInnerHTML={{ __html: say(view.objective) }} />}
+      {view.objective && <p className="objective" dangerouslySetInnerHTML={{ __html: say(view.objective, view.objectiveInserts) }} />}
       <div className="heroes">
         {view.heroes.map((h, i) => (
           <span key={i} className={h.defeated ? "hero down" : "hero"}>Герой {i + 1}: урон {h.damage}, страх {h.fear}</span>
@@ -327,7 +335,9 @@ function Stepper({ initial = 0, label, onOk }: { initial?: number; label: string
   );
 }
 
-function DecisionPanel({ d, view, say, onAnswer }: { d: Decision | null; view: GameView; say: Say; onAnswer: (a: Answer) => void }) {
+function DecisionPanel({ d, view, say, onAnswer, disabled, labels }: {
+  d: Decision | null; view: GameView; say: Say; onAnswer: (a: Answer) => void; disabled: boolean; labels: boolean;
+}) {
   if (!d) {
     return (
       <div className="decision">
@@ -338,6 +348,9 @@ function DecisionPanel({ d, view, say, onAnswer }: { d: Decision | null; view: G
     );
   }
   const prompt = "key" in d && d.key ? <p className="prompt" dangerouslySetInnerHTML={{ __html: say(d.key) }} /> : null;
+  return <fieldset className="decision-wrap" disabled={disabled}>{body(d)}</fieldset>;
+
+  function body(d: Decision) {
   switch (d.kind) {
     case "choice":
       return (
@@ -387,7 +400,7 @@ function DecisionPanel({ d, view, say, onAnswer }: { d: Decision | null; view: G
           <p className="muted">Нажмите на жетон или тайл на карте, или выберите действие:</p>
           {d.options.map((o, i) => (
             <button key={i} onClick={() => onAnswer(i)}>
-              {o.type === "node" ? `Жетон: ${shortName(o.name)}`
+              {o.type === "node" ? `${tokenName(o.token)}${o.tile ? ` · тайл ${o.tile}` : ""}${labels ? ` (${shortName(o.name)})` : ""}`
                 : o.type === "explore" ? `Исследовать тайл ${o.tile}`
                 : <>Атаковать: <span dangerouslySetInnerHTML={{ __html: say(o.enemy) }} /> ×{o.size}</>}
             </button>
@@ -395,13 +408,13 @@ function DecisionPanel({ d, view, say, onAnswer }: { d: Decision | null; view: G
           <button className="link" onClick={() => onAnswer(null)}>Закончить ход героя</button>
         </div>
       );
+    }
   }
 }
 
 // ---------------------------------------------------------------- log
-function GameLog({ session, say }: { session: Session; say: Say }) {
+function GameLog({ log, say }: { log: readonly LogEntry[]; say: Say }) {
   const end = useRef<HTMLDivElement>(null);
-  const log = session.log;
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [log.length]);
   const items: ReactNode[] = [];
   let round = 0;

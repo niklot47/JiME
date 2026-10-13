@@ -231,6 +231,7 @@ export interface GameView {
   threat: number;
   threatMax: number;
   objective: string | null;
+  objectiveInserts: string[];
   ended: string | null;
   result: string | null;
   heroes: { damage: number; fear: number; defeated: boolean }[];
@@ -246,6 +247,7 @@ export interface GameView {
 export function viewOf(g: Game): GameView {
   return {
     adv: g.advId, round: g.round, threat: g.globals.Threat, threatMax: g.threatMax, objective: g.objective,
+    objectiveInserts: [...g.objectiveInserts],
     ended: g.ended, result: g.result,
     heroes: g.heroes.map((h) => ({ ...h })),
     tiles: [...g.tiles.values()].map((t) => ({ id: t.id, code: t.code, section: t.section, visible: t.visible, explored: t.explored, token: t.exploreToken })),

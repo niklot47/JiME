@@ -43,3 +43,12 @@ export const installFonts = () => once("fonts", async () => {
     /* no fonts in this pack */
   }
 });
+
+/** Token art by Token3DType id (images/tokens/tokens.json from tools/importer/export_tokens.py); {} if absent */
+export const loadTokenArt = () => once("tokens", async () => {
+  try {
+    return JSON.parse(await packText("images/tokens/tokens.json")) as Record<string, string>;
+  } catch {
+    return {} as Record<string, string>;
+  }
+});

@@ -372,6 +372,8 @@ export class Game {
   ended: string | null = null;
   result: "victory" | "defeat" | null = null;
   objective: any = null;
+  /** Inserts of the objective message at the time it was set (for UI) */
+  objectiveInserts: string[] = [];
   readonly heroes: { damage: number; fear: number; defeated: boolean }[];
   readonly objs = new Map<string, Obj>();
   readonly allFsms: Fsm[] = [];
@@ -441,6 +443,17 @@ export class Game {
 
   warn(msg: string): void {
     this.warnings.inc(msg);
+  }
+
+  /** Run f without recording warnings (UI-only evaluations must not change traces) */
+  quietly<T>(f: () => T): T {
+    const saved = new Map(this.warnings);
+    try {
+      return f();
+    } finally {
+      this.warnings.clear();
+      for (const [k, v] of saved) this.warnings.set(k, v);
+    }
   }
 
   emit(key: any, ...inserts: unknown[]): void {

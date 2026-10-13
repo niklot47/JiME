@@ -30,4 +30,6 @@ export default defineConfig({
   server: { port: 1420, strictPort: true },
   envPrefix: ["VITE_", "TAURI_ENV_"],
   build: { target: "es2022", outDir: "dist" },
+  // the game worker imports the engine as ES modules
+  worker: { format: "es" },
 });
