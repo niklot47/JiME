@@ -1,18 +1,19 @@
-// Game screen (Stage 3.2): board + log + decision panel. The engine (map generation + Session replays)
+// Game screen (Stage 3.2): board with the HUD and dialogs of the original (screens/game/). The engine (map generation + Session replays)
 // runs in a Web Worker (game/worker.ts); this thread only renders the state it sends back.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { keysOf, tokenFamily, type Answer, type Decision, type GameView, type LogEntry, type SaveData, type SessionSetup } from "@jime/engine";
+import { keysOf, tokenFamily, type Answer, type LogEntry, type SaveData, type SessionSetup } from "@jime/engine";
 import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
 import type { TextDb } from "@jime/content-tools/text";
 import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, type AtlasSprite, themeChoice, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, type AtlasSprite, themeChoice, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 import { sound } from "../audio/sound.ts";
-import { MuteButton } from "../audio/SoundPanel.tsx";
 import { PHASE_KEYS, gameSounds } from "../audio/gameFx.ts";
+import { BottomBar, GearButton, PhaseBanner, ThreatBar } from "./game/Hud.tsx";
+import { DecisionDialog, EnemyInfoDialog, GameOverDialog, GreenButton, MessageDialog, PartyDialog, SettingsDialog } from "./game/Dialogs.tsx";
 
 const AUTOSAVE = "jime.autosave";
 const VIEW_KEY = "jime.board.view";
@@ -193,17 +194,24 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => () => sound.ambient(null), []);
   // sounds and the phase banner from what one answer changed (not on undo or load)
   const prevState = useRef<GameState | null>(null);
-  // phase banners in order (ending a round passes shadow -> rally -> heroes in one answer)
-  const [banners, setBanners] = useState<{ keys: string[]; n: number }>({ keys: [], n: 0 });
+  // log entries not seen yet, in log order: phase changes play as banners, messages wait in the message box for
+  // Continue, like the original (ending a round passes shadow -> rally -> heroes phases in one answer)
+  const [unread, setUnread] = useState<LogEntry[]>([]);
+  const [modal, setModal] = useState<null | "party" | "settings">(null);
+  const [enemyInfo, setEnemyInfo] = useState<number | null>(null);
   useEffect(() => {
     const prev = prevState.current;
     const next = game?.state ?? null;
     prevState.current = next;
-    if (!prev || !next || next.answers <= prev.answers || next.save.setup.seed !== prev.save.setup.seed) return;
+    if (!next) { setUnread([]); return; }
+    // a new game shows its opening messages; loading or undoing shows none
+    if (!prev || next.save.setup.seed !== prev.save.setup.seed || next.answers <= prev.answers) {
+      setUnread(!prev && next.answers === 0 ? [...next.log] : []);
+      return;
+    }
     const added = next.log.slice(prev.log.length);
+    setUnread((u) => [...u, ...added]);
     gameSounds(prev.view, next.view, added);
-    const ph = added.map(([, , k]) => k).filter((k) => PHASE_KEYS.has(k));
-    if (ph.length) setBanners((b) => ({ keys: [...b.keys, ...ph], n: b.n + 1 }));
   }, [game?.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------- setup screen
@@ -257,38 +265,78 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   }
 
   // ---------------------------------------------------------------- game screen
+  // Like the original there is no side panel: messages and decisions are dialogs over the board, the rest is in the
+  // party menu (status, chronicle, items) and the settings menu (gear, top right).
   const { state } = game;
   const { view, pending } = state;
+  const action = pending?.kind === "action" ? pending : null;
+  (window as any).__jimeGame = { state, answer }; // dev checks over CDP (tools/dev)
+  // queue head: a phase banner or a message (entries without text are skipped)
+  const queue = unread.filter(([, , k, ins]) => PHASE_KEYS.has(k) || !!say(k, ins));
+  const head = queue[0];
+  const banner = head && PHASE_KEYS.has(head[2]) ? head : null;
+  const messages = queue.filter(([, , k]) => !PHASE_KEYS.has(k));
+  const talking = queue.length > 0;
+  const drop = (e: LogEntry) => setUnread((u) => u.slice(u.indexOf(e) + 1));
+  // hero actions: tokens and tiles are picked on the board, enemies in the tracker; the rest gets small buttons
+  const attackable = new Map<number, number>();
+  const others: { i: number; label: ReactNode }[] = [];
+  const lastStands = new Map<number, number>(); // hero -> option index
+  action?.options.forEach((o, i) => {
+    if (o.type === "attack") attackable.set(o.uid, i);
+    else if (o.type === "node") {
+      const n = view.nodes.find((x) => x.uid === o.uid);
+      if (!n || n.tileId === null || !n.visible || !game.board)
+        others.push({ i, label: `${tokenName(o.token)}${o.tile ? ` · тайл ${o.tile}` : ""}${labels ? ` (${shortName(o.name)})` : ""}` });
+    } else if (o.type === "explore") {
+      if (!game.board) others.push({ i, label: `Исследовать тайл ${o.tile}` });
+    } else lastStands.set(o.hero, i);
+  });
+  const items = (view.campaign.items as any[]).map((id) => {
+    const m = db?.models?.ItemModel?.[String(id)];
+    return { id: Number(id), key: m?.NameKey ?? null, name: m ? shortName(m.m_Name) : `#${id}` };
+  });
+  const enemy = enemyInfo !== null ? view.enemies.find((e) => e.uid === enemyInfo) ?? null : null;
+  const dialog = banner ? null
+    : talking ? <MessageDialog atlas={atlas} say={say} entry={head!} left={messages.length} onNext={() => drop(head!)} onSkipAll={() => setUnread([])} />
+    : pending ? <DecisionDialog key={state.answers} d={pending} view={view} atlas={atlas} say={say} enemyArt={enemyArt} onAnswer={answer} />
+    : <GameOverDialog view={view} atlas={atlas} onQuit={() => setGame(null)} />;
   return (
-    <div className="game-screen">
+    <div className="game-screen hud">
       <div className="board-wrap">
-        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d} onAnswer={answer} />
+        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d}
+          onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         <ThreatBar view={view} art={uiArt} atlas={atlas} say={say} />
-        {banners.keys.length > 0 && (
-          <PhaseBanner key={`${banners.n}:${banners.keys.length}`} text={say(banners.keys[0])}
-            round={banners.keys[0] === "UI_PHASE_HERO" ? view.round : null} atlas={atlas}
-            short={banners.keys.length > 1} onDone={() => setBanners((b) => ({ ...b, keys: b.keys.slice(1) }))} />
+        <GearButton atlas={atlas} onClick={() => setModal("settings")} />
+        {banner && (
+          <PhaseBanner key={unread.indexOf(banner) + ":" + unread.length} text={say(banner[2])}
+            round={banner[2] === "UI_PHASE_HERO" ? banner[1] : null} atlas={atlas}
+            short={queue.length > 1} onDone={() => drop(banner)} />
         )}
-        <EnemyTracker view={view} pending={pending} art={enemyArt} atlas={atlas} say={say} disabled={busy} onAnswer={answer} />
-      </div>
-      <aside className={busy ? "game-panel busy" : "game-panel"}>
-        <div className="row spread">
-          <button className="link" onClick={() => setGame(null)}>← Партии</button>
-          <div className="row">
-            <button onClick={() => update({ type: "undo" })} disabled={!state.answers || busy} title="Отменить последний ответ">↶ Отмена</button>
-            <MuteButton />
-            <button onClick={() => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save)} title="Сохранить в файл">💾</button>
+        <fieldset className={busy ? "dialogs busy" : "dialogs"} disabled={busy}>{dialog}</fieldset>
+        {action && !talking && others.length > 0 && (
+          <div className="other-actions">
+            {others.map((o) => <GreenButton key={o.i} atlas={atlas} onClick={() => answer(o.i)}>{o.label}</GreenButton>)}
           </div>
-        </div>
-        <Status view={view} say={say} />
-        <div className="row wrap">
-          <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Названия жетонов</label>
-          <label className="check"><input type="checkbox" checked={view3d} onChange={(e) => toggleView(e.target.checked)} /> 3D</label>
-        </div>
-        {error && <p className="error">{error}</p>}
-        <DecisionPanel key={state.answers} d={pending} view={view} say={say} onAnswer={answer} disabled={busy} labels={labels} />
-        <GameLog log={state.log} say={say} />
-      </aside>
+        )}
+        <BottomBar view={view} atlas={atlas} enemyArt={enemyArt} say={say} attackable={new Set(attackable.keys())}
+          canEndRound={!!action && !talking} busy={busy}
+          endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
+          onParty={() => setModal("party")} onEnemy={(uid) => setEnemyInfo(uid)} onEndRound={() => answer(null)} />
+        {error && <div className="toast error" onClick={() => setError(null)}>{error}</div>}
+        {modal === "party" && <PartyDialog view={view} atlas={atlas} say={say} log={state.log} items={items}
+          lastStands={talking || busy ? new Map() : lastStands} onLastStand={(i) => { setModal(null); answer(i); }} onClose={() => setModal(null)} />}
+        {modal === "settings" && (
+          <SettingsDialog atlas={atlas} say={say} view3d={view3d} labels={labels} canUndo={!!state.answers && !busy}
+            onView3d={toggleView} onLabels={setLabels} onUndo={() => { setModal(null); update({ type: "undo" }); }}
+            onSave={() => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save)}
+            onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
+        )}
+        {enemy && (
+          <EnemyInfoDialog atlas={atlas} say={say} art={enemyArt} enemy={enemy} canAttack={attackable.has(enemy.uid) && !talking && !busy}
+            onAttack={() => { setEnemyInfo(null); answer(attackable.get(enemy.uid)!); }} onClose={() => setEnemyInfo(null)} />
+        )}
+      </div>
     </div>
   );
 }
@@ -356,260 +404,11 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
     if (i !== undefined) onAnswer(i);
   }
 
-  if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Играйте через панель справа.</p></div>;
+  if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Решения — в диалогах поверх экрана.</p></div>;
   if (view3d) {
     return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270}
       shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}:${shown.size}`} fx={fx} table={table} />;
   }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
     shownTiles={shown} tileColors={colors} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;
-}
-
-// ---------------------------------------------------------------- status
-type Say = (key: string | null | undefined, ins?: readonly string[]) => string;
-
-function Status({ view, say }: { view: GameView; say: Say }) {
-  return (
-    <div className="status">
-      <div className="row spread">
-        <span>Раунд <b>{view.round}</b></span>
-        <span>Угроза <b>{view.threat}</b>{view.threatMax > 0 ? ` / ${view.threatMax}` : ""}</span>
-      </div>
-      <div className="heroes">
-        {view.heroes.map((h, i) => (
-          <span key={i} className={h.defeated ? "hero down" : "hero"} title="Сложность следующего последнего рубежа">
-            Герой {i + 1}{h.defeated ? " — повержен" : ` · рубеж ${h.lastStand}`}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- phase banner
-/** Phase change: the phase name appears over the board in the game's round dialog (Dialog_Round, 9-slice), then fades out */
-function PhaseBanner({ text, round, atlas, short, onDone }: {
-  text: string; round: number | null; atlas: Record<string, AtlasSprite>; short: boolean; onDone: () => void;
-}) {
-  const d = atlas.Dialog_Round;
-  const style = d
-    ? { borderImage: `url("${assetUrl(d.file)}") ${d.border[2]} ${d.border[1]} ${d.border[3]} ${d.border[0]} fill / ${d.border[2] / 2}px ${d.border[1]}px ${d.border[3] / 2}px ${d.border[0]}px stretch` }
-    : undefined;
-  return (
-    <div className={short ? "phase-banner short" : "phase-banner"} onAnimationEnd={(e) => { if (e.target === e.currentTarget) onDone(); }}>
-      <div className={d ? "plate framed" : "plate"} style={style}>
-        {round !== null && <small>Раунд {round}</small>}
-        <span dangerouslySetInnerHTML={{ __html: text }} />
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- threat bar
-/**
- * UIThreatMeter: the bar on top of the board. Frame (Threat_Meter) with the value plate on the right, the fill coloured by
- * ThreatMeterGradient along the track with the liquid texture moving in it, threat event markers (Threat_Event2) at their
- * thresholds, the darkness token on the left while darkness is in effect, the objective under the bar.
- */
-function ThreatBar({ view, art, atlas, say }: { view: GameView; art: Record<string, string>; atlas: Record<string, AtlasSprite>; say: Say }) {
-  const max = view.threatMax;
-  const frac = max > 0 ? Math.min(1, view.threat / max) : 0;
-  const url = (p?: string) => (p ? `url("${assetUrl(p)}")` : undefined);
-  const marker = atlas.Threat_Event2 ? assetUrl(atlas.Threat_Event2.file) : undefined;
-  const dark = atlas.DarknessToken ? assetUrl(atlas.DarknessToken.file) : undefined;
-  const styled = !!art.threatMeter;
-  return (
-    <div className={`threatbar${styled ? " styled" : ""}`}>
-      <div className="meter" title={`Угроза ${view.threat}${max > 0 ? ` из ${max}` : ""}`}>
-        {view.darkness && (dark ? <img className="darkness" src={dark} alt="Тьма" title="Тьма" /> : <span className="darkness plain" title="Тьма">●</span>)}
-        <div className="track">
-          <div className="fill" style={{ width: `${100 * frac}%` }}>
-            <div className="ramp" style={{ width: frac > 0 ? `${100 / frac}%` : "100%", backgroundImage: url(art.threatGradient) }} />
-            {art.threatLiquid && <div className="liquid" style={{ backgroundImage: url(art.threatLiquid) }} />}
-          </div>
-          {frac > 0 && art.threatFire && (
-            // the burning edge of the fill (ThreatFire); remounted on every change -> flares up
-            <span key={view.threat} className="flame" style={{ left: `${100 * frac}%`, backgroundImage: url(art.threatFire) }} />
-          )}
-          {max > 0 && view.threatEvents.filter((t) => t > view.threat && t <= max).map((t, i) => (
-            <span key={`${t}:${i}`} className="mark" style={{ left: `${(100 * t) / max}%` }} title={`Событие угрозы на ${t}`}>
-              {marker && <img src={marker} alt="" />}<b>{t}</b>
-            </span>
-          ))}
-        </div>
-        {styled && <img className="frame" src={assetUrl(art.threatMeter!)} alt="" />}
-        <span className="value">{view.threat}{max > 0 ? `/${max}` : ""}</span>
-      </div>
-      {view.objective && <p className="objective" dangerouslySetInnerHTML={{ __html: say(view.objective, view.objectiveInserts) }} />}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- decision
-/** Game font glyphs (fonts from export_fonts.py; same code points as in the texts) */
-const GLYPH = { success: "\uf46b", fate: "\uf474", damage: "\uf468", fear: "\uf469" } as const;
-
-function Stepper({ initial = 0, label, icon, onOk }: { initial?: number; label: ReactNode; icon?: string; onOk: (n: number) => void }) {
-  const [n, setN] = useState(initial);
-  return (
-    <div className="stepper">
-      <span>{label}</span>
-      <div className="row">
-        <button onClick={() => setN((v) => Math.max(0, v - 1))}>−</button>
-        <b className="num">{n}{icon && <span className="glyph">{icon}</span>}</b>
-        <button onClick={() => setN((v) => v + 1)}>+</button>
-        <button className="primary" onClick={() => onOk(n)}>Готово</button>
-      </div>
-    </div>
-  );
-}
-
-function DecisionPanel({ d, view, say, onAnswer, disabled, labels }: {
-  d: Decision | null; view: GameView; say: Say; onAnswer: (a: Answer) => void; disabled: boolean; labels: boolean;
-}) {
-  if (!d) {
-    return (
-      <div className="decision">
-        <h3>Игра окончена</h3>
-        <p>{view.result === "victory" ? "Победа" : view.result === "defeat" ? "Поражение" : view.ended}</p>
-        <p className="muted">Раунд {view.round} · лор {view.campaign.lore} · опыт {view.campaign.xp}</p>
-      </div>
-    );
-  }
-  const prompt = "inserts" in d && d.key ? <p className="prompt" dangerouslySetInnerHTML={{ __html: say(d.key, d.inserts) }} /> : null;
-  return <fieldset className="decision-wrap" disabled={disabled}>{body(d)}</fieldset>;
-
-  function body(d: Decision) {
-  switch (d.kind) {
-    case "choice":
-      return (
-        <div className="decision">
-          {prompt}
-          {d.choices.map((c, i) => <button key={i} onClick={() => onAnswer(i)} dangerouslySetInnerHTML={{ __html: say(c.key, c.inserts) || `#${i + 1}` }} />)}
-          {d.canCancel && <button className="link" onClick={() => onAnswer(null)}>Отмена</button>}
-        </div>
-      );
-    case "test":
-      return <div className="decision">{prompt}<Stepper label={<>Сколько <span className="glyph">{GLYPH.success}</span> успехов? <span className="muted">(важно до {d.top})</span></>}
-        icon={GLYPH.success} onOk={onAnswer} /></div>;
-    case "attack":
-      return (
-        <div className="decision">
-          <p className="prompt"><span dangerouslySetInnerHTML={{ __html: say(d.enemy) }} /> ×{d.size} · урон {d.damage}/{d.unitHp}</p>
-          <Stepper label={<>Нанесённый урон <span className="glyph">{GLYPH.damage}</span></>} icon={GLYPH.damage} onOk={onAnswer} />
-        </div>
-      );
-    case "confirm":
-      return (
-        <div className="decision">
-          {prompt}
-          <div className="row"><button className="primary" onClick={() => onAnswer(true)}>Да</button><button onClick={() => onAnswer(false)}>Нет</button></div>
-        </div>
-      );
-    case "lastStand":
-      return (
-        <div className="decision">
-          <h3>Последний рубеж: Герой {d.hero + 1} ({d.physical ? "урон" : "страх"})</h3>
-          {d.key && <p className="prompt" dangerouslySetInnerHTML={{ __html: say(d.key, d.inserts) }} />}
-          <div className="row"><button className="primary" onClick={() => onAnswer(true)}>Пройден</button><button onClick={() => onAnswer(false)}>Провален</button></div>
-        </div>
-      );
-    case "lastStandType":
-      return (
-        <div className="decision">
-          <h3>Последний рубеж: Герой {d.hero + 1}</h3>
-          <p className="prompt">От чего герой повержен?</p>
-          <div className="row">
-            <button className="primary" onClick={() => onAnswer(true)} dangerouslySetInnerHTML={{ __html: say("UI_PHYSICAL") || "Урон" }} />
-            <button className="primary" onClick={() => onAnswer(false)} dangerouslySetInnerHTML={{ __html: say("UI_FEAR") || "Страх" }} />
-          </div>
-        </div>
-      );
-    case "hero":
-      return (
-        <div className="decision">
-          {prompt}
-          <div className="row wrap">
-            {Array.from({ length: d.players }, (_, i) => <button key={i} onClick={() => onAnswer({ player: i, skip: false })}>Герой {i + 1}</button>)}
-          </div>
-          {d.canSkip && <button className="link" onClick={() => onAnswer({ player: 0, skip: true })}>Пропустить</button>}
-        </div>
-      );
-    case "action":
-      return (
-        <div className="decision">
-          <h3>{d.hero >= 0 ? `Ход героя ${d.hero + 1}` : "Фаза героев"}</h3>
-          <p className="muted">Нажмите на жетон или тайл на карте, или выберите действие:</p>
-          {d.options.map((o, i) => (
-            <button key={i} onClick={() => onAnswer(i)}>
-              {o.type === "node" ? `${tokenName(o.token)}${o.tile ? ` · тайл ${o.tile}` : ""}${labels ? ` (${shortName(o.name)})` : ""}`
-                : o.type === "explore" ? `Исследовать тайл ${o.tile}`
-                : o.type === "lastStand" ? `Последний рубеж: Герой ${o.hero + 1}`
-                : <>Атаковать: <span dangerouslySetInnerHTML={{ __html: say(o.enemy) }} /> ×{o.size}</>}
-            </button>
-          ))}
-          <button className={d.hero >= 0 ? "link" : "primary"} onClick={() => onAnswer(null)}>{d.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}</button>
-        </div>
-      );
-    }
-  }
-}
-
-// ---------------------------------------------------------------- log
-function GameLog({ log, say }: { log: readonly LogEntry[]; say: Say }) {
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [log.length]);
-  const items: ReactNode[] = [];
-  let round = 0;
-  log.forEach(([, r, key, ins], i) => {
-    if (r !== round) { round = r; items.push(<div key={`r${i}`} className="round">Раунд {r}</div>); }
-    const html = say(key, ins);
-    if (html) items.push(<p key={i} dangerouslySetInnerHTML={{ __html: html }} />);
-  });
-  return <div className="log">{items}<div ref={end} /></div>;
-}
-
-// ---------------------------------------------------------------- enemy tracker
-/** Enemy groups as cards over the board (like the original's tracker); a card is a button when it can be attacked */
-function EnemyTracker({ view, pending, art, atlas, say, disabled, onAnswer }: {
-  view: GameView; pending: Decision | null; art: Record<string, string>; atlas: Record<string, AtlasSprite>; say: Say; disabled: boolean;
-  onAnswer: (a: Answer) => void;
-}) {
-  if (!view.enemies.length) return null;
-  const attack = new Map<number, number>();
-  if (pending?.kind === "action") pending.options.forEach((o, i) => { if (o.type === "attack") attack.set(o.uid, i); });
-  const sprite = (name: string) => (atlas[name] ? assetUrl(atlas[name]!.file) : undefined);
-  const frame = sprite("Enemy_Frame_Normal");
-  const elite = sprite("Enemy_Frame_Elite");
-  const glow = sprite("Generic_Circle2");
-  const armor = sprite("Icon_Armor");
-  return (
-    <div className="tracker">
-      {view.enemies.map((e) => {
-        const i = attack.get(e.uid);
-        const icon = art[String(e.model)];
-        const hp = Math.max(0, e.unitHp - e.damage);
-        const name = say(e.name);
-        // EnemyMiniView: highlight (under), medallion frame, elite frame, portrait on top
-        const body = (
-          <>
-            <div className={`medal${frame ? "" : " plain"}`}>
-              {i !== undefined && glow && <img className="glow" src={glow} alt="" />}
-              {frame && <img className="frame" src={frame} alt="" />}
-              {e.named && elite && <img className="elite" src={elite} alt="" />}
-              {icon ? <img className="portrait" src={assetUrl(icon)} alt="" /> : <div className="noicon">?</div>}
-              {e.size > 1 && <span className="count">{e.size}</span>}
-              {e.armor > 0 && <span className="armor" title="Броня">{armor && <img src={armor} alt="" />}{e.armor}</span>}
-            </div>
-            <div className="hp" title={`Здоровье текущего врага ${hp}/${e.unitHp}`}><div style={{ width: `${(100 * hp) / Math.max(1, e.unitHp)}%` }} /></div>
-            <b className="name" dangerouslySetInnerHTML={{ __html: name }} />
-          </>
-        );
-        const cls = `enemy${e.exhausted ? " exhausted" : ""}${e.named ? " named" : ""}`;
-        return i !== undefined
-          ? <button key={e.uid} className={`${cls} can`} disabled={disabled} title="Атаковать" onClick={() => onAnswer(i)}>{body}</button>
-          : <div key={e.uid} className={cls} title={e.exhausted ? "истощён" : undefined}>{body}</div>;
-      })}
-    </div>
-  );
 }

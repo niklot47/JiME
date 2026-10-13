@@ -219,42 +219,26 @@ function withShadows(m: THREE.Mesh): THREE.Mesh {
 }
 
 // ---------------------------------------------------------------- effects
-const HEX_STEP = 1.019 * Math.sqrt(3); // distance between neighbouring hex centres
-const NEIGHBOURS = Array.from({ length: 6 }, (_, k) => [Math.cos((k * Math.PI) / 3) * HEX_STEP, Math.sin((k * Math.PI) / 3) * HEX_STEP]);
-const hexKey = (x: number, y: number) => `${Math.round(x * 4)},${Math.round(y * 4)}`;
 
-/** Soft clouds over the empty hexes around the shown map (two rings), like the fog at the map edge in the original */
-function buildFog(shown: TileMesh[], fx: Record<string, string>): THREE.Group {
-  const occupied = new Set<string>();
-  const centres: [number, number][] = [];
-  for (const t of shown) for (const [x, y] of t.hexCenters) { occupied.add(hexKey(x, y)); centres.push([x, y]); }
-  const ring = (from: [number, number][]) => {
-    const out = new Map<string, [number, number]>();
-    for (const [x, y] of from) for (const [dx, dy] of NEIGHBOURS) {
-      const k = hexKey(x + dx!, y + dy!);
-      if (!occupied.has(k)) out.set(k, [x + dx!, y + dy!]);
-    }
-    return out;
-  };
-  const r1 = ring(centres);
-  for (const k of r1.keys()) occupied.add(k);
-  const r2 = ring([...r1.values()]);
+/**
+ * Soft clouds over the hexes of the tiles still to come (generated but not placed yet): like the original, the fog shows
+ * roughly the size and shape of the whole map, and lifts tile by tile as they are placed
+ */
+function buildFog(hidden: TileMesh[], fx: Record<string, string>): THREE.Group {
   const g = new THREE.Group();
   const tex = [fx.cloud, fx.smoke].filter(Boolean).map((p) => texture(p!));
   // flat cloud layers floating above the table (billboards would cut into the table at this camera tilt)
   const geo = new THREE.PlaneGeometry(1, 1);
-  const add = (x: number, y: number, opacity: number) => {
+  const add = (x: number, y: number, opacity: number, sc: number) => {
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex[Math.floor(Math.random() * tex.length)]!, color: 0xa39a8c, transparent: true, opacity, depthWrite: false }));
-    const sc = 2.6 + Math.random() * 1.4;
     m.scale.set(sc, sc, 1);
     m.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
-    m.position.copy(v3(x + (Math.random() - 0.5) * 0.6, y + (Math.random() - 0.5) * 0.6, 0.2 + Math.random() * 0.25));
+    m.position.copy(v3(x + (Math.random() - 0.5) * 0.5, y + (Math.random() - 0.5) * 0.5, 0.2 + Math.random() * 0.25));
     m.userData = { spin: (Math.random() - 0.5) * 0.06, bob: Math.random() * 6, y: m.position.y };
     m.renderOrder = 4;
     g.add(m);
   };
-  for (const [x, y] of r1.values()) add(x, y, 0.34);
-  for (const [x, y] of r2.values()) add(x, y, 0.52);
+  for (const t of hidden) for (const [x, y] of t.hexCenters) add(x, y, 0.42 + Math.random() * 0.12, 2.4 + Math.random() * 1.0);
   return g;
 }
 
@@ -532,12 +516,13 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       seenNow.add(key);
     }
     s.seen = seenNow;
-    // fog around the shown map
-    const fogKey = shown.map((t) => t.tile.hashId).sort((a, b) => a - b).join(",") + (fx.cloud ? "+" : "");
+    // fog over the tiles still to come
+    const hidden = shownTiles ? tiles.filter((t) => !shownTiles.has(t.tile.hashId)) : [];
+    const fogKey = hidden.map((t) => t.tile.hashId).sort((a, b) => a - b).join(",") + (fx.cloud ? "+" : "");
     if (fogKey !== s.fogKey) {
       s.fogKey = fogKey;
       if (s.fog) s.board.remove(s.fog);
-      s.fog = fx.cloud || fx.smoke ? buildFog(shown, fx) : null;
+      s.fog = (fx.cloud || fx.smoke) && hidden.length ? buildFog(hidden, fx) : null;
       if (s.fog) {
         s.board.add(s.fog);
         const fog = s.fog;

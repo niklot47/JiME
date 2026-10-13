@@ -27,7 +27,7 @@ export type Decision =
   | { kind: "lastStandType"; hero: number }
   /** hero = -1: FFG free hero phase, answering null ends the round */
   | { kind: "action"; hero: number; options: ActionOption[] }
-  | { kind: "attack"; enemy: string; size: number; damage: number; unitHp: number };
+  | { kind: "attack"; uid: number; enemy: string; size: number; damage: number; unitHp: number };
 
 /**
  * Answers, by decision kind:
@@ -140,7 +140,7 @@ export class ScriptedPlayer implements Player {
   }
 
   attackDamage(g: Game, x: EnemyGroup): number {
-    return this.next({ kind: "attack", enemy: String(g.enemyName(x.model, x.size)), size: x.size, damage: x.damage, unitHp: x.unitHp });
+    return this.next({ kind: "attack", uid: x.uid, enemy: String(g.enemyName(x.model, x.size)), size: x.size, damage: x.damage, unitHp: x.unitHp });
   }
 }
 
