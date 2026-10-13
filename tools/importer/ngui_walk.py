@@ -1,6 +1,9 @@
+# Dev tool: print a scene GameObject hierarchy with NGUI widgets (sprite name, size, depth, colour, anchors).
+# Usage: python ngui_walk.py <GameObject path id> [scene file, default level2]
+# Example: 368 = the threat bar (UIThreatMeter) in level2; 53 = an EnemyMiniView.
 import json,sys
 from jload import *
-F=FILES["level2"]
+F=FILES[sys.argv[2] if len(sys.argv) > 2 else "level2"]
 def walk(gid,dep=0):
     go=F.objects[gid].read()
     line="  "*dep+f"# {go.m_Name} {'' if go.m_IsActive else '(off)'}"
