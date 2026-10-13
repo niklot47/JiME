@@ -37,6 +37,29 @@
 
 Ошибки: дубликат `id`, отсутствующая или несовместимая зависимость, цикл.
 
+### Слои в приложении
+
+Менеджер паков приложения — `apps/app/src/data/pack.ts` (порядок — `orderLayers()` из `@jime/content-tools/layers`, без доступа к файлам):
+
+- берутся все папки паков (`/__list.json`), выключенные пользователем пропускаются (экран «Паки», хранится в localStorage);
+- пак с ошибкой (нет или битый `pack.json`, дубликат `id`, нет зависимости или не та версия, цикл) не загружается, остальные работают; причина видна на экране «Паки»;
+- файлы адресуются виртуальным путём (`scenario/adventures/1.json`, `images/tiles/100A.jpg`, `fonts/fonts.json` …); берётся файл верхнего слоя. Папка содержимого `scenario` может называться как угодно (`contents[].path`) — она монтируется в `scenario/`;
+- `scenario/db.json` всех слоёв сливается: `models.<тип>`, `standardTiles`, `globals` — по id (верхний слой заменяет запись), остальные поля заменяются целиком;
+- тексты (`lang`) всех слоёв сливаются по ключу.
+
+Списки файлов отдают и dev-сервер Vite, и схема `jime-pack` в Tauri: `/__list.json` — `[{ dir, manifest }]`, `/<папка>/__index.json` — все файлы пака.
+
+Пример пака-надстройки: свой перевод и переименование приключения.
+
+```
+my-tweaks/
+  pack.json   { "formatVersion": 1, "id": "my-tweaks", "version": "0.1.0", "priority": 10, "origin": "user",
+                "dependencies": { "core-ffg": "^1.0.0" },
+                "contents": [ { "type": "lang", "lang": "ru", "path": "lang/ru.csv" }, { "type": "scenario", "path": "data" } ] }
+  lang/ru.csv key,text / BonesOfArnor|A1_M1_OBJECTIVE_0,{0}Свой текст задачи.
+  data/db.json { "models": { "AdventureModel": { "1": { …запись целиком, с новым NameKey… } } } }
+```
+
 ## Типы содержимого
 
 | type | Что | Статус |

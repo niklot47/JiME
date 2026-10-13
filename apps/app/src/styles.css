@@ -123,3 +123,11 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .progress .bar { height: 10px; border-radius: 5px; background: #15130f; overflow: hidden; }
 .progress .bar div { height: 100%; background: var(--accent); transition: width 0.3s; }
 .joblog { max-height: 40dvh; overflow: auto; background: #0f0d0a; border: 1px solid #3a3226; border-radius: 8px; padding: 10px; font-size: 0.8rem; white-space: pre-wrap; margin: 0; }
+
+/* pack layers */
+.packs.layers { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.packs.layers li { border: 1px solid #3a3226; border-radius: 8px; padding: 8px 10px; background: #1a1712; }
+.packs.layers li.off { opacity: 0.6; }
+.packs.layers li.bad { border-color: #7a3a30; }
+.packs.layers label.check { align-items: flex-start; }
+.packs.layers input[type="checkbox"] { width: 22px; height: 22px; margin-top: 2px; flex-shrink: 0; }

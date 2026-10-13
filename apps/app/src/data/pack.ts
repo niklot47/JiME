@@ -1,41 +1,193 @@
-// Pack access from the app (main thread and the game worker).
+// Pack manager (main thread and the game worker): all packs in the packs folder, layered.
 // Browser dev: Vite serves /packs/* from the local data folder (vite.config.ts).
 // Tauri: the "jime-pack" URI scheme serves the user's packs folder (src-tauri/src/lib.rs, data/host.ts).
-import { parseOrdered } from "@jime/engine";
+// Both also serve /__list.json (packs + pack.json) and /<dir>/__index.json (files of one pack).
+//
+// Layers (content-tools/layers.ts): dependencies first, then priority; a later layer overrides:
+// - files by virtual path ("scenario/adventures/1.json", "images/tiles/100A.jpg" ...): the topmost pack that has it;
+//   a pack's scenario content may live in any folder (contents[].path), it is mounted at "scenario/";
+// - scenario/db.json: merged (models, standard tiles and globals by id; other fields replaced);
+// - lang: CSVs of all layers merged by key.
+import { ORDER, keysOf, parseOrdered } from "@jime/engine";
 import type { TileArtDb } from "@jime/engine/map";
 import { parseLangCsv } from "@jime/content-tools/csv";
 import { TextDb } from "@jime/content-tools/text";
+import { layerLangs, orderLayers, type LayerResult, type PackRef } from "@jime/content-tools/layers";
 
-/** The pack the game uses (later: a pack manager with layers) */
+/** The pack with the imported game (the wizard creates it) */
 export const PACK_ID = "core-ffg";
 
-let root = "/packs";
-/** URL of the packs folder; set by host.ts in Tauri, passed to the worker in its start request */
-export const packsRoot = () => root;
-export function setPacksRoot(url: string): void {
-  root = url.replace(/\/+$/, "");
+export interface PackConfig {
+  /** URL of the packs folder */
+  root: string;
+  /** Pack folders turned off by the user */
+  disabled: string[];
 }
 
-export async function packText(path: string): Promise<string> {
-  const r = await fetch(assetUrl(path));
-  if (!r.ok) throw new Error(`${path}: HTTP ${r.status} — пак ${PACK_ID} не найден (импортёр: pnpm packs:build; в приложении — экран «Паки»)`);
-  return r.text();
+const DISABLED_KEY = "jime.packs.disabled";
+
+function readDisabled(): string[] {
+  try {
+    const v = typeof localStorage !== "undefined" ? localStorage.getItem(DISABLED_KEY) : null;
+    return v ? (JSON.parse(v) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+let config: PackConfig = { root: "/packs", disabled: readDisabled() };
+/** Current config; the worker cannot read localStorage or ask the host, so it gets this in its start request */
+export const packConfig = (): PackConfig => ({ ...config, disabled: [...config.disabled] });
+
+export function setPacksRoot(url: string): void {
+  config = { ...config, root: url.replace(/\/+$/, "") };
+  clearPackCache();
+}
+
+/** Apply a config (worker side); returns true if it changed */
+export function applyPackConfig(c: PackConfig): boolean {
+  if (c.root === config.root && JSON.stringify(c.disabled) === JSON.stringify(config.disabled)) return false;
+  config = { root: c.root.replace(/\/+$/, ""), disabled: [...c.disabled] };
+  clearPackCache();
+  return true;
+}
+
+/** Turn packs on/off (main thread; remembered in localStorage) */
+export function setDisabledPacks(dirs: string[]): void {
+  config = { ...config, disabled: [...new Set(dirs)].sort() };
+  try {
+    localStorage.setItem(DISABLED_KEY, JSON.stringify(config.disabled));
+  } catch {
+    /* not remembered: still applies for this session */
+  }
+  clearPackCache();
+}
+
+export interface PackSet extends LayerResult {
+  /** Every pack folder found, with its pack.json */
+  all: PackRef[];
+  /** Virtual path -> URL (topmost layer wins) */
+  files: Map<string, string>;
+  /** Virtual path -> pack folder that provides it */
+  owner: Map<string, string>;
+  langs: string[];
 }
 
 const cache = new Map<string, Promise<any>>();
-/** Forget loaded pack data (after the packs folder changed) */
-export const clearPackCache = () => cache.clear();
+let current: PackSet | null = null;
+/** Forget loaded pack data (after the packs folder or the enabled packs changed) */
+export function clearPackCache(): void {
+  cache.clear();
+  current = null;
+}
 const once = <T,>(key: string, f: () => Promise<T>): Promise<T> => {
   if (!cache.has(key)) cache.set(key, f());
   return cache.get(key)!;
 };
 
-export const loadDb = () => once("db", async () => parseOrdered(await packText("scenario/db.json")) as any);
+const enc = (p: string) => p.split("/").map(encodeURIComponent).join("/");
+const url = (dir: string, rel: string) => `${config.root}/${enc(dir)}/${enc(rel)}`;
+
+async function getJson(u: string): Promise<any> {
+  const r = await fetch(u);
+  if (!r.ok) throw new Error(`${u}: HTTP ${r.status}`);
+  return r.json();
+}
+
+export const loadPackSet = (): Promise<PackSet> => once("set", async () => {
+  const all = (await getJson(`${config.root}/__list.json`)) as PackRef[];
+  const res = orderLayers(all, config.disabled);
+  const files = new Map<string, string>();
+  const owner = new Map<string, string>();
+  const indexes = await Promise.all(res.layers.map((p) => getJson(`${config.root}/${enc(p.dir)}/__index.json`) as Promise<string[]>));
+  res.layers.forEach((p, i) => {
+    const mounts = (p.manifest.contents as any[])
+      .filter((c) => c.type === "scenario")
+      .map((c) => String(c.path).replace(/\\/g, "/").replace(/\/+$/, ""));
+    for (const rel of indexes[i]!) {
+      if (rel === "pack.json") continue;
+      let virtual = rel;
+      for (const m of mounts) if (m !== "scenario" && rel.startsWith(`${m}/`)) virtual = `scenario/${rel.slice(m.length + 1)}`;
+      files.set(virtual, url(p.dir, rel));
+      owner.set(virtual, p.dir);
+    }
+  });
+  const set: PackSet = { ...res, all, files, owner, langs: layerLangs(res.layers) };
+  current = set;
+  return set;
+});
+
+export async function packText(path: string): Promise<string> {
+  const set = await loadPackSet();
+  const u = set.files.get(path);
+  if (!u) throw new Error(`${path}: нет ни в одном включённом паке (пак ${PACK_ID} собирает мастер импорта — экран «Паки»)`);
+  const r = await fetch(u);
+  if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
+  return r.text();
+}
+
+/** URL of a pack file (sync: valid once loadPackSet() has resolved; before that, the core pack's path) */
+export const assetUrl = (path: string): string => current?.files.get(path) ?? url(PACK_ID, path);
+
+// ---------------------------------------------------------------- db merge
+const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object" && !Array.isArray(v);
+
+/** Put the entries of `over` into `base` by key, keeping parseOrdered key order (new keys go last) */
+function mergeById(base: Record<string, any>, over: Record<string, any>): void {
+  const order = (base as any)[ORDER] as string[] | undefined;
+  for (const k of keysOf(over)) {
+    if (!Object.hasOwn(base, k) && order) order.push(k);
+    base[k] = over[k];
+  }
+}
+
+/** Layered content database: maps keyed by id are merged, everything else is replaced by the upper layer */
+export function mergeDb(layers: any[]): any {
+  const [first, ...rest] = layers;
+  if (!rest.length) return first;
+  const db = first;
+  for (const d of rest) {
+    for (const k of Object.keys(d)) {
+      if (k === "models" && isObj(db.models) && isObj(d.models)) {
+        for (const t of Object.keys(d.models)) {
+          if (isObj(db.models[t]) && isObj(d.models[t])) mergeById(db.models[t], d.models[t]);
+          else db.models[t] = d.models[t];
+        }
+      } else if ((k === "standardTiles" || k === "globals") && isObj(db[k]) && isObj(d[k])) mergeById(db[k], d[k]);
+      else db[k] = d[k];
+    }
+  }
+  return db;
+}
+
+export const loadDb = () => once("db", async () => {
+  const set = await loadPackSet();
+  const urls: string[] = [];
+  for (const p of set.layers)
+    for (const c of p.manifest.contents as any[])
+      if (c.type === "scenario") urls.push(url(p.dir, `${String(c.path).replace(/\\/g, "/").replace(/\/+$/, "")}/db.json`));
+  const texts = await Promise.all(urls.map(async (u) => { const r = await fetch(u); return r.ok ? r.text() : null; }));
+  const dbs = texts.filter((t): t is string => t !== null).map((t) => parseOrdered(t));
+  if (!dbs.length) throw new Error(`scenario/db.json: нет ни в одном включённом паке (нужен пак ${PACK_ID})`);
+  return mergeDb(dbs) as any;
+});
+
 export const loadTileArt = () => once("art", async () => JSON.parse(await packText("scenario/tileart.json")) as TileArtDb);
 /** Fresh copy each time: the engine may keep references into it */
 export const loadAdventure = async (id: number) => parseOrdered(await packText(`scenario/adventures/${id}.json`)) as any;
-export const loadText = (lang: string) => once(`lang:${lang}`, async () => new TextDb(parseLangCsv(await packText(`lang/${lang}.csv`))));
-export const assetUrl = (path: string) => `${root}/${PACK_ID}/${path}`;
+
+/** Text of one language from all layers (later layers override keys) */
+export const loadText = (lang: string) => once(`lang:${lang}`, async () => {
+  const set = await loadPackSet();
+  const merged = new Map<string, string>();
+  for (const p of set.layers)
+    for (const c of p.manifest.contents as any[]) {
+      if (c.type !== "lang" || c.lang !== lang) continue;
+      const r = await fetch(url(p.dir, String(c.path).replace(/\\/g, "/")));
+      if (r.ok) for (const [k, v] of parseLangCsv(await r.text())) merged.set(k, v);
+    }
+  return new TextDb(merged);
+});
 
 /**
  * Register the pack's fonts (fonts/fonts.json, from tools/importer/export_fonts.py) as CSS families
@@ -51,7 +203,7 @@ export const installFonts = () => once("fonts", async () => {
       document.fonts.add(await face.load());
     }));
   } catch {
-    /* no fonts in this pack */
+    /* no fonts in the enabled packs */
   }
 });
 

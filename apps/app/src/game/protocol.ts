@@ -1,10 +1,11 @@
 // Messages between the UI thread and the game worker (the engine replays the whole game on every answer)
 import type { Answer, Decision, GameView, LogEntry, SaveData, SessionSetup } from "@jime/engine";
 import type { GeneratedMap } from "@jime/engine/map";
+import type { PackConfig } from "../data/pack.ts";
 
 export type Request =
-  /** packsRoot: URL of the packs folder (the worker cannot ask the Tauri host itself) */
-  | { type: "start"; setup: SessionSetup; save?: SaveData; packsRoot: string }
+  /** packConfig: packs folder URL and disabled packs (the worker has no localStorage and cannot ask the host) */
+  | { type: "start"; setup: SessionSetup; save?: SaveData; packConfig: PackConfig }
   | { type: "answer"; answer: Answer }
   | { type: "undo"; n?: number };
 

@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./text": "./src/text.ts",
-    "./csv": "./src/csv.ts"
+    "./csv": "./src/csv.ts",
+    "./layers": "./src/layers.ts"
   },
   "bin": {
     "jime-packs": "./src/cli.ts"

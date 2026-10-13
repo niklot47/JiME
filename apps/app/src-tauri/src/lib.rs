@@ -124,6 +124,25 @@ fn safe_join(root: &Path, rel: &str) -> Option<PathBuf> {
     Some(p)
 }
 
+/// All files below `dir`, relative, with "/" separators, sorted
+fn list_files(dir: &Path) -> Vec<String> {
+    fn walk(base: &Path, d: &Path, out: &mut Vec<String>) {
+        let Ok(rd) = fs::read_dir(d) else { return };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                walk(base, &p, out);
+            } else if let Ok(r) = p.strip_prefix(base) {
+                out.push(r.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/"));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(dir, dir, &mut out);
+    out.sort();
+    out
+}
+
 fn content_type(p: &Path) -> &'static str {
     match p.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref() {
         Some("json") => "application/json",
@@ -149,8 +168,20 @@ fn serve_pack<R: Runtime>(ctx: UriSchemeContext<'_, R>, req: Request<Vec<u8>>) -
             .body(Cow::Owned(body))
             .unwrap()
     };
-    let root = ctx.app_handle().state::<AppState>().packs.lock().unwrap().path.clone();
+    let packs = ctx.app_handle().state::<AppState>().packs.lock().unwrap().clone();
+    let root = packs.path.clone();
     let rel = percent_decode(req.uri().path());
+    // listings for the UI's pack manager (same as the Vite dev server): all packs, and the files of one pack
+    let trimmed = rel.trim_start_matches('/');
+    if trimmed == "__list.json" {
+        return reply(StatusCode::OK, "application/json", serde_json::to_vec(&info(&packs).packs).unwrap());
+    }
+    if let Some(dir) = trimmed.strip_suffix("/__index.json") {
+        return match safe_join(&root, dir).filter(|d| d.is_dir() && !dir.is_empty() && !dir.contains('/')) {
+            Some(d) => reply(StatusCode::OK, "application/json", serde_json::to_vec(&list_files(&d)).unwrap()),
+            None => reply(StatusCode::NOT_FOUND, "text/plain", format!("no pack folder: {dir}").into_bytes()),
+        };
+    }
     let Some(file) = safe_join(&root, &rel) else {
         return reply(StatusCode::FORBIDDEN, "text/plain", b"outside the packs folder".to_vec());
     };

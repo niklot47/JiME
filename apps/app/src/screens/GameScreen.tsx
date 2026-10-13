@@ -7,7 +7,7 @@ import type { TextDb } from "@jime/content-tools/text";
 import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, packsRoot } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
@@ -89,6 +89,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [art, setArt] = useState<TileArtDb | null>(null);
   const [tokenArt, setTokenArt] = useState<Record<string, string>>({});
   const [lang, setLang] = useState("ru");
+  const [langs, setLangs] = useState(LANGS);
   const [text, setText] = useState<TextDb | null>(null);
   const [english, setEnglish] = useState<TextDb | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     client.current = new GameClient();
     void installFonts();
+    loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
     Promise.all([loadDb(), loadTileArt(), loadTokenArt()])
       .then(([d, a, t]) => { setDb(d); setArt(a); setTokenArt(t); })
       .catch((e) => setError(String(e)));
@@ -137,7 +139,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   }
 
   const start = (setup: SessionSetup, save?: SaveData) => run(async (c) => {
-    const [r, a] = await Promise.all([c.request({ type: "start", setup, save, packsRoot: packsRoot() }), loadAdventure(setup.adv)]);
+    const [r, a] = await Promise.all([c.request({ type: "start", setup, save, packConfig: packConfig() }), loadAdventure(setup.adv)]);
     setGame({ state: r.state, board: r.board ?? null, adv: a });
     writeAutosave(r.state.save);
   });
@@ -181,7 +183,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           </label>
           <label>Язык
             <div className="row seg">
-              {LANGS.map((l) => <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>{l}</button>)}
+              {langs.map((l) => <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>{l}</button>)}
             </div>
           </label>
           <label>Сид
