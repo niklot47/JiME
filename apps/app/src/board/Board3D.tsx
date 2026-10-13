@@ -408,8 +408,10 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       renderer.render(scene, camera);
       if (moving || anim) frames = Math.max(frames, 30);
       // active tokens pulse: keep a slow loop while there are any
-      if (--frames > 0 || s.pulses.length || s.effects.length) raf = requestAnimationFrame(tick);
-      else last = 0;
+      // one chain only: controls.update() above may already have scheduled the next frame through invalidate()
+      // (scheduling again here doubled the chains on every camera change: dozens of renders per frame)
+      if (--frames > 0 || s.pulses.length || s.effects.length) { if (!raf) raf = requestAnimationFrame(tick); }
+      else if (!raf) last = 0;
     };
     controls.addEventListener("change", invalidate);
     THREE.DefaultLoadingManager.onLoad = invalidate;
@@ -445,6 +447,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
 
     st.current = { renderer, scene, camera, controls, board, sun, tileMats: new Map(), pulses: [], invalidate,
       effects: [], fog: null, fogKey: "", seen: new Set(), table: tableMesh, tablePath: undefined };
+    (window as any).__board3d = st.current; // perf checks from devtools / CDP
     resize();
     return () => {
       cancelAnimationFrame(raf);

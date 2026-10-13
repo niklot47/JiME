@@ -1,7 +1,7 @@
 // Drive the Tauri WebView2 window over the Chrome DevTools Protocol (dev check, no deps).
 // Start the app with: $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9222"; pnpm tauri dev
 // Example: node tools/dev/cdp.mjs tools/dev/cdp-smoke.js data/out/smoke  (screenshots: data/out/smoke_*.png)
-// Usage: node cdp.mjs <script.js> <out-prefix>   (script.js: async body with `ev(expr)`, `shot(name)`, `sleep(ms)`)
+// Usage: node cdp.mjs <script.js> <out-prefix>   (script.js: async body with `ev(expr)`, `shot(name)`, `sleep(ms)`, raw `send(method, params)`)
 import { readFileSync, writeFileSync } from "node:fs";
 const [, , scriptFile, out = "shot"] = process.argv;
 const targets = await (await fetch("http://127.0.0.1:9222/json")).json();
@@ -17,5 +17,5 @@ const ev = async (expr) => { const r = await send("Runtime.evaluate", { expressi
 const shot = async (name) => { const r = await send("Page.captureScreenshot", { format: "png" }); writeFileSync(`${out}_${name}.png`, Buffer.from(r.result.data, "base64")); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const body = readFileSync(scriptFile, "utf8");
-await new (Object.getPrototypeOf(async function () {}).constructor)("ev", "shot", "sleep", body)(ev, shot, sleep);
+await new (Object.getPrototypeOf(async function () {}).constructor)("ev", "shot", "sleep", "send", body)(ev, shot, sleep, send);
 ws.close();
