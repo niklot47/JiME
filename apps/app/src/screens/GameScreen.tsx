@@ -5,12 +5,22 @@ import { keysOf, tokenFamily, type Answer, type Decision, type GameView, type Lo
 import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
 import type { TextDb } from "@jime/content-tools/text";
 import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
+import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
 import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
+const VIEW_KEY = "jime.board.view";
+
+function readView(): "3d" | "2d" {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "2d" ? "2d" : "3d";
+  } catch {
+    return "3d";
+  }
+}
 const LANGS = ["ru", "en", "it"];
 
 interface Game {
@@ -101,6 +111,11 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [players, setPlayers] = useState(2);
   const [coreOnly, setCoreOnly] = useState(true);
   const [labels, setLabels] = useState(false);
+  const [view3d, setView3d] = useState(() => readView() === "3d");
+  const toggleView = (v: boolean) => {
+    setView3d(v);
+    try { localStorage.setItem(VIEW_KEY, v ? "3d" : "2d"); } catch { /* per-session only */ }
+  };
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -216,7 +231,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const { view, pending } = state;
   return (
     <div className="game-screen">
-      <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} labels={labels} onAnswer={answer} />
+      <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} labels={labels} view3d={view3d} onAnswer={answer} />
       <aside className={busy ? "game-panel busy" : "game-panel"}>
         <div className="row spread">
           <button className="link" onClick={() => setGame(null)}>← Партии</button>
@@ -226,7 +241,10 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           </div>
         </div>
         <Status view={view} say={say} />
-        <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Названия жетонов</label>
+        <div className="row wrap">
+          <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Названия жетонов</label>
+          <label className="check"><input type="checkbox" checked={view3d} onChange={(e) => toggleView(e.target.checked)} /> 3D</label>
+        </div>
         {error && <p className="error">{error}</p>}
         <DecisionPanel key={state.answers} d={pending} view={view} say={say} onAnswer={answer} disabled={busy} labels={labels} />
         <GameLog log={state.log} say={say} />
@@ -236,8 +254,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, labels, onAnswer }: {
-  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; labels: boolean; onAnswer: (a: Answer) => void;
+function GameBoard({ game, db, art, tokenArt, labels, view3d, onAnswer }: {
+  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; labels: boolean; view3d: boolean; onAnswer: (a: Answer) => void;
 }) {
   const { board, adv, state: { view, pending } } = game;
   const meshes = useMemo(() => (board && art ? layoutBoard(board, view.adv, art) : []), [board, art, view.adv]);
@@ -255,15 +273,16 @@ function GameBoard({ game, db, art, tokenArt, labels, onAnswer }: {
     return m;
   }, [pending]);
 
-  const { tokens, shown, colors } = useMemo(() => {
+  const { tokens, shown, colors, sepia } = useMemo(() => {
     const tokens: Token[] = [];
     const shown = new Set<number>();
     const colors = new Map<number, number>();
+    const sepia = new Set<number>();
     const look = (t: number) => ({ ...TOKEN_LOOK[tokenFamily(t)]!, image: tokenArt[String(t)] });
     for (const t of view.tiles) {
       if (!t.visible) continue;
       shown.add(t.id);
-      if (!t.explored) colors.set(t.id, 0x7a7a7a);
+      if (!t.explored) { colors.set(t.id, 0x7a7a7a); sepia.add(t.id); }
       const gt = genTiles.get(t.id);
       if (gt && !t.explored && t.token) {
         const [x, y] = tileCenter(gt);
@@ -279,7 +298,7 @@ function GameBoard({ game, db, art, tokenArt, labels, onAnswer }: {
       const id = `n:${n.uid}`;
       tokens.push({ x: p[0], y: p[1], id, label: labels ? shortName(n.name) : "", ...look(n.token), active: targets.has(id) });
     }
-    return { tokens, shown, colors };
+    return { tokens, shown, colors, sepia };
   }, [view, targets, labels, genTiles, db, adv, tokenArt]);
 
   function pick(p: Pick) {
@@ -288,6 +307,10 @@ function GameBoard({ game, db, art, tokenArt, labels, onAnswer }: {
   }
 
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Играйте через панель справа.</p></div>;
+  if (view3d) {
+    return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270}
+      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;
+  }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
     shownTiles={shown} tileColors={colors} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;
 }
