@@ -369,3 +369,16 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .game-screen.hud .threatbar .flame { width: 4%; top: -45%; bottom: -45%; transform: translateX(-70%); }
 .bottombar .tracker { overflow: visible; flex-wrap: nowrap; }
 .numinput .side { color: #fff3d0; text-shadow: 0 1px 2px #000, 0 0 4px #000; font-size: 1.7rem; line-height: 1; }
+
+/* NGUI view (ngui/NguiView.tsx): the game's interface from the exported layout */
+.ngui { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 6; }
+.ngui-root { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.ngui .ng { position: absolute; box-sizing: border-box; pointer-events: none; }
+.ngui .ng-click { pointer-events: auto; cursor: pointer; }
+.ngui .ng-click:hover { filter: brightness(1.12); }
+.ngui .ng-click:active { filter: brightness(0.9); }
+.ngui .ng-disabled { filter: grayscale(0.7) brightness(0.6); }
+.ngui .ng-label span { display: block; }
+.ui-preview { height: 100dvh; display: flex; flex-direction: column; }
+.ui-preview-bar { display: flex; gap: 12px; align-items: center; padding: 8px 14px; background: var(--panel); }
+.ui-preview-stage { position: relative; flex: 1; background: #2a241c; }

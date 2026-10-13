@@ -4,12 +4,13 @@ import { MapScreen } from "./screens/MapScreen.tsx";
 import { GameScreen } from "./screens/GameScreen.tsx";
 import { PacksScreen } from "./screens/PacksScreen.tsx";
 import { SetupScreen } from "./screens/SetupScreen.tsx";
+import { UiPreviewScreen } from "./screens/UiPreviewScreen.tsx";
 import { inTauri, packsInfo } from "./data/host.ts";
 import { PACK_ID, installTheme, themeChoice } from "./data/pack.ts";
 import { sound } from "./audio/sound.ts";
 import { SoundPanel } from "./audio/SoundPanel.tsx";
 
-type Screen = "home" | "map" | "game" | "packs" | "setup";
+type Screen = "home" | "map" | "game" | "packs" | "setup" | "ui";
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("home");
@@ -24,6 +25,7 @@ export function App() {
   if (screen === "setup") return <SetupScreen onDone={() => setScreen("home")} onSkip={() => setScreen("home")} />;
   if (screen === "map") return <MapScreen onBack={() => setScreen("home")} />;
   if (screen === "game") return <GameScreen onBack={() => setScreen("home")} />;
+  if (screen === "ui") return <UiPreviewScreen onBack={() => setScreen("home")} />;
   if (screen === "packs") return <PacksScreen onBack={() => setScreen("home")} onImport={() => setScreen("setup")} />;
   return (
     <main className="shell">
@@ -42,6 +44,7 @@ export function App() {
         <button className="card" disabled>Кампании</button>
         <button className="card" onClick={() => setScreen("packs")}>Паки <span className="muted">— папка с контентом</span></button>
         <button className="card" disabled>Редактор</button>
+        <button className="card" onClick={() => setScreen("ui")}>Интерфейс <span className="muted">— образцы из файлов игры</span></button>
       </section>
       <SoundPanel />
     </main>

@@ -270,6 +270,15 @@ export const loadUiAtlas = () => once("atlas", async () => {
   }
 });
 
+/** The game's NGUI interface layout (images/ui/layouts/ui.json from tools/importer/export_ui_layouts.py); null if absent */
+export const loadUiLayout = () => once("uiLayout", async () => {
+  try {
+    return JSON.parse(await packText("images/ui/layouts/ui.json")) as import("../ngui/types.ts").UiLayoutFile;
+  } catch {
+    return null;
+  }
+});
+
 const THEME_KEY = "jime.theme";
 export const themeChoice = (): "original" | "plain" => {
   try {
