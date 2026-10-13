@@ -278,16 +278,20 @@ function GameBoard({ game, db, art, tokenArt, labels, view3d, onAnswer }: {
     const shown = new Set<number>();
     const colors = new Map<number, number>();
     const sepia = new Set<number>();
-    const look = (t: number) => ({ ...TOKEN_LOOK[tokenFamily(t)]!, image: tokenArt[String(t)] });
+    const shapeOf = (t: number): Token["shape"] => (t === 1 ? "square" : tokenFamily(t) === "hexagon" ? "hex" : "circle");
+    const look = (t: number) => ({ ...TOKEN_LOOK[tokenFamily(t)]!, image: tokenArt[String(t)], shape: shapeOf(t) });
+    const meshById = new Map(meshes.map((m) => [m.tile.hashId, m]));
     for (const t of view.tiles) {
       if (!t.visible) continue;
       shown.add(t.id);
       if (!t.explored) { colors.set(t.id, 0x7a7a7a); sepia.add(t.id); }
       const gt = genTiles.get(t.id);
       if (gt && !t.explored && t.token) {
-        const [x, y] = tileCenter(gt);
+        // on the printed explore mark of the tile art, aligned with the tile
+        const mesh = meshById.get(t.id);
+        const [x, y] = mesh?.explore ?? tileCenter(gt);
         const id = `t:${t.id}`;
-        tokens.push({ x, y, id, label: labels ? t.code : "", ...look(1), active: targets.has(id) });
+        tokens.push({ x, y, id, label: labels ? t.code : "", ...look(1), angle: mesh?.angle ?? 0, active: targets.has(id) });
       }
     }
     for (const n of view.nodes) {
@@ -299,7 +303,7 @@ function GameBoard({ game, db, art, tokenArt, labels, view3d, onAnswer }: {
       tokens.push({ x: p[0], y: p[1], id, label: labels ? shortName(n.name) : "", ...look(n.token), active: targets.has(id) });
     }
     return { tokens, shown, colors, sepia };
-  }, [view, targets, labels, genTiles, db, adv, tokenArt]);
+  }, [view, targets, labels, genTiles, db, adv, tokenArt, meshes]);
 
   function pick(p: Pick) {
     const i = targets.get(p.kind === "token" ? p.id : `t:${p.id}`);

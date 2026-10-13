@@ -52,7 +52,20 @@ def tile_art(f, tile_obj, tm):
         center = (W @ np.array([0, 0, 0, 1.0]))[:2]
         hexes.append({"center": np.round(center, 4).tolist(), "verts": np.round(Vw[:, :2], 4).tolist(),
                       "uvs": np.round(np.array(uvs), 5).tolist(), "tris": [list(x) for x in F]})
-    return hexes
+    return hexes, explore_pos(f, t, inv)
+
+def explore_pos(f, t, inv):
+    """Tile.ExploreNode position in the same tile space as the hexes (where the explore token lies: the printed mark)"""
+    ref = t.get("ExploreNode") or {}
+    if not ref.get("m_PathID"): return None
+    try:
+        node = f.objects[ref["m_PathID"]]
+        go = f.objects[read_mb(node)[1]["m_GameObject"]["m_PathID"]].read()
+        p = inv @ world_matrix(f, comp(f, go, "Transform")) @ np.array([0, 0, 0, 1.0])
+        return np.round(p[:2], 4).tolist()
+    except Exception as e:
+        print("no explore node position:", e)
+        return None
 
 def save_texture(code, img_path):
     if not img_path: return None
@@ -86,7 +99,8 @@ if __name__ == "__main__":
         _, t = read_mb(to)
         code = ch.read().m_Name
         tm = tms.get(code, {})
-        art["standard"][code] = {"texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": tile_art(l4, to, tm)}
+        hexes, explore = tile_art(l4, to, tm)
+        art["standard"][code] = {"texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore}
     print("standard", len(art["standard"]))
     db = json.load(open(os.path.join(ROOT, "export", "db.json"), encoding="utf-8"))
     for aid, a in db["models"]["AdventureModel"].items():
@@ -100,7 +114,8 @@ if __name__ == "__main__":
                     mo = deref(RA, t["Model"]["m_FileID"], t["Model"]["m_PathID"])
                     code = read_mb(mo)[1].get("_id") if mo else name
                     tm = tms.get(code, {})
-                    art["custom"].setdefault(aid, {})[str(pid)] = {"code": code, "texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": tile_art(RA, co, tm)}
+                    hexes, explore = tile_art(RA, co, tm)
+                    art["custom"].setdefault(aid, {})[str(pid)] = {"code": code, "texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore}
     print("custom", sum(len(v) for v in art["custom"].values()))
     json.dump(art, open(os.path.join(PACK, "scenario", "tileart.json"), "w"))
     print("->", PACK)

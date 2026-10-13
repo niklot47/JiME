@@ -16,6 +16,8 @@ export interface TileArt {
   /** Pack-relative texture path */
   texture: string | null;
   hexes: HexArt[];
+  /** Tile.ExploreNode position in tile space: where the (square) explore token lies, on the printed mark */
+  explore?: [number, number] | null;
 }
 
 /** Distance between neighbouring hex centres / sqrt(3) in Unity units (tiles measure 1.013–1.019) */
@@ -36,6 +38,10 @@ export interface TileMesh {
   indices: number[];
   /** World centre of each hex (same order as the tile geometry) */
   hexCenters: [number, number][];
+  /** World position of the explore token (null if the art has none) */
+  explore: [number, number] | null;
+  /** Tile rotation in radians (board space), e.g. to align the square explore token with the printed mark */
+  angle: number;
 }
 
 /**
@@ -64,7 +70,8 @@ export function layoutTile(t: GeneratedTile, art: TileArt): TileMesh {
     for (const [u, v] of h.uvs) uvs.push(u, v);
     for (const tri of h.tris) for (const k of tri) indices.push(base + k);
   }
-  return { tile: t, texture: art.texture, positions, uvs, indices, hexCenters };
+  const ex = art.explore ? rot(art.explore[0], art.explore[1]) : null;
+  return { tile: t, texture: art.texture, positions, uvs, indices, hexCenters, explore: ex ? [ex[0] + tx, ex[1] + ty] : null, angle: a };
 }
 
 /** Largest error between the art's own hex layout (rotated) and the generated positions, in hex sizes */

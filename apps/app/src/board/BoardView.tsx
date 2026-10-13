@@ -18,6 +18,10 @@ export interface Token {
   active?: boolean;
   /** Token art (pack asset path); replaces the colored disc and glyph */
   image?: string;
+  /** Token outline: round (default), square (explore token) or hexagon (darkness, difficult, fortified) */
+  shape?: "circle" | "square" | "hex";
+  /** Rotation in board space (radians), e.g. a square token aligned with its tile */
+  angle?: number;
 }
 
 /** What a tap hit: a token (its id) or a tile (its hash id) */
@@ -57,6 +61,13 @@ function texture(path: string): THREE.Texture {
     texCache.set(path, t);
   }
   return t;
+}
+
+/** Flat square frame between half-sizes a (inner) and b (outer) */
+function squareFrame(a: number, b: number): THREE.ShapeGeometry {
+  const s = new THREE.Shape([new THREE.Vector2(-b, -b), new THREE.Vector2(b, -b), new THREE.Vector2(b, b), new THREE.Vector2(-b, b)]);
+  s.holes.push(new THREE.Path([new THREE.Vector2(-a, -a), new THREE.Vector2(-a, a), new THREE.Vector2(a, a), new THREE.Vector2(a, -a)]));
+  return new THREE.ShapeGeometry(s);
 }
 
 const glyphCache = new Map<string, THREE.Texture>();
@@ -242,15 +253,20 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
     }
     const visibleTokens = sections ? tokens.filter((tk) => sections.includes(tk.section ?? -1)) : tokens;
     for (const tk of visibleTokens) {
+      const square = tk.shape === "square";
+      const size = square ? 0.86 : 0.76;
       const disc = tk.image
-        ? new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.76), new THREE.MeshBasicMaterial({ map: texture(tk.image), transparent: true, depthTest: false }))
-        : new THREE.Mesh(new THREE.CircleGeometry(0.32, 32), new THREE.MeshBasicMaterial({ color: tk.color, depthTest: false }));
-      // token art stays upright on screen whatever the view rotation
-      if (tk.image) disc.rotation.z = -rot;
+        ? new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: texture(tk.image), transparent: true, depthTest: false }))
+        : new THREE.Mesh(square ? new THREE.PlaneGeometry(0.7, 0.7) : new THREE.CircleGeometry(0.32, 32), new THREE.MeshBasicMaterial({ color: tk.color, depthTest: false }));
+      // square tokens follow their tile; round art stays upright on screen whatever the view rotation
+      disc.rotation.z = square ? tk.angle ?? 0 : tk.image ? -rot : 0;
       disc.position.set(tk.x, tk.y, 0.01);
       disc.renderOrder = 2;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(tk.image ? 0.37 : 0.32, tk.active ? 0.45 : tk.image ? 0.39 : 0.38, 32),
-        new THREE.MeshBasicMaterial({ color: tk.active ? 0xfff1b0 : 0x1a140c, depthTest: false }));
+      const ring = square
+        ? new THREE.Mesh(squareFrame(size / 2, size / 2 + (tk.active ? 0.07 : 0.02)), new THREE.MeshBasicMaterial({ color: tk.active ? 0xfff1b0 : 0x1a140c, depthTest: false }))
+        : new THREE.Mesh(new THREE.RingGeometry(tk.image ? 0.37 : 0.32, tk.active ? 0.45 : tk.image ? 0.39 : 0.38, 32),
+          new THREE.MeshBasicMaterial({ color: tk.active ? 0xfff1b0 : 0x1a140c, depthTest: false }));
+      if (square) ring.rotation.z = tk.angle ?? 0;
       ring.position.set(tk.x, tk.y, 0.011);
       ring.renderOrder = 2;
       if (tk.id !== undefined) disc.userData.pick = ring.userData.pick = { kind: "token", id: tk.id } satisfies Pick;

@@ -9,6 +9,18 @@ OUT = os.path.join(PACK, "images", "tokens")
 # Top face of the "Round" token mesh in UV space: center (0.5, 0.53), radius 0.448 (v from the bottom)
 FACE_C, FACE_R = (0.5, 0.53), 0.448
 HEXAGON = {31, 32, 33}
+# The explore token is square (mesh "Explore"): face = full width, top 86 % of the texture, rounded corners
+SQUARE = {1}
+
+def square_face(img):
+    w, h = img.size
+    side = round(0.86 * h)
+    x0 = (w - side) // 2
+    out = img.crop((x0, 0, x0 + side, side))
+    mask = Image.new("L", out.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, side - 1, side - 1), radius=round(side * 0.09), fill=255)
+    out.putalpha(mask)
+    return out
 
 def face(img, hexagon):
     """Cut the token's top face out of its texture: circle, or flat-top hexagon for Hexagon_* tokens"""
@@ -47,7 +59,7 @@ def main():
             continue
         img = o.read().image.convert("RGBA")
         for tid in TEXTURES[name_of(o)]:
-            face(img, tid in HEXAGON).save(os.path.join(OUT, f"{tid}.png"))
+            (square_face(img) if tid in SQUARE else face(img, tid in HEXAGON)).save(os.path.join(OUT, f"{tid}.png"))
             found[str(tid)] = f"images/tokens/{tid}.png"
     with open(os.path.join(OUT, "tokens.json"), "w", encoding="utf-8") as fp:
         json.dump(dict(sorted(found.items(), key=lambda kv: int(kv[0]))), fp, indent=1)
