@@ -78,6 +78,11 @@
 
 Кастомные тайлы приключения лежат в `ext.customTiles` файла приключения (id объекта → геометрия).
 
+Арт для доски (только `core-ffg`, только локально):
+
+- `images/tiles/<код>.jpg` — текстуры тайлов, 1024 px;
+- `scenario/tileart.json` — меши гексов каждого тайла в его системе координат: центр, вершины, UV, треугольники. Порядок гексов тот же, что в геометрии.
+
 ## Версии формата
 
 - `formatVersion` — в каждом файле.
@@ -89,5 +94,6 @@
 ```bash
 python3 tools/importer/export_tiles.py  # геометрия тайлов из игры → data/export/tiles.json
 python3 tools/importer/make_pack.py   # data/export + data/out/loc.json → data/packs/core-ffg
+python3 tools/importer/export_tile_art.py  # текстуры и меши тайлов для доски
 pnpm packs:validate                  # все паки в data/packs (или $JIME_PACKS)
 ```

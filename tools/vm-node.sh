@@ -10,7 +10,7 @@ export JIME_WORK="${JIME_WORK:-$SRC/data}"
 export PATH="$HOME/.npm-global/bin:$PATH"
 command -v pnpm >/dev/null || npm install -g --prefix "$HOME/.npm-global" pnpm@10.34.7 >/dev/null
 mkdir -p "$BUILD"
-rsync -a --delete --exclude node_modules --exclude .git --exclude data --exclude 'Декомпилированые файлы' \
+rsync -a --delete --exclude node_modules --exclude .git --exclude /data --exclude 'Декомпилированые файлы' \
   --exclude jime_data.zip --exclude prototype_3d --exclude target --exclude dist "$SRC/" "$BUILD/"
 cd "$BUILD"
 pnpm install --prefer-offline --reporter=silent

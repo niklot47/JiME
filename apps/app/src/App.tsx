@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { ENGINE_VERSION } from "@jime/engine";
+import { MapScreen } from "./screens/MapScreen.tsx";
 
-// Placeholder shell: real screens (pack manager, import wizard, game) come in Stage 3
+type Screen = "home" | "map";
+
 export function App() {
+  const [screen, setScreen] = useState<Screen>("home");
+  if (screen === "map") return <MapScreen onBack={() => setScreen("home")} />;
   return (
     <main className="shell">
       <header className="topbar">
@@ -9,10 +14,10 @@ export function App() {
         <span className="muted">engine {ENGINE_VERSION}</span>
       </header>
       <section className="cards">
-        <button className="card">Кампании</button>
-        <button className="card">Паки</button>
-        <button className="card">Импорт из игры</button>
-        <button className="card">Редактор</button>
+        <button className="card" onClick={() => setScreen("map")}>Карта <span className="muted">— генератор как в оригинале</span></button>
+        <button className="card" disabled>Кампании</button>
+        <button className="card" disabled>Паки</button>
+        <button className="card" disabled>Редактор</button>
       </section>
     </main>
   );

@@ -51,7 +51,7 @@ pnpm fuzz                 # бот по всем 72 приключениям (TS
 pnpm play 1 7             # сыграть A1 (сид 7) в терминале на русском
 pnpm play:bot 1 7         # та же партия ботом
 pnpm parity               # сверка TS-движка с engine-py
-pnpm dev                  # интерфейс в браузере, http://localhost:1420
+pnpm dev                  # интерфейс в браузере, http://localhost:1420 (экран «Карта»)
 pnpm tauri dev            # то же в окне Tauri
 pnpm tauri build          # установщик Windows
 ```
