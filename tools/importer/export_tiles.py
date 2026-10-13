@@ -120,5 +120,5 @@ if __name__ == "__main__":
     print("adventures with custom tiles", len(custom), "tiles", sum(len(v) for v in custom.values()))
     products = export_products()
     print("product order", products)
-    json.dump({"standard": std, "custom": custom, "products": products}, open(OUT, "w"), ensure_ascii=False)
+    json.dump({"standard": std, "custom": custom, "products": products}, open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
     print("->", OUT)

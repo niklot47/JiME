@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{AppHandle, Manager, Runtime, State, UriSchemeContext};
 
+mod importer;
+
 const SCHEME: &str = "jime-pack";
 
 #[derive(Clone, Serialize)]
@@ -221,10 +223,19 @@ pub fn run() {
         .setup(|app| {
             let d = resolve_packs_dir(app.handle());
             app.manage(AppState { packs: Mutex::new(d) });
+            app.manage(importer::ImportState::new());
             Ok(())
         })
         .register_uri_scheme_protocol(SCHEME, serve_pack)
-        .invoke_handler(tauri::generate_handler![packs_info, set_packs_dir])
+        .invoke_handler(tauri::generate_handler![
+            packs_info,
+            set_packs_dir,
+            importer::detect_game,
+            importer::check_game,
+            importer::python_info,
+            importer::install_requirements,
+            importer::run_import
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

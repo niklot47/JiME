@@ -9,7 +9,7 @@ MANAGED = os.environ.get("JIME_MANAGED") or (os.path.join(DATA, "Managed") if os
 env = UnityPy.load(*[os.path.join(DATA, f) for f in os.listdir(DATA) if not os.path.isdir(os.path.join(DATA, f))], *([os.path.join(DATA, "StreamingAssets", "bundles")] if os.path.isdir(os.path.join(DATA, "StreamingAssets", "bundles")) else []))
 gen = TypeTreeGenerator("2022.3.62f2")
 gen.load_local_dll_folder(MANAGED)
-FILES = {k.split("/")[-1].lower(): f for k, f in env.files.items() if hasattr(f, "objects")}
+FILES = {k.replace("\\", "/").split("/")[-1].lower(): f for k, f in env.files.items() if hasattr(f, "objects")}
 _node_cache, _script_cache = {}, {}
 
 def file_of(af, fid):

@@ -63,6 +63,8 @@ pnpm tauri build          # установщик Windows
 3. только dev-сборка: `data/packs` репозитория;
 4. `%APPDATA%\io.github.niklot47.jime\packs` (создаётся сама).
 
+Если пака `core-ffg` нет, приложение открывает мастер первого запуска: находит игру в папках Steam, проверяет Python 3 и пакеты импортёра (может поставить их через pip), запускает `tools/importer/import_all.py` с живым логом (~40 с). Импорт из командной строки: `pnpm import:game -- --game "<папка игры>" --work data`.
+
 Файлы отдаются через схему `jime-pack` (`src-tauri/src/lib.rs`); контент FFG в установщик не входит. Проверка окна без экрана: `tools/dev/cdp.mjs` (WebView2 + DevTools Protocol).
 
 ## Быстрые команды: Linux-VM Claude

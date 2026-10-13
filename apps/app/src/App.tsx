@@ -1,16 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ENGINE_VERSION } from "@jime/engine";
 import { MapScreen } from "./screens/MapScreen.tsx";
 import { GameScreen } from "./screens/GameScreen.tsx";
 import { PacksScreen } from "./screens/PacksScreen.tsx";
+import { SetupScreen } from "./screens/SetupScreen.tsx";
+import { inTauri, packsInfo } from "./data/host.ts";
+import { PACK_ID } from "./data/pack.ts";
 
-type Screen = "home" | "map" | "game" | "packs";
+type Screen = "home" | "map" | "game" | "packs" | "setup";
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("home");
+  // first run: no imported game pack in the packs folder -> wizard
+  useEffect(() => {
+    if (!inTauri()) return;
+    packsInfo().then((i) => { if (!i.packs.some((p) => p.dir === PACK_ID)) setScreen("setup"); }).catch(() => {});
+  }, []);
+  if (screen === "setup") return <SetupScreen onDone={() => setScreen("home")} onSkip={() => setScreen("home")} />;
   if (screen === "map") return <MapScreen onBack={() => setScreen("home")} />;
   if (screen === "game") return <GameScreen onBack={() => setScreen("home")} />;
-  if (screen === "packs") return <PacksScreen onBack={() => setScreen("home")} />;
+  if (screen === "packs") return <PacksScreen onBack={() => setScreen("home")} onImport={() => setScreen("setup")} />;
   return (
     <main className="shell">
       <header className="topbar">

@@ -13,7 +13,7 @@ const SOURCE: Record<string, string> = {
 const packName = (m: any, lang = "ru"): string =>
   (m && (typeof m.name === "string" ? m.name : m.name?.[lang] ?? m.name?.en)) || "";
 
-export function PacksScreen({ onBack }: { onBack: () => void }) {
+export function PacksScreen({ onBack, onImport }: { onBack: () => void; onImport: () => void }) {
   const [info, setInfo] = useState<PacksInfo | null>(null);
   const [path, setPath] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +69,7 @@ export function PacksScreen({ onBack }: { onBack: () => void }) {
           <button className="primary" disabled={busy || !path.trim() || path === info?.dir} onClick={() => change(path)}>Использовать эту папку</button>
           <button disabled={busy || info?.source !== "settings"} onClick={() => change(null)}>По умолчанию</button>
           <button disabled={busy} onClick={() => run(packsInfo)}>Обновить</button>
+          <button disabled={busy} onClick={onImport}>Импорт из игры…</button>
         </div>
         {info?.source === "env" && <p className="muted">Пока задана JIME_PACKS, она важнее выбранной папки.</p>}
         {error && <p className="error">{error}</p>}
@@ -86,8 +87,8 @@ export function PacksScreen({ onBack }: { onBack: () => void }) {
             </ul>
             {!core && (
               <p className="error">
-                Нет пака «{PACK_ID}» с контентом игры. Соберите его импортёром (<code>pnpm packs:build</code> в репозитории)
-                и укажите папку <code>data\packs</code> или скопируйте <code>core-ffg</code> в папку паков.
+                Нет пака «{PACK_ID}» с контентом игры. Нажмите «Импорт из игры…» или укажите папку, где он уже собран
+                (например <code>data\packs</code> репозитория).
               </p>
             )}
           </>

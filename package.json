@@ -23,6 +23,7 @@
     "play:bot": "node packages/engine/cli/run.ts",
     "mapgen": "node packages/engine/cli/mapgen.ts",
     "verify:maps": "node packages/engine/cli/verify-saves.ts",
+    "import:game": "node scripts/run-python.mjs tools/importer/import_all.py",
     "verify:board": "node packages/engine/cli/board-check.ts 2"
   },
   "devDependencies": {

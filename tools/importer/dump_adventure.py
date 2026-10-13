@@ -17,8 +17,8 @@ def dump(path, out_base):
                 lines.append(f"== {s['name']}  -> {s['transitions']}")
                 for a in s["actions"]:
                     lines.append("    " + ("" if a["enabled"] else "(off) ") + fmt_action(a))
-    json.dump(result, open(out_base + ".json", "w"), ensure_ascii=False, indent=1, default=str)
-    open(out_base + ".txt", "w").write("\n".join(lines))
+    json.dump(result, open(out_base + ".json", "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
+    open(out_base + ".txt", "w", encoding="utf-8").write("\n".join(lines))
     return result
 if __name__ == "__main__":
     r = dump(sys.argv[1], sys.argv[2]); print(len(r), "fsms", sum(len(f["states"]) for f in r), "states")

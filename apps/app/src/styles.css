@@ -115,3 +115,11 @@ body { margin: 0; min-height: 100dvh; }
 .packs { margin: 0; padding-left: 20px; }
 .packs li { margin: 4px 0; }
 code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
+
+/* first-run wizard */
+.steps { display: flex; gap: 16px; list-style: none; padding: 0; margin: 0 0 16px; color: var(--muted); flex-wrap: wrap; }
+.steps li.on { color: var(--accent); font-weight: 600; }
+.progress { display: flex; flex-direction: column; gap: 6px; }
+.progress .bar { height: 10px; border-radius: 5px; background: #15130f; overflow: hidden; }
+.progress .bar div { height: 100%; background: var(--accent); transition: width 0.3s; }
+.joblog { max-height: 40dvh; overflow: auto; background: #0f0d0a; border: 1px solid #3a3226; border-radius: 8px; padding: 10px; font-size: 0.8rem; white-space: pre-wrap; margin: 0; }

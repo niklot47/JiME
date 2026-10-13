@@ -148,7 +148,7 @@ if __name__ == "__main__":
     db = {"models": export_models()}
     db["standardTiles"] = export_standard_tiles()
     db["globals"] = export_globals()
-    json.dump(db, open(os.path.join(OUT, "db.json"), "w"), ensure_ascii=False, default=str)
+    json.dump(db, open(os.path.join(OUT, "db.json"), "w", encoding="utf-8"), ensure_ascii=False, default=str)
     print("models:", {k: len(v) for k, v in db["models"].items()}, "tiles", len(db["standardTiles"]), "globals", len(db["globals"]))
     # adventures
     os.makedirs(os.path.join(OUT, "adventures"), exist_ok=True)
@@ -160,7 +160,7 @@ if __name__ == "__main__":
         if key not in CONT: print("missing", key); continue
         pf = export_prefab(key)
         pf["model"] = a
-        json.dump(pf, open(os.path.join(OUT, "adventures", f"{aid}.json"), "w"), ensure_ascii=False, default=str)
+        json.dump(pf, open(os.path.join(OUT, "adventures", f"{aid}.json"), "w", encoding="utf-8"), ensure_ascii=False, default=str)
         n_ok += 1
     print("adventures", n_ok)
     os.makedirs(os.path.join(OUT, "encounters"), exist_ok=True)
@@ -172,6 +172,6 @@ if __name__ == "__main__":
         if key not in CONT: print("missing", key); continue
         pf = export_prefab(key)
         pf["model"] = e
-        json.dump(pf, open(os.path.join(OUT, "encounters", f"{eid}.json"), "w"), ensure_ascii=False, default=str)
+        json.dump(pf, open(os.path.join(OUT, "encounters", f"{eid}.json"), "w", encoding="utf-8"), ensure_ascii=False, default=str)
         n_ok += 1
     print("encounters", n_ok)
