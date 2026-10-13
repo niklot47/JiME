@@ -3,7 +3,8 @@ import type { Answer, Decision, GameView, LogEntry, SaveData, SessionSetup } fro
 import type { GeneratedMap } from "@jime/engine/map";
 
 export type Request =
-  | { type: "start"; setup: SessionSetup; save?: SaveData }
+  /** packsRoot: URL of the packs folder (the worker cannot ask the Tauri host itself) */
+  | { type: "start"; setup: SessionSetup; save?: SaveData; packsRoot: string }
   | { type: "answer"; answer: Answer }
   | { type: "undo"; n?: number };
 

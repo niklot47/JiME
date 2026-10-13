@@ -7,7 +7,7 @@ import type { TextDb } from "@jime/content-tools/text";
 import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, packsRoot } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
@@ -137,7 +137,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   }
 
   const start = (setup: SessionSetup, save?: SaveData) => run(async (c) => {
-    const [r, a] = await Promise.all([c.request({ type: "start", setup, save }), loadAdventure(setup.adv)]);
+    const [r, a] = await Promise.all([c.request({ type: "start", setup, save, packsRoot: packsRoot() }), loadAdventure(setup.adv)]);
     setGame({ state: r.state, board: r.board ?? null, adv: a });
     writeAutosave(r.state.save);
   });

@@ -52,9 +52,18 @@ pnpm play 1 7             # сыграть A1 (сид 7) в терминале �
 pnpm play:bot 1 7         # та же партия ботом
 pnpm parity               # сверка TS-движка с engine-py
 pnpm dev                  # интерфейс в браузере, http://localhost:1420 (экраны «Игра» и «Карта»)
-pnpm tauri dev            # то же в окне Tauri
+pnpm tauri dev            # то же в окне Tauri (паки — из папки, см. ниже)
 pnpm tauri build          # установщик Windows
 ```
+
+### Паки в приложении (Tauri)
+Приложение читает паки из папки (первое найденное):
+1. переменная `JIME_PACKS`;
+2. папка, выбранная на экране «Паки» (`settings.json` в папке настроек приложения);
+3. только dev-сборка: `data/packs` репозитория;
+4. `%APPDATA%\io.github.niklot47.jime\packs` (создаётся сама).
+
+Файлы отдаются через схему `jime-pack` (`src-tauri/src/lib.rs`); контент FFG в установщик не входит. Проверка окна без экрана: `tools/dev/cdp.mjs` (WebView2 + DevTools Protocol).
 
 ## Быстрые команды: Linux-VM Claude
 

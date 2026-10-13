@@ -1,6 +1,7 @@
 // Game worker: owns the content source and the Session, so map generation and replays never block the UI
 import { Session } from "@jime/engine";
 import { BrowserSource } from "../data/source.ts";
+import { clearPackCache, packsRoot, setPacksRoot } from "../data/pack.ts";
 import type { GameState, Reply, Request } from "./protocol.ts";
 
 let src: BrowserSource | null = null;
@@ -12,6 +13,11 @@ const state = (s: Session): GameState => ({
 
 async function handle(req: Request): Promise<Omit<Extract<Reply, { ok: true }>, "id">> {
   if (req.type === "start") {
+    if (req.packsRoot !== packsRoot()) {
+      setPacksRoot(req.packsRoot);
+      clearPackCache();
+      src = null;
+    }
     src ??= await BrowserSource.create();
     const board = await src.prepare(req.setup);
     session = req.save ? Session.load(src, req.save, { board }) : new Session(src, req.setup, [], { board });

@@ -39,5 +39,7 @@
 
 - Репозиторий: `D:\JiME_Claude`. В `.gitignore`: `data/`, `Декомпилированые файлы/`, `node_modules/`, сборки, всё с контентом FFG.
 - Коммитит Claude через Desktop Commander (`start_process`, PowerShell прямо на Windows): `cd D:\JiME_Claude; git add -A; git commit -m "..."`. Пушит тоже Claude (`git push`); если пуш не прошёл — сообщить пользователю. Из VM git не работает: папка `.git` там не видна.
+- Сборка и запуск Tauri на Windows тоже может делать Claude через Desktop Commander (`cargo` — `%USERPROFILE%\.cargo\bin`, его нет в PATH оболочки). Окно проверяется без скриншотов экрана: запуск с `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` и `node tools/dev/cdp.mjs <скрипт>`. Запущенные процессы (`jime-app`, `node`, `cargo`) потом остановить.
+- Заметка для Claude: `device_commit_files` с тем же `stagedPath`, что уже коммитился, может записать старую версию файла — для повторной записи брать новое имя в outputs или править на ПК через `device_bash`.
 - `.gitignore`: `/data/` — только корневая папка (раньше `data/` скрывал и `apps/app/src/data`).
 - Позже можно завести приватный репозиторий на GitHub: тогда облачная сессия сможет клонировать код без ПК.
