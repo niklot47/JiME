@@ -266,6 +266,21 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
       disc.renderOrder = 2;
       if (tk.id !== undefined) disc.userData.pick = { kind: "token", id: tk.id } satisfies Pick;
       s.board.add(disc);
+      if (tk.image) {
+        // the token's thickness: its own silhouette in dark card colour, shifted down-right on screen, plus a soft shadow
+        const map = texture(tk.image);
+        const shift = (dx: number, dy: number): [number, number] =>
+          [dx * Math.cos(-rot) - dy * Math.sin(-rot), dx * Math.sin(-rot) + dy * Math.cos(-rot)];
+        for (const [k, color, opacity, d] of [[1, 0x000000, 0.45, 0.075], [0, 0x3a2f22, 1, 0.035]] as const) {
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(size * (k ? 1.04 : 1), size * (k ? 1.04 : 1)),
+            new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity, depthTest: false }));
+          m.rotation.z = disc.rotation.z;
+          const [ox, oy] = shift(d * 0.6, -d);
+          m.position.set(tk.x + ox, tk.y + oy, 0.005);
+          m.renderOrder = 1;
+          s.board.add(m);
+        }
+      }
       // the art has its own edge; plain discs (no art) get a thin dark outline. No highlight: the original has none.
       if (!tk.image) {
         const ring = square

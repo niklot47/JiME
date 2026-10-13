@@ -106,6 +106,8 @@ my-tweaks/
 - `images/tiles/<код>.jpg` — текстуры тайлов, 1024 px;
 - `scenario/tileart.json` — меши гексов каждого тайла в его системе координат: центр, вершины, UV, треугольники. Порядок гексов тот же, что в геометрии. `explore` — позиция жетона исследования (`Tile.ExploreNode`, отпечатанная метка);
 - `images/tokens/<TokenTypes>.png` (верхняя грань), `raw/<id>.png` (вся текстура меша), `meshes.json` (меши round/explore/hexagon: pos, uv, faces; z вверх) + `tokens.json` (`{id: {top, raw, mesh}}`) — жетоны;
+- `images/ui/atlas/<sprite>.png` + `atlas.json` (`{name: {file, w, h, border}}`, border — 9-slice) — спрайты NGUI-атласа интерфейса;
+- `images/ui/threatMeter|threatGradient|threatLiquid|threatFire.png` — полоса угрозы;
 - `images/fx/*.png` + `fx.json` — облака, дым, пыль, огонь для доски;
 - `images/enemies/<EnemyModel>.png` + `enemies.json` — иконки врагов;
 - `images/ui/*` + `ui.json` — оформление «Оригинал»: рамка диалога, кожа, карта Средиземья, бумага (CSS-переменные `--ui-*`, класс `theme-original`);

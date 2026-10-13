@@ -8,7 +8,7 @@ import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, themeChoice, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, type AtlasSprite, themeChoice, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
@@ -102,6 +102,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [fx, setFx] = useState<Record<string, string>>({});
   const [enemyArt, setEnemyArt] = useState<Record<string, string>>({});
   const [uiArt, setUiArt] = useState<Record<string, string>>({});
+  const [atlas, setAtlas] = useState<Record<string, AtlasSprite>>({});
   const [lang, setLang] = useState("ru");
   const [langs, setLangs] = useState(LANGS);
   const [text, setText] = useState<TextDb | null>(null);
@@ -126,8 +127,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     client.current = new GameClient();
     void installFonts();
     loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
-    Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt(), loadUiArt(), loadTokenMeshes()])
-      .then(([d, a, t, f, e, u, tm]) => { setDb(d); setArt(a); setTokenArt(t); setTokenMeshes(tm); setFx(f); setEnemyArt(e); setUiArt(themeChoice() === "original" ? u : {}); })
+    Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt(), loadUiArt(), loadTokenMeshes(), loadUiAtlas()])
+      .then(([d, a, t, f, e, u, tm, at]) => { setAtlas(at); setDb(d); setArt(a); setTokenArt(t); setTokenMeshes(tm); setFx(f); setEnemyArt(e); setUiArt(themeChoice() === "original" ? u : {}); })
       .catch((e) => setError(String(e)));
     return () => { client.current?.dispose(); client.current = null; };
   }, []);
@@ -237,7 +238,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     <div className="game-screen">
       <div className="board-wrap">
         <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d} onAnswer={answer} />
-        <EnemyTracker view={view} pending={pending} art={enemyArt} say={say} disabled={busy} onAnswer={answer} />
+        <ThreatBar view={view} art={uiArt} atlas={atlas} say={say} />
+        <EnemyTracker view={view} pending={pending} art={enemyArt} atlas={atlas} say={say} disabled={busy} onAnswer={answer} />
       </div>
       <aside className={busy ? "game-panel busy" : "game-panel"}>
         <div className="row spread">
@@ -336,15 +338,12 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
 type Say = (key: string | null | undefined, ins?: readonly string[]) => string;
 
 function Status({ view, say }: { view: GameView; say: Say }) {
-  const pct = view.threatMax > 0 ? Math.min(100, (100 * view.threat) / view.threatMax) : 0;
   return (
     <div className="status">
       <div className="row spread">
         <span>Раунд <b>{view.round}</b></span>
         <span>Угроза <b>{view.threat}</b>{view.threatMax > 0 ? ` / ${view.threatMax}` : ""}</span>
       </div>
-      {view.threatMax > 0 && <div className="bar"><div style={{ width: `${pct}%` }} /></div>}
-      {view.objective && <p className="objective" dangerouslySetInnerHTML={{ __html: say(view.objective, view.objectiveInserts) }} />}
       <div className="heroes">
         {view.heroes.map((h, i) => (
           <span key={i} className={h.defeated ? "hero down" : "hero"} title="Сложность следующего последнего рубежа">
@@ -352,6 +351,42 @@ function Status({ view, say }: { view: GameView; say: Say }) {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- threat bar
+/**
+ * UIThreatMeter: the bar on top of the board. Frame (Threat_Meter) with the value plate on the right, the fill coloured by
+ * ThreatMeterGradient along the track with the liquid texture moving in it, threat event markers (Threat_Event2) at their
+ * thresholds, the darkness token on the left while darkness is in effect, the objective under the bar.
+ */
+function ThreatBar({ view, art, atlas, say }: { view: GameView; art: Record<string, string>; atlas: Record<string, AtlasSprite>; say: Say }) {
+  const max = view.threatMax;
+  const frac = max > 0 ? Math.min(1, view.threat / max) : 0;
+  const url = (p?: string) => (p ? `url("${assetUrl(p)}")` : undefined);
+  const marker = atlas.Threat_Event2 ? assetUrl(atlas.Threat_Event2.file) : undefined;
+  const dark = atlas.DarknessToken ? assetUrl(atlas.DarknessToken.file) : undefined;
+  const styled = !!art.threatMeter;
+  return (
+    <div className={`threatbar${styled ? " styled" : ""}`}>
+      <div className="meter" title={`Угроза ${view.threat}${max > 0 ? ` из ${max}` : ""}`}>
+        {view.darkness && (dark ? <img className="darkness" src={dark} alt="Тьма" title="Тьма" /> : <span className="darkness plain" title="Тьма">●</span>)}
+        <div className="track">
+          <div className="fill" style={{ width: `${100 * frac}%` }}>
+            <div className="ramp" style={{ width: frac > 0 ? `${100 / frac}%` : "100%", backgroundImage: url(art.threatGradient) }} />
+            {art.threatLiquid && <div className="liquid" style={{ backgroundImage: url(art.threatLiquid) }} />}
+          </div>
+          {max > 0 && view.threatEvents.filter((t) => t > view.threat && t <= max).map((t, i) => (
+            <span key={`${t}:${i}`} className="mark" style={{ left: `${(100 * t) / max}%` }} title={`Событие угрозы на ${t}`}>
+              {marker && <img src={marker} alt="" />}<b>{t}</b>
+            </span>
+          ))}
+        </div>
+        {styled && <img className="frame" src={assetUrl(art.threatMeter!)} alt="" />}
+        <span className="value">{view.threat}{max > 0 ? `/${max}` : ""}</span>
+      </div>
+      {view.objective && <p className="objective" dangerouslySetInnerHTML={{ __html: say(view.objective, view.objectiveInserts) }} />}
     </div>
   );
 }
@@ -478,32 +513,44 @@ function GameLog({ log, say }: { log: readonly LogEntry[]; say: Say }) {
 
 // ---------------------------------------------------------------- enemy tracker
 /** Enemy groups as cards over the board (like the original's tracker); a card is a button when it can be attacked */
-function EnemyTracker({ view, pending, art, say, disabled, onAnswer }: {
-  view: GameView; pending: Decision | null; art: Record<string, string>; say: Say; disabled: boolean; onAnswer: (a: Answer) => void;
+function EnemyTracker({ view, pending, art, atlas, say, disabled, onAnswer }: {
+  view: GameView; pending: Decision | null; art: Record<string, string>; atlas: Record<string, AtlasSprite>; say: Say; disabled: boolean;
+  onAnswer: (a: Answer) => void;
 }) {
   if (!view.enemies.length) return null;
   const attack = new Map<number, number>();
   if (pending?.kind === "action") pending.options.forEach((o, i) => { if (o.type === "attack") attack.set(o.uid, i); });
+  const sprite = (name: string) => (atlas[name] ? assetUrl(atlas[name]!.file) : undefined);
+  const frame = sprite("Enemy_Frame_Normal");
+  const elite = sprite("Enemy_Frame_Elite");
+  const glow = sprite("Generic_Circle2");
+  const armor = sprite("Icon_Armor");
   return (
     <div className="tracker">
       {view.enemies.map((e) => {
         const i = attack.get(e.uid);
         const icon = art[String(e.model)];
         const hp = Math.max(0, e.unitHp - e.damage);
+        const name = say(e.name);
+        // EnemyMiniView: highlight (under), medallion frame, elite frame, portrait on top
         const body = (
           <>
-            {icon ? <img src={assetUrl(icon)} alt="" /> : <div className="noicon">?</div>}
-            <div className="info">
-              <b dangerouslySetInnerHTML={{ __html: say(e.name) }} />
-              <span className="count">×{e.size}{e.armor ? <span title="Броня"> · 🛡{e.armor}</span> : null}</span>
-              <div className="hp" title={`Здоровье текущего врага ${hp}/${e.unitHp}`}><div style={{ width: `${(100 * hp) / Math.max(1, e.unitHp)}%` }} /></div>
-              {e.exhausted && <span className="muted">истощён</span>}
+            <div className={`medal${frame ? "" : " plain"}`}>
+              {i !== undefined && glow && <img className="glow" src={glow} alt="" />}
+              {frame && <img className="frame" src={frame} alt="" />}
+              {e.named && elite && <img className="elite" src={elite} alt="" />}
+              {icon ? <img className="portrait" src={assetUrl(icon)} alt="" /> : <div className="noicon">?</div>}
+              {e.size > 1 && <span className="count">{e.size}</span>}
+              {e.armor > 0 && <span className="armor" title="Броня">{armor && <img src={armor} alt="" />}{e.armor}</span>}
             </div>
+            <div className="hp" title={`Здоровье текущего врага ${hp}/${e.unitHp}`}><div style={{ width: `${(100 * hp) / Math.max(1, e.unitHp)}%` }} /></div>
+            <b className="name" dangerouslySetInnerHTML={{ __html: name }} />
           </>
         );
+        const cls = `enemy${e.exhausted ? " exhausted" : ""}${e.named ? " named" : ""}`;
         return i !== undefined
-          ? <button key={e.uid} className={`enemy can${e.exhausted ? " exhausted" : ""}`} disabled={disabled} title="Атаковать" onClick={() => onAnswer(i)}>{body}</button>
-          : <div key={e.uid} className={`enemy${e.exhausted ? " exhausted" : ""}`}>{body}</div>;
+          ? <button key={e.uid} className={`${cls} can`} disabled={disabled} title="Атаковать" onClick={() => onAnswer(i)}>{body}</button>
+          : <div key={e.uid} className={cls} title={e.exhausted ? "истощён" : undefined}>{body}</div>;
       })}
     </div>
   );

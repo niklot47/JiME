@@ -249,6 +249,10 @@ export interface GameView {
   round: number;
   threat: number;
   threatMax: number;
+  /** Thresholds of the threat events still waiting on the threat bar (ascending) */
+  threatEvents: number[];
+  /** Darkness in effect now (FFG shows the darkness token next to the threat bar) */
+  darkness: boolean;
   objective: string | null;
   objectiveInserts: string[];
   ended: string | null;
@@ -261,13 +265,19 @@ export interface GameView {
   nodes: NodeView[];
   startTile: number;
   /** model = EnemyModel id (icon), armor = EnemyModel.Armor */
-  enemies: { uid: number; model: number; name: string; size: number; damage: number; unitHp: number; armor: number; exhausted: boolean }[];
+  enemies: {
+    uid: number; model: number; name: string; size: number; damage: number; unitHp: number; armor: number; exhausted: boolean;
+    /** EnemyModel.IsNamed (a unique, named foe). FFG shows the elite frame for groups with bonuses; bonuses are not modelled yet */
+    named: boolean;
+  }[];
   campaign: { lore: number; xp: number; items: any[]; titles: any[]; next: any };
 }
 
 export function viewOf(g: Game): GameView {
   return {
-    adv: g.advId, round: g.round, threat: g.globals.Threat, threatMax: g.threatMax, objective: g.objective,
+    adv: g.advId, round: g.round, threat: g.globals.Threat, threatMax: g.threatMax,
+    threatEvents: g.activeThreatEvents.map((o) => Number(o.threatThreshold ?? o.components.ThreatEvent?.Threshold ?? 0)).sort((a, b) => a - b),
+    darkness: g.isDarknessNow(), objective: g.objective,
     objectiveInserts: [...g.objectiveInserts],
     ended: g.ended, result: g.result,
     heroes: g.heroes.map((h) => ({ ...h })),
@@ -280,6 +290,7 @@ export function viewOf(g: Game): GameView {
     enemies: g.enemies.map((e) => ({
       uid: e.uid, model: Number(e.model?._id ?? -1), name: String(g.enemyName(e.model, e.size)), size: e.size,
       damage: e.damage, unitHp: e.unitHp, armor: Number(e.model?.Armor ?? 0), exhausted: e.exhausted,
+      named: !!Number(e.model?.IsNamed ?? 0),
     })),
     campaign: { lore: g.campaign.lore, xp: g.campaign.xp, items: [...g.campaign.items], titles: [...g.campaign.titles], next: g.campaign.next_adventure },
   };

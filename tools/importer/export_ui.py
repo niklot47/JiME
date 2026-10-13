@@ -11,6 +11,11 @@ WANTED = {
     "leather": ("Background_Tile_Overlay", 512, "JPEG"),  # dark leather (table / panels)
     "map": ("Background_Map_MiddleEarth", 1600, "JPEG"),  # map of Middle-earth (menu background)
     "paper": ("Paper_04", 512, "JPEG"),
+    # threat bar (UIThreatMeter): frame with the value plate, fill colour ramp, liquid texture, flame
+    "threatMeter": ("Threat_Meter", 1024, "PNG"),
+    "threatGradient": ("ThreatMeterGradient", 64, "PNG"),
+    "threatLiquid": ("Threat_Liquid_DESAT", 256, "PNG"),
+    "threatFire": ("ThreatFire", 128, "PNG"),
 }
 
 def name_of(o):

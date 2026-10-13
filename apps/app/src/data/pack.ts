@@ -259,6 +259,17 @@ export const loadUiArt = () => once("ui", async () => {
   }
 });
 
+/** One sprite of the game's NGUI atlas (images/ui/atlas/atlas.json from tools/importer/export_atlas.py) */
+export interface AtlasSprite { file: string; w: number; h: number; border: [number, number, number, number] }
+/** UI atlas sprites by name ("Enemy_Frame_Normal", "Threat_Event2" ...); {} if absent */
+export const loadUiAtlas = () => once("atlas", async () => {
+  try {
+    return JSON.parse(await packText("images/ui/atlas/atlas.json")) as Record<string, AtlasSprite>;
+  } catch {
+    return {} as Record<string, AtlasSprite>;
+  }
+});
+
 const THEME_KEY = "jime.theme";
 export const themeChoice = (): "original" | "plain" => {
   try {

@@ -135,18 +135,35 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 /* enemy tracker over the board */
 .board-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
 .board-wrap > .board { flex: 1; }
-.tracker { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 8px; overflow-x: auto; pointer-events: none; padding-bottom: 2px; }
-.tracker .enemy { pointer-events: auto; display: flex; gap: 8px; align-items: center; min-width: 190px; max-width: 240px; padding: 6px 10px 6px 6px;
-  background: rgba(26, 22, 17, 0.88); border: 1px solid #4a3f30; border-radius: 10px; color: var(--text); text-align: left; font: inherit; }
-.tracker .enemy.can { cursor: pointer; border-color: var(--accent); box-shadow: 0 0 0 1px rgba(201, 162, 74, 0.35); }
-.tracker .enemy.can:hover { background: rgba(48, 38, 24, 0.95); }
-.tracker .enemy.exhausted { filter: grayscale(0.8); opacity: 0.75; }
-.tracker img { width: 44px; height: 56px; object-fit: contain; filter: drop-shadow(0 2px 3px #000); }
-.tracker .noicon { width: 44px; height: 56px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
-.tracker .info { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 0.85rem; }
-.tracker .info b { font-family: var(--font-title); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tracker .hp { height: 6px; width: 110px; background: #15130f; border-radius: 3px; overflow: hidden; }
-.tracker .hp div { height: 100%; background: #b03a2e; }
+.tracker { position: absolute; left: 12px; right: 12px; bottom: 8px; display: flex; gap: 6px; overflow-x: auto; pointer-events: none;
+  padding: 18px 4px 2px; justify-content: center; }
+/* one enemy group: the game's medallion (EnemyMiniView), health bar and name */
+.tracker .enemy { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 96px; flex: 0 0 auto;
+  padding: 0; background: none; border: 0; color: var(--text); font: inherit; text-align: center; }
+.tracker .enemy.can { cursor: pointer; }
+.tracker .enemy.can:hover .medal { transform: scale(1.08); }
+.tracker .enemy.exhausted .medal { filter: grayscale(0.85) brightness(0.7); }
+.tracker .medal { position: relative; width: 84px; height: 84px; transition: transform 0.15s; }
+.tracker .medal img { position: absolute; display: block; pointer-events: none; }
+.tracker .medal .frame { inset: 0; width: 100%; height: 100%; }
+/* elite frame: same scale as the medallion, horns above (circle centre at 116 of 255 px) */
+.tracker .medal .elite { left: -0.5%; top: -9.5%; width: 101%; height: 131%; }
+/* NGUI anchors of SpriteEnemy in a 86 px widget: 11 left/right, 8 top, 15 bottom */
+.tracker .medal .portrait { left: 12.8%; right: 12.8%; top: 9.3%; bottom: 17.4%; width: 74.4%; height: 73.3%; object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.8)); }
+.tracker .medal .glow { inset: -6%; width: 112%; height: 112%; filter: blur(2px); opacity: 0.85; animation: enemy-glow 1.5s ease-in-out infinite alternate; }
+@keyframes enemy-glow { from { opacity: 0.25; } to { opacity: 0.9; } }
+.tracker .medal.plain { border-radius: 50%; background: #2a241b; border: 2px solid #6b5a3e; }
+.tracker .medal .noicon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.tracker .medal .count { position: absolute; right: -2px; top: -2px; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 11px;
+  background: #1a140c; border: 1px solid #a9833a; color: #f3e6c8; font-size: 0.8rem; font-weight: 600; line-height: 20px; }
+.tracker .medal .armor { position: absolute; left: -4px; bottom: 2px; display: flex; align-items: center; color: #f3e6c8; font-size: 0.8rem;
+  font-weight: 700; text-shadow: 0 1px 2px #000; }
+.tracker .medal .armor img { position: static; width: 22px; height: 22px; margin-right: -2px; }
+.tracker .name { font-family: var(--font-title); font-weight: normal; color: #f0dfb8; font-size: 0.8rem; line-height: 1.1; max-width: 96px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+.tracker .hp { height: 5px; width: 64px; background: rgba(10, 8, 6, 0.85); border: 1px solid #3a3127; border-radius: 3px; overflow: hidden; }
+.tracker .hp div { height: 100%; background: linear-gradient(#d0503f, #8e2a20); }
 @media (max-width: 860px) { .board-wrap { flex: 0 0 45dvh; } }
 
 /* ---------------------------------------------------------------- theme "Original" (art from the imported pack) */
@@ -173,4 +190,29 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
   background: rgba(30, 32, 26, 0.75); border-color: #6b6a5c;
 }
 .theme-original .decision .primary { background: linear-gradient(#d6b25c, #a9833a); color: #1a140c; }
-.theme-original .tracker .enemy { background: linear-gradient(rgba(22, 20, 16, 0.9), rgba(22, 20, 16, 0.9)), var(--ui-leather); }
+.tracker .enemy.named .medal { margin: 8px 0 14px; }
+
+/* threat bar on top of the board (UIThreatMeter); proportions of Threat_Meter (1024 x 74) */
+.threatbar { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: min(78%, 640px); pointer-events: none; z-index: 2; }
+.threatbar .meter { position: relative; width: 100%; aspect-ratio: 1024 / 74; }
+.threatbar .track { position: absolute; left: 5.6%; right: 15.6%; top: 28%; bottom: 28%; background: rgba(12, 8, 6, 0.85); }
+.threatbar .fill { position: absolute; left: 0; top: 0; bottom: 0; overflow: hidden; transition: width 0.8s ease-out; }
+.threatbar .ramp { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #52110d, #8c1000, #c04a10, #e78621);
+  background-size: 100% 100%; }
+.threatbar .liquid { position: absolute; inset: 0; background-size: auto 220%; mix-blend-mode: overlay; opacity: 0.9;
+  animation: threat-flow 6s linear infinite; }
+@keyframes threat-flow { from { background-position: 0 0; } to { background-position: -200px 0; } }
+.threatbar .frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.threatbar .value { position: absolute; left: 86.5%; right: 0.5%; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--font-title); font-size: clamp(0.75rem, 1.6vw, 1rem); text-shadow: 0 1px 2px #000; }
+.threatbar .mark { position: absolute; top: 50%; width: 0; height: 0; }
+.threatbar .mark img { position: absolute; width: 34px; height: 34px; left: -17px; top: -19px; filter: drop-shadow(0 1px 2px #000); }
+.threatbar .mark b { position: absolute; left: -17px; width: 34px; top: -10px; text-align: center; color: #fff; font-size: 0.72rem;
+  text-shadow: 0 1px 2px #000; }
+.threatbar .darkness { position: absolute; left: -9%; top: 50%; width: 8%; aspect-ratio: 1; transform: translateY(-50%); }
+.threatbar .darkness.plain { color: #8a6fc0; font-size: 1.5rem; width: auto; }
+.threatbar .objective { margin: 2px 0 0 6%; color: rgb(255, 240, 189); font-family: var(--font-text); font-size: 0.95rem; line-height: 1.2;
+  text-shadow: 0 1px 3px #000, 0 0 8px #000; max-width: 80%; }
+/* no game art: plain bar */
+.threatbar:not(.styled) .track { left: 0; right: 14%; top: 30%; bottom: 30%; border: 1px solid #4a3f30; border-radius: 4px; overflow: hidden; }
+.threatbar:not(.styled) .value { left: 87%; }
