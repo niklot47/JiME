@@ -32,9 +32,9 @@ const src: ContentSource = {
 test("session pauses on each decision and resumes after an answer", () => {
   const s = new Session(src, { adv: 99, seed: 1 });
   assert.equal(s.status, "waiting");
-  assert.deepEqual(s.pending, { kind: "choice", key: "Q", choices: [{ key: "A" }, { key: "B" }], canCancel: false });
+  assert.deepEqual(s.pending, { kind: "choice", key: "Q", inserts: [], choices: [{ key: "A", inserts: [] }, { key: "B", inserts: [] }], canCancel: false });
   s.answer(0);
-  assert.deepEqual(s.pending, { kind: "test", key: "T", top: 3 });
+  assert.deepEqual(s.pending, { kind: "test", key: "T", inserts: [], top: 3 });
   s.answer(2);
   assert.equal(s.status, "ended");
   assert.equal(s.game.result, "victory");

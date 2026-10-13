@@ -374,6 +374,8 @@ export class Game {
   objective: any = null;
   /** Inserts of the objective message at the time it was set (for UI) */
   objectiveInserts: string[] = [];
+  /** The dialog a Player is being asked about (set by dialog actions just before the call; UI only) */
+  prompt: { fsm: Fsm; msg: any } | null = null;
   readonly heroes: { damage: number; fear: number; defeated: boolean }[];
   readonly objs = new Map<string, Obj>();
   readonly allFsms: Fsm[] = [];
@@ -443,6 +445,13 @@ export class Game {
 
   warn(msg: string): void {
     this.warnings.inc(msg);
+  }
+
+  /** Inserts of a message in the context of the current prompt's FSM (UI only: no warnings, no side effects) */
+  promptInserts(msg?: any): string[] {
+    const p = this.prompt;
+    if (!p) return [];
+    return this.quietly(() => this.msgKey(p.fsm, msg === undefined ? p.msg : msg, true)[1].map(String));
   }
 
   /** Run f without recording warnings (UI-only evaluations must not change traces) */
@@ -954,10 +963,16 @@ export class Game {
     return h(this, fsm, a.params) ?? null;
   }
 
-  msgKey(fsm: Fsm, msg: any): [any, unknown[]] {
+  /**
+   * Key and inserts of a message. ui = true also resolves inserts engine-py leaves empty (the log must stay
+   * identical to it): PlayerIndex -> "@hero:<index>", RandomHero -> "@hero:?" (the UI turns them into hero names)
+   */
+  msgKey(fsm: Fsm, msg: any, ui = false): [any, unknown[]] {
     const k = keyOf(msg);
     if (isDict(msg) && truthy(gd(msg, "inserts"))) {
       const ins = msg.inserts.map((i: any) => {
+        if (ui && gd(i, "filter") === 5) return `@hero:${toInt(this.get(fsm, gd(i, "PlayerIndex", 0)))}`;
+        if (ui && gd(i, "filter") === 3) return "@hero:?";
         // Python `a or b or c ...` is lazy: get() may warn, so evaluate step by step
         let v: any = keyOf(gd(i, "LocalizationKey"));
         if (!truthy(v)) v = gd(i, "RawText");

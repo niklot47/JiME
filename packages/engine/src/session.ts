@@ -17,10 +17,10 @@ export type ActionOption =
   | { type: "attack"; enemy: string; size: number; damage: number; unitHp: number };
 
 export type Decision =
-  | { kind: "test"; key: string | null; top: number }
-  | { kind: "confirm"; key: string | null }
-  | { kind: "choice"; key: string | null; choices: { key: string | null }[]; canCancel: boolean }
-  | { kind: "hero"; key: string | null; players: number; canSkip: boolean }
+  | { kind: "test"; key: string | null; inserts: string[]; top: number }
+  | { kind: "confirm"; key: string | null; inserts: string[] }
+  | { kind: "choice"; key: string | null; inserts: string[]; choices: { key: string | null; inserts: string[] }[]; canCancel: boolean }
+  | { kind: "hero"; key: string | null; inserts: string[]; players: number; canSkip: boolean }
   | { kind: "lastStand"; hero: number; physical: boolean }
   | { kind: "action"; hero: number; options: ActionOption[] }
   | { kind: "attack"; enemy: string; size: number; damage: number; unitHp: number };
@@ -98,22 +98,25 @@ export class ScriptedPlayer implements Player {
     return a;
   }
 
-  successes(_g: Game, top: number, key: any): number {
-    return this.next({ kind: "test", key, top });
+  successes(g: Game, top: number, key: any): number {
+    return this.next({ kind: "test", key, inserts: g.promptInserts(), top });
   }
 
-  confirm(_g: Game, key: any): boolean {
-    return this.next({ kind: "confirm", key });
+  confirm(g: Game, key: any): boolean {
+    return this.next({ kind: "confirm", key, inserts: g.promptInserts() });
   }
 
-  choose(_g: Game, key: any, choices: any[], canCancel: boolean): any {
+  choose(g: Game, key: any, choices: any[], canCancel: boolean): any {
     if (!choices.length) return null; // nothing to choose (all options gated): no question, like the bot
-    const a = this.next({ kind: "choice", key, choices: choices.map((c) => ({ key: keyOf(gd(c, "Localization")) })), canCancel });
+    const a = this.next({
+      kind: "choice", key, inserts: g.promptInserts(), canCancel,
+      choices: choices.map((c) => ({ key: keyOf(gd(c, "Localization")), inserts: g.promptInserts(gd(c, "Localization")) })),
+    });
     return a === null ? null : choices[a];
   }
 
   playerChoice(g: Game, key: any, canSkip: boolean): { player: number; skip: boolean } {
-    return this.next({ kind: "hero", key, players: g.players, canSkip });
+    return this.next({ kind: "hero", key, inserts: g.promptInserts(), players: g.players, canSkip });
   }
 
   lastStand(_g: Game, hero: number, physical: boolean): boolean {

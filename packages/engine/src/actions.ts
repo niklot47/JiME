@@ -55,7 +55,11 @@ const setBool: ActionHandler = (g, f, p) => {
   if (x) x.vars[gd(p, "variableName")] = truthy(gd(p, "setValue"));
 };
 
-const showKey = (p: any) => keyOf(gd(p, "Message"));
+/** Localization key of the dialog message; also records the message as the current prompt (inserts for UI) */
+const showKey = (p: any, g?: Game, f?: Fsm) => {
+  if (g && f) g.prompt = { fsm: f, msg: gd(p, "Message") };
+  return keyOf(gd(p, "Message"));
+};
 
 const COSMETIC = [
   "FocusCameraOnObjects", "FocusCameraOnWorldPositions", "HighlightLocations", "ClearLocationHighlights", "HighlightTileSpace",
@@ -82,13 +86,13 @@ export const ACTIONS: Record<string, ActionHandler> = {
     g.show(f, gd(p, "Message"));
     const pairs: any[] = or(gd(p, "ResultPairs"), []);
     const top = Math.max(...pairs.map((x) => g.num(f, gd(x, "Sum", 0))), 0);
-    const s = g.player.successes(g, top, showKey(p));
+    const s = g.player.successes(g, top, showKey(p, g, f));
     g.set(f, gd(p, "Sum"), s);
     for (const x of pairs) if (s <= g.num(f, gd(x, "Sum", 0))) return gd(x, "Event");
     return pairs.length ? gd(pairs[pairs.length - 1], "Event") : null;
   },
   DisplayMessageCancelConfirm: (g, f, p) => {
-    if (g.player.confirm(g, showKey(p))) {
+    if (g.player.confirm(g, showKey(p, g, f))) {
       g.show(f, gd(p, "Message"));
       g.emit(or(keyOf(gd(p, "ConfirmLabel")), "UI_CONFIRM"));
       return "CONFIRM";
@@ -98,7 +102,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
   DisplayMessageMultipleChoice: (g, f, p) => {
     const choices = or(gd(p, "Choices"), []).filter((c: any) => !truthy(gd(c, "HasDependencies")) || g.boolean(f, gd(c, "Requirement")));
     const cancel = or(gd(p, "CancelChoice"), {});
-    const c = g.player.choose(g, showKey(p), choices, truthy(gd(cancel, "Event")));
+    const c = g.player.choose(g, showKey(p, g, f), choices, truthy(gd(cancel, "Event")));
     if (c === null) return gd(cancel, "Event");
     g.show(f, gd(p, "Message"));
     g.emit(keyOf(gd(c, "Localization")));
@@ -106,7 +110,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
   },
   DisplayMessagePlayerChoice: (g, f, p) => {
     g.show(f, gd(p, "Message"));
-    const r = g.player.playerChoice(g, showKey(p), truthy(gd(p, "CanSkip")));
+    const r = g.player.playerChoice(g, showKey(p, g, f), truthy(gd(p, "CanSkip")));
     g.set(f, gd(p, "PlayerIndex"), r.player);
     if (r.skip) return gd(p, "SkipEvent");
   },
@@ -114,7 +118,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
   SetObjective: (g, f, p) => {
     g.objective = keyOf(gd(p, "Message"));
     // inserts resolved now, like FFG (MasterMessageCache.CompressMessage); UI only, so no warnings (engine-py parity)
-    g.objectiveInserts = g.quietly(() => g.msgKey(f, gd(p, "Message"))[1].map(String));
+    g.objectiveInserts = g.quietly(() => g.msgKey(f, gd(p, "Message"), true)[1].map(String));
   },
   StoreKey: (g, f, p) => g.set(f, gd(p, "StoreResult"), keyOf(gd(p, "Key"))),
   AddAdventureRule: (g, _f, p) => g.emit("RULE:" + String(keyOf(gd(p, "AdventureRule")) ?? "None")),

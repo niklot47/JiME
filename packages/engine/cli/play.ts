@@ -52,11 +52,13 @@ function printNewLog(): void {
 }
 
 function describe(d: Decision): { prompt: string; parse: (s: string) => Answer | undefined } {
+  // the dialog text itself is already in the log; show it again only if it was not logged (e.g. confirm)
+  if ("inserts" in d && d.key && session.log.at(-1)?.[2] !== d.key) console.log("\n" + say(d.key, d.inserts));
   const int = (s: string) => (/^\d+$/.test(s) ? Number(s) : undefined);
   const yn = (s: string) => (/^(y|д|да|yes|1)$/i.test(s) ? true : /^(n|н|нет|no|0)$/i.test(s) ? false : undefined);
   switch (d.kind) {
     case "choice": {
-      d.choices.forEach((c, i) => console.log(`  ${i + 1}) ${say(c.key)}`));
+      d.choices.forEach((c, i) => console.log(`  ${i + 1}) ${say(c.key, c.inserts)}`));
       if (d.canCancel) console.log(`  0) ${say("UI_CANCEL") || "Отмена"}`);
       return { prompt: "Выбор: ", parse: (s) => (s === "0" && d.canCancel ? null : int(s) !== undefined ? int(s)! - 1 : undefined) };
     }

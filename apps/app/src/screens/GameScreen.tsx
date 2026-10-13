@@ -347,7 +347,7 @@ function DecisionPanel({ d, view, say, onAnswer, disabled, labels }: {
       </div>
     );
   }
-  const prompt = "key" in d && d.key ? <p className="prompt" dangerouslySetInnerHTML={{ __html: say(d.key) }} /> : null;
+  const prompt = "inserts" in d && d.key ? <p className="prompt" dangerouslySetInnerHTML={{ __html: say(d.key, d.inserts) }} /> : null;
   return <fieldset className="decision-wrap" disabled={disabled}>{body(d)}</fieldset>;
 
   function body(d: Decision) {
@@ -356,7 +356,7 @@ function DecisionPanel({ d, view, say, onAnswer, disabled, labels }: {
       return (
         <div className="decision">
           {prompt}
-          {d.choices.map((c, i) => <button key={i} onClick={() => onAnswer(i)} dangerouslySetInnerHTML={{ __html: say(c.key) || `#${i + 1}` }} />)}
+          {d.choices.map((c, i) => <button key={i} onClick={() => onAnswer(i)} dangerouslySetInnerHTML={{ __html: say(c.key, c.inserts) || `#${i + 1}` }} />)}
           {d.canCancel && <button className="link" onClick={() => onAnswer(null)}>Отмена</button>}
         </div>
       );

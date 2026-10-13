@@ -112,6 +112,7 @@ TS-движок — построчный перенос `engine-py/engine.py`. �
 - `sessionBoard(src, setup)` генерирует ту же карту, что и `Session`, без запуска партии; `boardEncounters(board)` — id встреч, которые нужно загрузить (в среднем ~19).
 - `new Session(src, setup, answers, { board })` и `Session.load(src, save, { board })` — дальше источнику нужны только эти встречи. Клиент в браузере их предзагружает и работает синхронно.
 - `GameView.nodes`: `uid` (порядок создания, стабилен между реплеями), `kind` (`NODE_KINDS`), `token`, `encounter`, `tileId` + `space` (null — узел приключения без позиции), `visible` (с учётом видимости тайла). `startTile` — стартовый тайл.
+- Решения `test`/`confirm`/`choice`/`hero` несут `inserts` (и у каждого варианта `choice`): вставки вычисляются в контексте FSM диалога (`Game.prompt`, `promptInserts`) без предупреждений — трасса и паритет не меняются. UI-режим `msgKey(..., ui=true)` дополнительно разрешает фильтры FFG `PlayerIndex` (5) → `@hero:<индекс с 0>` и `RandomHero` (3) → `@hero:?`; приложение показывает их как «Герой N». В логе эти вставки по-прежнему пустые (как в engine-py).
 - Вариант действия `node` дополнен полями `uid`, `kind`, `token`, `tileId`, `space`: клик по жетону = вариант с тем же `uid`, по тайлу = `explore` с тем же `tileId`.
 - Тип жетона — `GameNode.Token3DType` (`Token3DManager.TokenTypes`, `TOKEN_TYPES` и `tokenFamily()` в `game.ts`):
   1 исследование, 2 поиск, 3 угроза, 4–7 персонаж (гном, эльф, хоббит, человек), 31–33 шестиугольники (тьма, труднопроходимая, укреплённая), 50+ местность.

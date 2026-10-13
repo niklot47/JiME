@@ -8,10 +8,17 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
  * fallback: another language (English) for keys missing in `text` - e.g. DLC keys a translation lacks;
  * applies to the key itself and to inserts that are keys
  */
+/** Hero inserts from the engine ("@hero:<index>", "@hero:?" = a random hero); TODO: hero names once heroes are chosen */
+export function heroInsert(i: string): string | null {
+  const m = /^@hero:(\d+|\?)$/.exec(i);
+  if (!m) return null;
+  return m[1] === "?" ? "Один из героев" : `Герой ${Number(m[1]) + 1}`;
+}
+
 export function textHtml(text: TextDb, key: string, inserts: readonly string[] = [], fallback?: TextDb | null): string {
   const markup = (tag: "i" | "b", open: boolean) => (open ? OPEN : CLOSE) + tag;
   const db = !text.has(key) && fallback?.has(key) ? fallback : text;
-  const ins = fallback ? inserts.map((i) => (!text.has(i) && fallback.has(i) ? fallback.format(i, [], { markup }) : i)) : inserts;
+  const ins = inserts.map((i) => heroInsert(i) ?? (fallback && !text.has(i) && fallback.has(i) ? fallback.format(i, [], { markup }) : i));
   const s = db.format(key, ins, { markup });
   return esc(s)
     .replace(/\u0001([ib])/g, "<$1>")
