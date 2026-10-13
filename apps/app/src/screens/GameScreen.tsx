@@ -307,7 +307,9 @@ function Status({ view, say }: { view: GameView; say: Say }) {
       {view.objective && <p className="objective" dangerouslySetInnerHTML={{ __html: say(view.objective, view.objectiveInserts) }} />}
       <div className="heroes">
         {view.heroes.map((h, i) => (
-          <span key={i} className={h.defeated ? "hero down" : "hero"}>Герой {i + 1}: урон {h.damage}, страх {h.fear}</span>
+          <span key={i} className={h.defeated ? "hero down" : "hero"} title="Сложность следующего последнего рубежа">
+            Герой {i + 1}{h.defeated ? " — повержен" : ` · рубеж ${h.lastStand}`}
+          </span>
         ))}
       </div>
       {view.enemies.length > 0 && (
@@ -381,8 +383,20 @@ function DecisionPanel({ d, view, say, onAnswer, disabled, labels }: {
     case "lastStand":
       return (
         <div className="decision">
-          <p className="prompt">Последний рубеж героя {d.hero + 1} ({d.physical ? "урон" : "страх"})</p>
+          <h3>Последний рубеж: Герой {d.hero + 1} ({d.physical ? "урон" : "страх"})</h3>
+          {d.key && <p className="prompt" dangerouslySetInnerHTML={{ __html: say(d.key, d.inserts) }} />}
           <div className="row"><button className="primary" onClick={() => onAnswer(true)}>Пройден</button><button onClick={() => onAnswer(false)}>Провален</button></div>
+        </div>
+      );
+    case "lastStandType":
+      return (
+        <div className="decision">
+          <h3>Последний рубеж: Герой {d.hero + 1}</h3>
+          <p className="prompt">От чего герой повержен?</p>
+          <div className="row">
+            <button className="primary" onClick={() => onAnswer(true)} dangerouslySetInnerHTML={{ __html: say("UI_PHYSICAL") || "Урон" }} />
+            <button className="primary" onClick={() => onAnswer(false)} dangerouslySetInnerHTML={{ __html: say("UI_FEAR") || "Страх" }} />
+          </div>
         </div>
       );
     case "hero":
@@ -398,16 +412,17 @@ function DecisionPanel({ d, view, say, onAnswer, disabled, labels }: {
     case "action":
       return (
         <div className="decision">
-          <h3>Ход героя {d.hero + 1}</h3>
+          <h3>{d.hero >= 0 ? `Ход героя ${d.hero + 1}` : "Фаза героев"}</h3>
           <p className="muted">Нажмите на жетон или тайл на карте, или выберите действие:</p>
           {d.options.map((o, i) => (
             <button key={i} onClick={() => onAnswer(i)}>
               {o.type === "node" ? `${tokenName(o.token)}${o.tile ? ` · тайл ${o.tile}` : ""}${labels ? ` (${shortName(o.name)})` : ""}`
                 : o.type === "explore" ? `Исследовать тайл ${o.tile}`
+                : o.type === "lastStand" ? `Последний рубеж: Герой ${o.hero + 1}`
                 : <>Атаковать: <span dangerouslySetInnerHTML={{ __html: say(o.enemy) }} /> ×{o.size}</>}
             </button>
           ))}
-          <button className="link" onClick={() => onAnswer(null)}>Закончить ход героя</button>
+          <button className={d.hero >= 0 ? "link" : "primary"} onClick={() => onAnswer(null)}>{d.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}</button>
         </div>
       );
     }

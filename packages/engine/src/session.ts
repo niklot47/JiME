@@ -14,20 +14,24 @@ import { PyRandom } from "./pyrandom.ts";
 export type ActionOption =
   | { type: "node"; uid: number; name: string; kind: string; token: number; encounter: number | null; tile: string | null; tileId: number | null; space: number }
   | { type: "explore"; tile: string; tileId: number }
-  | { type: "attack"; enemy: string; size: number; damage: number; unitHp: number };
+  | { type: "attack"; enemy: string; size: number; damage: number; unitHp: number }
+  | { type: "lastStand"; hero: number };
 
 export type Decision =
   | { kind: "test"; key: string | null; inserts: string[]; top: number }
   | { kind: "confirm"; key: string | null; inserts: string[] }
   | { kind: "choice"; key: string | null; inserts: string[]; choices: { key: string | null; inserts: string[] }[]; canCancel: boolean }
   | { kind: "hero"; key: string | null; inserts: string[]; players: number; canSkip: boolean }
-  | { kind: "lastStand"; hero: number; physical: boolean }
+  | { kind: "lastStand"; hero: number; physical: boolean; key: string | null; inserts: string[] }
+  /** FFG flow: last stand against physical damage (true) or fear (false) */
+  | { kind: "lastStandType"; hero: number }
+  /** hero = -1: FFG free hero phase, answering null ends the round */
   | { kind: "action"; hero: number; options: ActionOption[] }
   | { kind: "attack"; enemy: string; size: number; damage: number; unitHp: number };
 
 /**
  * Answers, by decision kind:
- * test/attack -> integer >= 0; confirm/lastStand -> boolean; choice -> index or null (cancel);
+ * test/attack -> integer >= 0; confirm/lastStand/lastStandType -> boolean; choice -> index or null (cancel);
  * hero -> { player, skip }; action -> option index or null (end hero turn)
  */
 export type Answer = number | boolean | null | { player: number; skip: boolean };
@@ -48,6 +52,7 @@ const describeOption = (g: Game, [kind, x]: Option): ActionOption => {
     tile: x.tile ? x.tile.code : null, tileId: x.tile ? x.tile.id : null, space: x.space,
   };
   if (kind === "explore") return { type: "explore", tile: x.code, tileId: x.id };
+  if (kind === "lastStand") return { type: "lastStand", hero: x };
   return { type: "attack", enemy: String(g.enemyName(x.model, x.size)), size: x.size, damage: x.damage, unitHp: x.unitHp };
 };
 
@@ -63,6 +68,7 @@ export function validateAnswer(d: Decision, a: Answer): void {
       break;
     case "confirm":
     case "lastStand":
+    case "lastStandType":
       if (typeof a !== "boolean") bad("expected boolean");
       break;
     case "choice":
@@ -119,8 +125,13 @@ export class ScriptedPlayer implements Player {
     return this.next({ kind: "hero", key, inserts: g.promptInserts(), players: g.players, canSkip });
   }
 
-  lastStand(_g: Game, hero: number, physical: boolean): boolean {
-    return this.next({ kind: "lastStand", hero, physical });
+  lastStand(g: Game, hero: number, physical: boolean): boolean {
+    const p = g.prompt && !("fsm" in g.prompt) ? g.prompt : null;
+    return this.next({ kind: "lastStand", hero, physical, key: p?.key ?? null, inserts: p ? [...p.inserts] : [] });
+  }
+
+  lastStandType(_g: Game, hero: number): boolean {
+    return this.next({ kind: "lastStandType", hero });
   }
 
   pickAction(g: Game, hero: number, opts: Option[]): Option | null {
@@ -169,6 +180,11 @@ export class RecordingPlayer implements Player {
 
   lastStand(g: Game, hero: number, physical: boolean): boolean {
     const v = this.inner.lastStand(g, hero, physical);
+    return this.rec(v, v);
+  }
+
+  lastStandType(g: Game, hero: number): boolean {
+    const v = this.inner.lastStandType(g, hero);
     return this.rec(v, v);
   }
 
@@ -237,7 +253,8 @@ export interface GameView {
   objectiveInserts: string[];
   ended: string | null;
   result: string | null;
-  heroes: { damage: number; fear: number; defeated: boolean }[];
+  /** damage/fear: bot simulation only; lastStand: next last stand difficulty */
+  heroes: { damage: number; fear: number; defeated: boolean; lastStand: number }[];
   /** token = the tile still has its exploration token */
   tiles: { id: number; code: string; section: number; visible: boolean; explored: boolean; token: boolean }[];
   /** All game nodes; a node is shown when visible and (no tile or its tile is visible) */

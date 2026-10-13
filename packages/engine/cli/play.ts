@@ -67,7 +67,10 @@ function describe(d: Decision): { prompt: string; parse: (s: string) => Answer |
     case "confirm":
       return { prompt: "Подтвердить? (д/н): ", parse: yn };
     case "lastStand":
+      if (d.key) console.log("\n" + say(d.key, d.inserts));
       return { prompt: `Последний рубеж героя ${d.hero + 1} пройден? (д/н): `, parse: yn };
+    case "lastStandType":
+      return { prompt: `Последний рубеж героя ${d.hero + 1}: 1 — урон, 2 — страх: `, parse: (s) => (s === "1" ? true : s === "2" ? false : undefined) };
     case "hero":
       return {
         prompt: `Какой герой (1-${d.players}${d.canSkip ? ", 0 = пропустить" : ""})? `,
@@ -77,14 +80,15 @@ function describe(d: Decision): { prompt: string; parse: (s: string) => Answer |
       return { prompt: `Урон по «${say(d.enemy)}» (${d.size} шт., ${d.damage}/${d.unitHp}): `, parse: int };
     case "action": {
       const v = session.view();
-      console.log(dim(`\nГерой ${d.hero + 1} · угроза ${v.threat}/${v.threatMax} · врагов ${v.enemies.length}`));
+      console.log(dim(`\n${d.hero >= 0 ? `Герой ${d.hero + 1}` : "Фаза героев"} · угроза ${v.threat}/${v.threatMax} · врагов ${v.enemies.length}`));
       d.options.forEach((o, i) => {
         const label = o.type === "node" ? `Жетон: ${o.name.replace(/^\d+_/, "")}${o.tile ? ` (тайл ${o.tile})` : ""}`
           : o.type === "explore" ? `Исследовать тайл ${o.tile}`
+          : o.type === "lastStand" ? `Последний рубеж: герой ${o.hero + 1}`
           : `Атаковать: ${say(o.enemy)} ×${o.size} (урон ${o.damage}/${o.unitHp})`;
         console.log(`  ${i + 1}) ${label}`);
       });
-      console.log("  0) Закончить ход героя");
+      console.log(d.hero >= 0 ? "  0) Закончить ход героя" : "  0) Завершить раунд");
       return { prompt: "Действие: ", parse: (s) => (s === "0" ? null : int(s) !== undefined ? int(s)! - 1 : undefined) };
     }
   }

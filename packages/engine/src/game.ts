@@ -190,11 +190,16 @@ export interface Space {
   traits: number;
   encounter: number | null;
   node: GameNode | null;
+  /** TileSpace.HasDarkness (FFG mode tile geometry) */
+  darkness: boolean;
 }
 
 export class Tile {
   readonly spaces: Space[];
   visible = false;
+  get hasDarkness(): boolean {
+    return this.spaces.some((s) => s.darkness);
+  }
   explored = false;
   exploreToken = true;
   readonly adjacentSections = new Set<number>();
@@ -210,7 +215,7 @@ export class Tile {
     this.id = id;
     this.section = section;
     this.custom = custom;
-    this.spaces = spaces.map((s) => ({ traits: s.traits, encounter: null, node: null }));
+    this.spaces = spaces.map((s) => ({ traits: s.traits, encounter: null, node: null, darkness: !!s.darkness }));
   }
 }
 
@@ -246,6 +251,8 @@ export class EnemyGroup {
   unitHp: number;
   damage = 0;
   exhausted = false;
+  /** FFG EnemyGroup.AttackReduction: each further attack in a round deals 1 less (reset on refresh) */
+  attackReduction = 0;
   activationOverride: any = null;
   obj: Obj | null = null;
   readonly model: any;
@@ -299,6 +306,12 @@ export interface GameOptions {
    * "legacy" = simplified engine-py generator (kept for parity checks against Python)
    */
   mapMode?: "ffg" | "legacy";
+  /**
+   * Round rules: "ffg" = as GameController/Adventure (free hero phase ended by the players, enemy activation
+   * choices, attack reduction, last stand from the hero menu, darkness from tiles); "legacy" = engine-py's
+   * simplified loop (Python parity). Default: same as mapMode.
+   */
+  flow?: "ffg" | "legacy";
   /** MapBuilder seed (FFG picks a random one per adventure); defaults to the game seed */
   mapSeed?: number;
   /** Owned product ids (affects tiles and encounters); default: all products in the pack */
@@ -375,8 +388,15 @@ export class Game {
   /** Inserts of the objective message at the time it was set (for UI) */
   objectiveInserts: string[] = [];
   /** The dialog a Player is being asked about (set by dialog actions just before the call; UI only) */
-  prompt: { fsm: Fsm; msg: any } | null = null;
-  readonly heroes: { damage: number; fear: number; defeated: boolean }[];
+  prompt: { fsm: Fsm; msg: any } | { key?: string; inserts: string[] } | null = null;
+  /**
+   * Heroes. damage/fear are the bot's simulation only (the real app does not track them: players use cards);
+   * lastStand = next last stand difficulty (FFG Hero.LastStandDifficulty, starts at 1)
+   */
+  readonly heroes: { damage: number; fear: number; defeated: boolean; lastStand: number }[];
+  readonly flow: "ffg" | "legacy";
+  /** FFG flow: hero actions taken this round (the bot ends the hero phase after 2 per hero) */
+  actionsTaken = 0;
   readonly objs = new Map<string, Obj>();
   readonly allFsms: Fsm[] = [];
   advObjs!: Map<number, Obj>;
@@ -418,6 +438,7 @@ export class Game {
     this.maxRounds = opts.maxRounds ?? 40;
     this.opts = opts;
     this.mapMode = opts.mapMode ?? (this.D.tiles ? "ffg" : "legacy");
+    this.flow = opts.flow ?? this.mapMode;
     this.campaign = opts.campaign ?? newCampaign();
     for (const k of keysOf(this.D.globals)) this.globals[k] = structuredClone(this.D.globals[k].value);
     for (const [k, v] of Object.entries(this.campaign.flags)) this.globals[k] = v;
@@ -432,7 +453,7 @@ export class Game {
       const em = this.enemyModel(gd(q, "Enemy"));
       for (let i = 0; i < gd(q, "Quantity", 0); i++) if (truthy(em)) this.reserve.push(em._id);
     }
-    this.heroes = Array.from({ length: this.players }, () => ({ damage: 0, fear: 0, defeated: false }));
+    this.heroes = Array.from({ length: this.players }, () => ({ damage: 0, fear: 0, defeated: false, lastStand: 1 }));
     this.buildAdventureScene();
     if (this.mapMode === "ffg") this.buildMapFfg();
     else this.buildMap();
@@ -451,6 +472,7 @@ export class Game {
   promptInserts(msg?: any): string[] {
     const p = this.prompt;
     if (!p) return [];
+    if (!("fsm" in p)) return msg === undefined ? [...p.inserts] : [];
     return this.quietly(() => this.msgKey(p.fsm, msg === undefined ? p.msg : msg, true)[1].map(String));
   }
 
@@ -1142,6 +1164,11 @@ export class Game {
       this.processRoot("SCENARIO_BEGIN");
       this.processRoot("ROUND_START");
       while (this.round <= maxRounds) {
+        if (this.flow === "ffg") {
+          this.heroPhaseFfg();
+          this.endRoundFfg();
+          continue;
+        }
         if (this.round > 1) this.emit("UI_PHASE_HERO");
         this.heroPhase();
         this.endRound();
@@ -1175,28 +1202,188 @@ export class Game {
         if (!opts.length) break;
         const pick = this.player.pickAction(this, hero, opts);
         if (pick === null) break; // hero ends their turn early (bot never does)
-        const [kind, x] = pick;
-        if (kind === "node") {
-          for (const fs of (x as GameNode).obj.fsms) if (fs.canHandle("NODE CLICKED")) { fs.send("NODE CLICKED"); break; }
-        } else if (kind === "explore") {
-          this.emit("UI_CONFIRM_EXPLORE");
-          this.emit("UI_CONFIRM");
-          const flav = this.flavor(x as Tile);
-          this.emit("UI_EXPLORE_TILE_WITH_INTRO_FORMATTED", flav,
-            this.difficulty !== "hard" ? "UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION" : "UI_DISCARD_EXPLORE_TOKEN");
-          this.explore(x as Tile);
-        } else {
-          const g = x as EnemyGroup;
-          g.damage += this.player.attackDamage(this, g);
-          if (g.damage >= g.unitHp) {
-            const killed = Math.floor(g.damage / g.unitHp);
-            g.size -= killed;
-            g.damage -= killed * g.unitHp;
-            if (g.size <= 0) this.defeatGroup(g);
-          }
-        }
+        this.performAction(pick);
       }
     }
+  }
+
+  /** One hero action (both flows) */
+  performAction(pick: Option): void {
+    const [kind, x] = pick;
+    if (kind === "lastStand") {
+      this.lastStandFfg(x as number);
+    } else if (kind === "node") {
+      for (const fs of (x as GameNode).obj.fsms) if (fs.canHandle("NODE CLICKED")) { fs.send("NODE CLICKED"); break; }
+    } else if (kind === "explore") {
+      this.emit("UI_CONFIRM_EXPLORE");
+      this.emit("UI_CONFIRM");
+      const flav = this.flavor(x as Tile);
+      this.emit("UI_EXPLORE_TILE_WITH_INTRO_FORMATTED", flav,
+        this.difficulty !== "hard" ? "UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION" : "UI_DISCARD_EXPLORE_TOKEN");
+      this.explore(x as Tile);
+    } else {
+      const g = x as EnemyGroup;
+      g.damage += this.player.attackDamage(this, g);
+      if (g.damage >= g.unitHp) {
+        const killed = Math.floor(g.damage / g.unitHp);
+        g.size -= killed;
+        g.damage -= killed * g.unitHp;
+        if (g.size <= 0) this.defeatGroup(g);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ FFG round flow (GameController.CoroutineEndRound, Adventure)
+  /** Hero phase: actions in any order until the players end the round (pickAction answers null) */
+  heroPhaseFfg(): void {
+    for (;;) {
+      const opts: Option[] = [
+        ...this.clickableNodes().map((nd): Option => ["node", nd]),
+        ...this.explorableTiles().map((t): Option => ["explore", t]),
+        ...this.enemies.map((g): Option => ["attack", g]),
+        ...this.heroes.flatMap((h, i): Option[] => (h.defeated ? [] : [["lastStand", i]])),
+      ];
+      const pick = this.player.pickAction(this, -1, opts);
+      if (pick === null) return;
+      this.actionsTaken++;
+      this.performAction(pick);
+    }
+  }
+
+  randomHealthyHero(): number {
+    const ok = this.heroes.map((h, i) => (h.defeated ? -1 : i)).filter((i) => i >= 0);
+    return ok.length ? this.rng.choice(ok) : this.rng.randrange(this.players);
+  }
+
+  /** Adventure.GetRandomEnemyActivation: eligible by remaining units, no fallback */
+  randomActivation(g: EnemyGroup): any {
+    const EAM = this.D.models.EnemyActivationModel;
+    const acts = or(gd(g.model, "Activations"), []).map((a: any) => gd(EAM, pyStr(gd(a, "id")), null))
+      .filter((a: any) => truthy(a) && gd(a, "MinGroupSize", 1) <= g.size && g.size <= gd(a, "MaxGroupSize", 3));
+    return acts.length ? this.rng.choice(acts) : null;
+  }
+
+  /** Adventure.CoroutinePerformEnemyActivation + CoroutineDisplayActivationChoice */
+  activateFfg(g: EnemyGroup): void {
+    let a: any = null;
+    if (truthy(g.activationOverride)) a = gd(this.D.models.EnemyActivationModel, pyStr(g.activationOverride), null);
+    if (!truthy(a)) a = this.randomActivation(g);
+    if (!truthy(a)) { this.warn(`no activation for ${gd(g.model, "m_Name")} x${g.size}`); return; }
+    // the activation text names a random healthy hero (LocalizationFilterType.RandomHero)
+    this.prompt = { key: gd(a, "KeyActivation"), inserts: [`@hero:${this.randomHealthyHero()}`] };
+    const fortified = this.nodes.concat(this.advNodes).some((n) => n.visible && n.kind === "Fortified");
+    const choices = [{ Localization: "«UI_ATTACK»" }, { Localization: "«UI_NO_TARGET»" }, ...(fortified ? [{ Localization: "«UI_STOP_MOVEMENT»" }] : [])];
+    const c = this.player.choose(this, gd(a, "KeyActivation"), choices, false);
+    const i = choices.indexOf(c);
+    this.prompt = null;
+    if (i === 0) this.enemyAttack(g, a, true);
+    else if (i === 2) {
+      // stopped by a fortified space: may it still attack? (no attack reduction unless elite: elites not modelled)
+      if (this.player.confirm(this, "UI_PROMPT_CAN_ATTACK")) {
+        const r = this.randomActivation(g);
+        if (r) this.enemyAttack(g, r, false);
+      }
+    } else this.emit(gd(a, "KeyAltActivation"));
+  }
+
+  /** Adventure.CoroutinePerformEnemyAttack (enemy bonuses are not modelled yet) */
+  enemyAttack(g: EnemyGroup, a: any, reduce: boolean): void {
+    const d = or(gd(a, "Damage"), []).find((x: any) => gd(x, "Size") === g.size);
+    let ph = d ? gd(d, "Physical", 0) : 0;
+    let fe = d ? gd(d, "Fear", 0) : 0;
+    if (reduce) {
+      for (let n = g.attackReduction; n > 0 && ph + fe > 1; n--) {
+        if (ph === 0) fe--;
+        else if (fe === 0) ph--;
+        else if (this.rng.random() < 0.5) ph--;
+        else fe--;
+      }
+      g.attackReduction++;
+    }
+    this.emit(gd(a, "KeyAttackFlavor"));
+    if (truthy(gd(a, "KeyAttackAdditionalEffect"))) this.emit("UI_DAMAGE_LOG_WITH_EFFECT_FORMATTED", ph, fe, a.KeyAttackAdditionalEffect);
+    else this.emit("UI_DAMAGE_LOG_FORMATTED", ph, fe);
+    // bot simulation of the hero's cards
+    const h = this.heroes[this.randomHealthyHero()]!;
+    h.damage += Math.max(0, ph - this.rng.randint(0, 2));
+    h.fear += Math.max(0, fe - this.rng.randint(0, 2));
+  }
+
+  /** UIHeroMenuDialog.PerformLastStand: the players start it from the hero menu */
+  lastStandFfg(hero: number): void {
+    const h = this.heroes[hero]!;
+    if (h.defeated) return;
+    const physical = this.player.lastStandType(this, hero);
+    const LM = this.D.models.LastStandModel;
+    const lm = keysOf(LM).map((k) => LM[k]).find((m: any) => gd(m, "Type", 10) === (physical ? 10 : 20));
+    const keys: any[] = or(gd(lm, "MessageKeys"), []);
+    const key = keys.length ? this.rng.choice(keys) : null;
+    this.prompt = { key: key ?? undefined, inserts: [String(h.lastStand)] };
+    const ok = this.player.lastStand(this, hero, physical);
+    this.prompt = null;
+    this.emit(key, h.lastStand);
+    this.emit(ok ? "UI_PASS" : "UI_FAIL");
+    if (ok) {
+      h.lastStand++;
+      this.emit(physical ? "UI_LAST_STAND_PASSED_PHYSICAL" : "UI_LAST_STAND_PASSED_FEAR");
+      h.damage = h.fear = 4; // bot simulation: the hero recovers some cards
+    } else {
+      h.defeated = true;
+      this.emit("UI_LAST_STAND_FAILED");
+    }
+  }
+
+  /** Darkness at the end of the shadow phase: global flag, an explored visible tile with darkness, or a darkness token */
+  isDarknessNow(): boolean {
+    if (truthy(gd(this.globals, "IsDarkness"))) return true;
+    if ([...this.tiles.values()].some((t) => t.visible && t.explored && t.hasDarkness)) return true;
+    return this.nodes.concat(this.advNodes).some((n) => n.visible && n.kind === "Darkness");
+  }
+
+  endRoundFfg(): void {
+    for (const h of this.heroes) if (h.defeated) return this.signalEnd(false);
+    if (this.globals.Threat >= this.threatMax && this.threatMax > 0) return this.signalEnd(false);
+    this.emit("UI_PHASE_SHADOW");
+    if (this.difficulty === "hard") this.globals.EnemyPoints = or(gd(this.globals, "EnemyPoints"), 0) + this.players;
+    if (this.difficulty === "adventure") this.emit("ADVENTURE_MODE_INSPIRATION_MESSAGE");
+    // groups activate in tracker order until every group is exhausted (groups can appear/leave meanwhile)
+    for (let guard = 0; guard < 1000; guard++) {
+      const g = this.enemies.find((e) => !e.exhausted);
+      if (!g) break;
+      this.activateFfg(g);
+      g.exhausted = true;
+    }
+    if (!truthy(gd(this.model, "DisableDarkness")) && this.isDarknessNow()) {
+      this.emit(or(gd(this.globals, "DarknessMessageOverride"), "UI_DARKNESS_FEAR"));
+    }
+    for (const t of this.timers) if (t) for (const fs of t.fsms) if (fs.usesEvent("ROUND_END")) fs.send("ROUND_END");
+    this.processRoot("ROUND_END");
+    let delta = 2 * this.players + this.nodes.filter((n) => n.visible && n.kind === "Threat").length;
+    if (this.board && this.difficulty !== "adventure") delta += [...this.tiles.values()].filter((t) => t.visible && !t.explored).length;
+    this.emit("UI_THREAT_INCREASE", delta);
+    this.globals.Threat += delta;
+    for (;;) {
+      const thr = (o: Obj) => o.threatThreshold ?? o.components.ThreatEvent.Threshold;
+      const due = this.activeThreatEvents.filter((o) => thr(o) <= this.globals.Threat).sort((a, b) => thr(a) - thr(b));
+      if (!due.length) break;
+      const o = due[0]!;
+      this.activeThreatEvents.splice(this.activeThreatEvents.indexOf(o), 1);
+      for (const fs of o.fsms) { fs.start(); fs.send("THREAT_EVENT_START"); }
+    }
+    if (this.globals.Threat >= this.threatMax && this.threatMax > 0) return this.signalEnd(false);
+    // EnemyGroup.CoroutineRefresh
+    for (const g of [...this.enemies]) {
+      if (g.logic) for (const fs of g.logic.fsms) if (fs.usesEvent("BEFORE_UNEXHAUST")) fs.send("BEFORE_UNEXHAUST");
+      g.exhausted = false;
+      g.attackReduction = 0;
+    }
+    this.emit("UI_RALLY_PHASE");
+    this.emit("UI_RALLY_PHASE_INSTRUCTIONS");
+    this.round++;
+    this.globals.Round = this.round;
+    this.actionsTaken = 0;
+    this.emit("UI_PHASE_HERO");
+    this.processRoot("ROUND_START");
   }
 
   endRound(): void {
@@ -1252,7 +1439,7 @@ export class Game {
   }
 }
 
-export type Option = ["node", GameNode] | ["explore", Tile] | ["attack", EnemyGroup];
+export type Option = ["node", GameNode] | ["explore", Tile] | ["attack", EnemyGroup] | ["lastStand", number];
 
 /**
  * Everything the players decide. Called synchronously from deep inside the interpreter;
@@ -1269,7 +1456,9 @@ export interface Player {
   playerChoice(g: Game, key: any, canSkip: boolean): { player: number; skip: boolean };
   /** Last stand test result */
   lastStand(g: Game, hero: number, physical: boolean): boolean;
-  /** Hero action, or null to end this hero's turn */
+  /** FFG flow: which last stand the hero takes - true = physical damage, false = fear */
+  lastStandType(g: Game, hero: number): boolean;
+  /** Hero action, or null to end this hero's turn (hero = -1: FFG free hero phase, null ends the round) */
   pickAction(g: Game, hero: number, opts: Option[]): Option | null;
   /** Damage dealt by an attack on an enemy group */
   attackDamage(g: Game, group: EnemyGroup): number;
@@ -1300,6 +1489,11 @@ export class Bot implements Player {
     return this.rng.random() < 0.6;
   }
 
+  lastStandType(g: Game, hero: number): boolean {
+    const h = g.heroes[hero]!;
+    return h.damage >= h.fear;
+  }
+
   confirm(_g: Game, _key: any): boolean {
     return this.rng.random() < 0.9;
   }
@@ -1309,9 +1503,15 @@ export class Bot implements Player {
     return this.rng.choice(choices);
   }
 
-  pickAction(_g: Game, _hero: number, opts: Option[]): Option {
-    const W = { node: 5, explore: 3, attack: 4 } as const;
-    return this.rng.choices(opts, opts.map(([k]) => W[k]));
+  pickAction(g: Game, hero: number, opts: Option[]): Option | null {
+    const W = { node: 5, explore: 3, attack: 4, lastStand: 0 } as const;
+    if (hero >= 0) return this.rng.choices(opts, opts.map(([k]) => W[k]));
+    // FFG free hero phase: a hero "out of cards" takes a last stand; 2 actions per hero, then end the round
+    const ls = opts.find(([k, x]) => k === "lastStand" && g.heroes[x as number]!.damage + g.heroes[x as number]!.fear >= 10);
+    if (ls) return ls;
+    const pool = opts.filter(([k]) => k !== "lastStand");
+    if (g.actionsTaken >= 2 * g.players || !pool.length) return null;
+    return this.rng.choices(pool, pool.map(([k]) => W[k]));
   }
 
   attackDamage(_g: Game, _group: EnemyGroup): number {

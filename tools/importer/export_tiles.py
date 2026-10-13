@@ -49,8 +49,11 @@ def tile_geometry(f, tile_obj, models_by_pid=None):
         hs = [hex_ids.index(x["m_PathID"]) for x in s.get("Hexes", []) if x["m_PathID"] in hex_ids]
         for hi in hs:
             hexes[hi]["space"] = si
-        spaces.append({"traits": s["Traits"], "hexes": hs,
-                       "connected": [sp_ids.index(c["m_PathID"]) if c["m_PathID"] in sp_ids else -1 for c in s["ConnectedSpaces"]]})
+        sp = {"traits": s["Traits"], "hexes": hs,
+              "connected": [sp_ids.index(c["m_PathID"]) if c["m_PathID"] in sp_ids else -1 for c in s["ConnectedSpaces"]]}
+        if s.get("HasDarkness"):
+            sp["darkness"] = True  # TileSpace.HasDarkness: fear from darkness while the tile is explored
+        spaces.append(sp)
     edges = []
     for eid in [e["m_PathID"] for e in t["Edges"]]:
         _, e = read_mb(f.objects[eid])
