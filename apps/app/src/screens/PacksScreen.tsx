@@ -1,6 +1,7 @@
 // Packs screen: where packs are read from (Tauri), which are on, and how they layer
 import { useEffect, useState } from "react";
 import { inTauri, packsInfo, setPacksDir, type PacksInfo } from "../data/host.ts";
+import { sound } from "../audio/sound.ts";
 import { PACK_ID, clearPackCache, loadPackSet, packConfig, setDisabledPacks, type PackSet } from "../data/pack.ts";
 
 const SOURCE: Record<string, string> = {
@@ -39,6 +40,7 @@ export function PacksScreen({ onBack, onImport }: { onBack: () => void; onImport
 
   async function reloadLayers() {
     clearPackCache();
+    sound.reset();
     try {
       setSet(await loadPackSet());
       setError(null);

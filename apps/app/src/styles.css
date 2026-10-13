@@ -216,3 +216,33 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 /* no game art: plain bar */
 .threatbar:not(.styled) .track { left: 0; right: 14%; top: 30%; bottom: 30%; border: 1px solid #4a3f30; border-radius: 4px; overflow: hidden; }
 .threatbar:not(.styled) .value { left: 87%; }
+
+/* phase banner over the board */
+.phase-banner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 3;
+  animation: phase-life 2.4s ease-in-out forwards; }
+.phase-banner .plate { min-width: 300px; padding: 26px 48px; text-align: center; color: #f3e6c8; background: rgba(14, 12, 9, 0.9);
+  border: 1px solid #8a7445; animation: phase-in 2.4s ease-out forwards; display: flex; flex-direction: column; gap: 4px; }
+.phase-banner .plate.framed { background: none; border-style: solid; }
+.phase-banner small { font-family: var(--font-text); color: #c9b98f; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.8rem; }
+.phase-banner span { font-family: var(--font-title); font-size: clamp(1.4rem, 3vw, 2.1rem); color: #e8c76a;
+  text-shadow: 0 2px 4px #000, 0 0 18px rgba(232, 199, 106, 0.35); }
+@keyframes phase-life { 0% { opacity: 0; } 12% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes phase-in { 0% { transform: scale(0.85) translateY(10px); } 14% { transform: scale(1.02); } 22% { transform: scale(1); } 100% { transform: scale(1); } }
+.threatbar .flame { position: absolute; top: -95%; bottom: -35%; width: 7%; transform: translateX(-62%); background-size: 100% 100%;
+  mix-blend-mode: screen; pointer-events: none; transform-origin: 50% 85%;
+  animation: flame-flare 0.9s ease-out, flame-flicker 0.35s ease-in-out 0.9s infinite alternate; }
+@keyframes flame-flare { 0% { transform: translateX(-62%) scale(1.9); filter: brightness(2); } 100% { transform: translateX(-62%) scale(1); } }
+@keyframes flame-flicker { from { transform: translateX(-62%) scaleY(0.92); opacity: 0.85; } to { transform: translateX(-62%) scaleY(1.08); opacity: 1; } }
+
+/* sound settings (menu) */
+.sound-panel { margin-top: 18px; max-width: 420px; padding: 12px 16px; background: rgba(20, 17, 13, 0.75); border: 1px solid #4a3f30; border-radius: 10px;
+  display: flex; flex-direction: column; gap: 6px; }
+.sound-panel h3 { margin: 0 0 4px; font-family: var(--font-title); color: var(--accent); font-weight: normal; }
+.sound-panel .slider { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 10px; }
+.sound-panel .small { font-size: 0.8rem; margin: 4px 0 0; }
+
+/* game font glyphs (success, damage ...) inside the UI */
+.glyph { font-family: "JiME Text", var(--font-text); font-style: normal; font-weight: normal; color: #e8c76a; margin: 0 0.12em; }
+.stepper .num .glyph { font-size: 0.9em; }
+.phase-banner.short, .phase-banner.short .plate { animation-duration: 1.4s; }
+.sound-panel input, .sound-panel select { accent-color: var(--accent); }

@@ -70,6 +70,7 @@ def main():
         ("export_icons", ["export_icons.py"]),
         ("export_ui", ["export_ui.py"]),
         ("export_atlas", ["export_atlas.py"]),
+        ("export_audio", ["export_audio.py"]),
     ]
     say(f"game data: {data}")
     say(f"work: {work}")

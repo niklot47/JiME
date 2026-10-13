@@ -10,6 +10,9 @@ import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
 import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, type AtlasSprite, themeChoice, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
+import { sound } from "../audio/sound.ts";
+import { MuteButton } from "../audio/SoundPanel.tsx";
+import { PHASE_KEYS, gameSounds } from "../audio/gameFx.ts";
 
 const AUTOSAVE = "jime.autosave";
 const VIEW_KEY = "jime.board.view";
@@ -181,6 +184,28 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     }
   }
 
+  // music: setup screen -> new game theme; in a game -> adventure playlist with ambience
+  const inGame = !!game;
+  useEffect(() => {
+    sound.music(inGame ? "AdventureMusic" : "NewGameMusic");
+    sound.ambient(inGame ? "AmbientTracks" : null);
+  }, [inGame]);
+  useEffect(() => () => sound.ambient(null), []);
+  // sounds and the phase banner from what one answer changed (not on undo or load)
+  const prevState = useRef<GameState | null>(null);
+  // phase banners in order (ending a round passes shadow -> rally -> heroes in one answer)
+  const [banners, setBanners] = useState<{ keys: string[]; n: number }>({ keys: [], n: 0 });
+  useEffect(() => {
+    const prev = prevState.current;
+    const next = game?.state ?? null;
+    prevState.current = next;
+    if (!prev || !next || next.answers <= prev.answers || next.save.setup.seed !== prev.save.setup.seed) return;
+    const added = next.log.slice(prev.log.length);
+    gameSounds(prev.view, next.view, added);
+    const ph = added.map(([, , k]) => k).filter((k) => PHASE_KEYS.has(k));
+    if (ph.length) setBanners((b) => ({ keys: [...b.keys, ...ph], n: b.n + 1 }));
+  }, [game?.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---------------------------------------------------------------- setup screen
   if (!game) {
     const auto = readAutosave();
@@ -239,6 +264,11 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
       <div className="board-wrap">
         <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d} onAnswer={answer} />
         <ThreatBar view={view} art={uiArt} atlas={atlas} say={say} />
+        {banners.keys.length > 0 && (
+          <PhaseBanner key={`${banners.n}:${banners.keys.length}`} text={say(banners.keys[0])}
+            round={banners.keys[0] === "UI_PHASE_HERO" ? view.round : null} atlas={atlas}
+            short={banners.keys.length > 1} onDone={() => setBanners((b) => ({ ...b, keys: b.keys.slice(1) }))} />
+        )}
         <EnemyTracker view={view} pending={pending} art={enemyArt} atlas={atlas} say={say} disabled={busy} onAnswer={answer} />
       </div>
       <aside className={busy ? "game-panel busy" : "game-panel"}>
@@ -246,6 +276,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           <button className="link" onClick={() => setGame(null)}>← Партии</button>
           <div className="row">
             <button onClick={() => update({ type: "undo" })} disabled={!state.answers || busy} title="Отменить последний ответ">↶ Отмена</button>
+            <MuteButton />
             <button onClick={() => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save)} title="Сохранить в файл">💾</button>
           </div>
         </div>
@@ -355,6 +386,25 @@ function Status({ view, say }: { view: GameView; say: Say }) {
   );
 }
 
+// ---------------------------------------------------------------- phase banner
+/** Phase change: the phase name appears over the board in the game's round dialog (Dialog_Round, 9-slice), then fades out */
+function PhaseBanner({ text, round, atlas, short, onDone }: {
+  text: string; round: number | null; atlas: Record<string, AtlasSprite>; short: boolean; onDone: () => void;
+}) {
+  const d = atlas.Dialog_Round;
+  const style = d
+    ? { borderImage: `url("${assetUrl(d.file)}") ${d.border[2]} ${d.border[1]} ${d.border[3]} ${d.border[0]} fill / ${d.border[2] / 2}px ${d.border[1]}px ${d.border[3] / 2}px ${d.border[0]}px stretch` }
+    : undefined;
+  return (
+    <div className={short ? "phase-banner short" : "phase-banner"} onAnimationEnd={(e) => { if (e.target === e.currentTarget) onDone(); }}>
+      <div className={d ? "plate framed" : "plate"} style={style}>
+        {round !== null && <small>Раунд {round}</small>}
+        <span dangerouslySetInnerHTML={{ __html: text }} />
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- threat bar
 /**
  * UIThreatMeter: the bar on top of the board. Frame (Threat_Meter) with the value plate on the right, the fill coloured by
@@ -377,6 +427,10 @@ function ThreatBar({ view, art, atlas, say }: { view: GameView; art: Record<stri
             <div className="ramp" style={{ width: frac > 0 ? `${100 / frac}%` : "100%", backgroundImage: url(art.threatGradient) }} />
             {art.threatLiquid && <div className="liquid" style={{ backgroundImage: url(art.threatLiquid) }} />}
           </div>
+          {frac > 0 && art.threatFire && (
+            // the burning edge of the fill (ThreatFire); remounted on every change -> flares up
+            <span key={view.threat} className="flame" style={{ left: `${100 * frac}%`, backgroundImage: url(art.threatFire) }} />
+          )}
           {max > 0 && view.threatEvents.filter((t) => t > view.threat && t <= max).map((t, i) => (
             <span key={`${t}:${i}`} className="mark" style={{ left: `${(100 * t) / max}%` }} title={`Событие угрозы на ${t}`}>
               {marker && <img src={marker} alt="" />}<b>{t}</b>
@@ -392,14 +446,17 @@ function ThreatBar({ view, art, atlas, say }: { view: GameView; art: Record<stri
 }
 
 // ---------------------------------------------------------------- decision
-function Stepper({ initial = 0, label, onOk }: { initial?: number; label: string; onOk: (n: number) => void }) {
+/** Game font glyphs (fonts from export_fonts.py; same code points as in the texts) */
+const GLYPH = { success: "\uf46b", fate: "\uf474", damage: "\uf468", fear: "\uf469" } as const;
+
+function Stepper({ initial = 0, label, icon, onOk }: { initial?: number; label: ReactNode; icon?: string; onOk: (n: number) => void }) {
   const [n, setN] = useState(initial);
   return (
     <div className="stepper">
       <span>{label}</span>
       <div className="row">
         <button onClick={() => setN((v) => Math.max(0, v - 1))}>−</button>
-        <b className="num">{n}</b>
+        <b className="num">{n}{icon && <span className="glyph">{icon}</span>}</b>
         <button onClick={() => setN((v) => v + 1)}>+</button>
         <button className="primary" onClick={() => onOk(n)}>Готово</button>
       </div>
@@ -433,12 +490,13 @@ function DecisionPanel({ d, view, say, onAnswer, disabled, labels }: {
         </div>
       );
     case "test":
-      return <div className="decision">{prompt}<Stepper label={`Сколько успехов? (важно до ${d.top})`} onOk={onAnswer} /></div>;
+      return <div className="decision">{prompt}<Stepper label={<>Сколько <span className="glyph">{GLYPH.success}</span> успехов? <span className="muted">(важно до {d.top})</span></>}
+        icon={GLYPH.success} onOk={onAnswer} /></div>;
     case "attack":
       return (
         <div className="decision">
           <p className="prompt"><span dangerouslySetInnerHTML={{ __html: say(d.enemy) }} /> ×{d.size} · урон {d.damage}/{d.unitHp}</p>
-          <Stepper label="Нанесённый урон" onOk={onAnswer} />
+          <Stepper label={<>Нанесённый урон <span className="glyph">{GLYPH.damage}</span></>} icon={GLYPH.damage} onOk={onAnswer} />
         </div>
       );
     case "confirm":

@@ -12,7 +12,7 @@
   "scripts": {
     "test": "pnpm -r --filter \"./packages/*\" test",
     "typecheck": "pnpm -r --filter \"./packages/*\" typecheck",
-    "packs:build": "node scripts/run-python.mjs tools/importer/export_tiles.py && node scripts/run-python.mjs tools/importer/make_pack.py && node scripts/run-python.mjs tools/importer/export_tile_art.py && node scripts/run-python.mjs tools/importer/export_fonts.py && node scripts/run-python.mjs tools/importer/export_tokens.py && node scripts/run-python.mjs tools/importer/export_fx.py && node scripts/run-python.mjs tools/importer/export_icons.py && node scripts/run-python.mjs tools/importer/export_ui.py && node scripts/run-python.mjs tools/importer/export_atlas.py",
+    "packs:build": "node scripts/run-python.mjs tools/importer/export_tiles.py && node scripts/run-python.mjs tools/importer/make_pack.py && node scripts/run-python.mjs tools/importer/export_tile_art.py && node scripts/run-python.mjs tools/importer/export_fonts.py && node scripts/run-python.mjs tools/importer/export_tokens.py && node scripts/run-python.mjs tools/importer/export_fx.py && node scripts/run-python.mjs tools/importer/export_icons.py && node scripts/run-python.mjs tools/importer/export_ui.py && node scripts/run-python.mjs tools/importer/export_atlas.py && node scripts/run-python.mjs tools/importer/export_audio.py",
     "packs:validate": "pnpm --filter @jime/content-tools validate",
     "fuzz": "node packages/engine/cli/fuzz-all.ts 10",
     "dev": "pnpm --filter @jime/app dev",

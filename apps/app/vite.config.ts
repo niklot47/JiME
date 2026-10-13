@@ -7,7 +7,7 @@ import { extname, join, normalize, resolve } from "node:path";
 // GET /packs/<pack-id>/<path> -> $JIME_PACKS | $JIME_WORK/packs | <repo>/data/packs
 // GET /packs/__list.json, /packs/<dir>/__index.json -> listings for the pack manager (same as the Tauri scheme)
 const packsDir = process.env.JIME_PACKS ?? join(process.env.JIME_WORK ?? resolve(__dirname, "../../data"), "packs");
-const TYPES: Record<string, string> = { ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".csv": "text/csv; charset=utf-8", ".ttf": "font/ttf" };
+const TYPES: Record<string, string> = { ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".csv": "text/csv; charset=utf-8", ".ttf": "font/ttf" };
 
 function servePacks(): Plugin {
   return {

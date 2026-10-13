@@ -4,3 +4,4 @@ TypeTreeGeneratorAPI
 numpy
 Pillow
 attrs>=23
+soundfile

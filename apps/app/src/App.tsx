@@ -6,6 +6,8 @@ import { PacksScreen } from "./screens/PacksScreen.tsx";
 import { SetupScreen } from "./screens/SetupScreen.tsx";
 import { inTauri, packsInfo } from "./data/host.ts";
 import { PACK_ID, installTheme, themeChoice } from "./data/pack.ts";
+import { sound } from "./audio/sound.ts";
+import { SoundPanel } from "./audio/SoundPanel.tsx";
 
 type Screen = "home" | "map" | "game" | "packs" | "setup";
 
@@ -17,6 +19,8 @@ export function App() {
     if (!inTauri()) return;
     packsInfo().then((i) => { if (!i.packs.some((p) => p.dir === PACK_ID)) setScreen("setup"); }).catch(() => {});
   }, []);
+  // title music on the menu screens; the game screen picks its own playlists
+  useEffect(() => { if (screen !== "game") { sound.music("TitlescreenMusic"); sound.ambient(null); } }, [screen]);
   if (screen === "setup") return <SetupScreen onDone={() => setScreen("home")} onSkip={() => setScreen("home")} />;
   if (screen === "map") return <MapScreen onBack={() => setScreen("home")} />;
   if (screen === "game") return <GameScreen onBack={() => setScreen("home")} />;
@@ -39,6 +43,7 @@ export function App() {
         <button className="card" onClick={() => setScreen("packs")}>Паки <span className="muted">— папка с контентом</span></button>
         <button className="card" disabled>Редактор</button>
       </section>
+      <SoundPanel />
     </main>
   );
 }
