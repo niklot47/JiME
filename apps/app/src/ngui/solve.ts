@@ -84,10 +84,13 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         return;
       }
       const on = active && (b.show ?? (all && inc ? true : n.on ?? true));
-      const lx = (n.p?.[0] ?? 0) + (b.dx ?? 0), ly = (n.p?.[1] ?? 0) + (b.dy ?? 0);
+      // one-shot tweens (style 0) are drawn at their end: the scene saves many elements at the start of their entrance
+      // animation (title pieces, borders, panels sliding in), the game plays them forward when the screen opens
+      const end = restState(n);
+      const lx = (end.p?.[0] ?? n.p?.[0] ?? 0) + (b.dx ?? 0), ly = (end.p?.[1] ?? n.p?.[1] ?? 0) + (b.dy ?? 0);
       let x = n === root && rootIsScreen ? 0 : px + lx * sx;
       let y = n === root && rootIsScreen ? 0 : py + ly * sy;
-      const nsx = n === root && rootIsScreen ? 1 : sx * (n.s?.[0] ?? 1), nsy = n === root && rootIsScreen ? 1 : sy * (n.s?.[1] ?? 1);
+      const nsx = n === root && rootIsScreen ? 1 : sx * (end.s?.[0] ?? n.s?.[0] ?? 1), nsy = n === root && rootIsScreen ? 1 : sy * (end.s?.[1] ?? n.s?.[1] ?? 1);
       const pd = n.panel ? n.panel.d : panel;
       const k = `${key}/${n.id}`;
       const w = n.w;
@@ -95,8 +98,8 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         const m = measured.get(k);
         const autoH = w.k === "label" && (w.lb?.ov === 3 || w.lb?.ov === 2);
         const autoW = w.k === "label" && w.lb?.ov === 2;
-        let ww = (b.w ?? (autoW && m ? m.w : w.w)) * Math.abs(nsx);
-        let hh = (b.h ?? (autoH && m ? m.h : w.h)) * Math.abs(nsy);
+        let ww = (b.w ?? (autoW && m ? m.w : end.w ?? w.w)) * Math.abs(nsx);
+        let hh = (b.h ?? (autoH && m ? m.h : end.h ?? w.h)) * Math.abs(nsy);
         const [fx, fy] = PIVOT[w.pv] ?? [0.5, 0.5];
         let rc: Rect = { l: x - fx * ww, r: x - fx * ww + ww, b: y - fy * hh, t: y - fy * hh + hh };
         // NGUI anchors: each anchored side follows its target's rect; the transform follows the rect
@@ -131,4 +134,21 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   run(false); // targets laid out once, so anchors can point at later nodes too
   run(true);
   return boxes.sort((a, b) => a.z - b.z);
+}
+
+/** Rest state of a node's one-shot tweens (position, scale, width, height); loops and ping-pongs keep the saved state */
+function restState(n: UiNode): { p?: [number, number]; s?: [number, number]; w?: number; h?: number } {
+  const out: { p?: [number, number]; s?: [number, number]; w?: number; h?: number } = {};
+  for (const t of n.tw ?? []) {
+    if (t.style !== 0 || t.to === null || t.to === undefined) continue;
+    // per axis: only when the saved value is the tween's start (scripts often rewrite from/to before playing,
+    // e.g. TitleLogoAnimation keeps x and tweens y), otherwise the saved value is already the rest state
+    const at = (saved: number, from: unknown, to: unknown) => (typeof from === "number" && typeof to === "number" && Math.abs(saved - from) < 1 ? to : saved);
+    const f = t.from, e = t.to;
+    if (t.k === "pos" && Array.isArray(e) && Array.isArray(f)) out.p = [at(n.p?.[0] ?? 0, f[0], e[0]), at(n.p?.[1] ?? 0, f[1], e[1])];
+    else if (t.k === "scale" && Array.isArray(e) && Array.isArray(f)) out.s = [at(n.s?.[0] ?? 1, f[0], e[0]), at(n.s?.[1] ?? 1, f[1], e[1])];
+    else if (t.k === "width" && n.w) out.w = at(n.w.w, f, e);
+    else if (t.k === "height" && n.w) out.h = at(n.w.h, f, e);
+  }
+  return out;
 }
