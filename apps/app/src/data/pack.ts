@@ -215,3 +215,21 @@ export const loadTokenArt = () => once("tokens", async () => {
     return {} as Record<string, string>;
   }
 });
+
+/** Board effect textures by role (images/fx/fx.json from tools/importer/export_fx.py); {} if absent */
+export const loadFx = () => once("fx", async () => {
+  try {
+    return JSON.parse(await packText("images/fx/fx.json")) as Record<string, string>;
+  } catch {
+    return {} as Record<string, string>;
+  }
+});
+
+/** Enemy icons by EnemyModel id (images/enemies/enemies.json from tools/importer/export_icons.py); {} if absent */
+export const loadEnemyArt = () => once("enemies", async () => {
+  try {
+    return JSON.parse(await packText("images/enemies/enemies.json")) as Record<string, string>;
+  } catch {
+    return {} as Record<string, string>;
+  }
+});

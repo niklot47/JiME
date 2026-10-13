@@ -21,7 +21,12 @@ interface Props {
   onPick?: (p: Pick) => void;
   /** The camera is re-framed only when this changes */
   fitKey?: string;
+  /** Effect textures by role (cloud, smoke, dust, ember: images/fx/fx.json); missing = no effect */
+  fx?: Record<string, string>;
 }
+
+/** Animation step; returns false when finished */
+type Effect = (dt: number, time: number) => boolean;
 
 const TILE_H = 0.12;
 // sizes of the game's token meshes (Unity units): "Round" Ø 0.864, "Explore" 0.918 square
@@ -185,6 +190,100 @@ function withShadows(m: THREE.Mesh): THREE.Mesh {
   return m;
 }
 
+// ---------------------------------------------------------------- effects
+const HEX_STEP = 1.019 * Math.sqrt(3); // distance between neighbouring hex centres
+const NEIGHBOURS = Array.from({ length: 6 }, (_, k) => [Math.cos((k * Math.PI) / 3) * HEX_STEP, Math.sin((k * Math.PI) / 3) * HEX_STEP]);
+const hexKey = (x: number, y: number) => `${Math.round(x * 4)},${Math.round(y * 4)}`;
+
+/** Soft clouds over the empty hexes around the shown map (two rings), like the fog at the map edge in the original */
+function buildFog(shown: TileMesh[], fx: Record<string, string>): THREE.Group {
+  const occupied = new Set<string>();
+  const centres: [number, number][] = [];
+  for (const t of shown) for (const [x, y] of t.hexCenters) { occupied.add(hexKey(x, y)); centres.push([x, y]); }
+  const ring = (from: [number, number][]) => {
+    const out = new Map<string, [number, number]>();
+    for (const [x, y] of from) for (const [dx, dy] of NEIGHBOURS) {
+      const k = hexKey(x + dx!, y + dy!);
+      if (!occupied.has(k)) out.set(k, [x + dx!, y + dy!]);
+    }
+    return out;
+  };
+  const r1 = ring(centres);
+  for (const k of r1.keys()) occupied.add(k);
+  const r2 = ring([...r1.values()]);
+  const g = new THREE.Group();
+  const tex = [fx.cloud, fx.smoke].filter(Boolean).map((p) => texture(p!));
+  // flat cloud layers floating above the table (billboards would cut into the table at this camera tilt)
+  const geo = new THREE.PlaneGeometry(1, 1);
+  const add = (x: number, y: number, opacity: number) => {
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex[Math.floor(Math.random() * tex.length)]!, color: 0xa39a8c, transparent: true, opacity, depthWrite: false }));
+    const sc = 2.6 + Math.random() * 1.4;
+    m.scale.set(sc, sc, 1);
+    m.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
+    m.position.copy(v3(x + (Math.random() - 0.5) * 0.6, y + (Math.random() - 0.5) * 0.6, 0.2 + Math.random() * 0.25));
+    m.userData = { spin: (Math.random() - 0.5) * 0.06, bob: Math.random() * 6, y: m.position.y };
+    m.renderOrder = 4;
+    g.add(m);
+  };
+  for (const [x, y] of r1.values()) add(x, y, 0.34);
+  for (const [x, y] of r2.values()) add(x, y, 0.52);
+  return g;
+}
+
+/** Dust puffs over the hexes of a tile that was just explored */
+function dustBurst(s: State, t: TileMesh, fx: Record<string, string>): void {
+  const group = new THREE.Group();
+  const map = texture(fx.dust!);
+  const smoke = fx.smoke ? texture(fx.smoke) : map;
+  const parts: { sp: THREE.Sprite; v: THREE.Vector3; grow: number }[] = [];
+  for (const [x, y] of t.hexCenters) {
+    for (let i = 0; i < 3; i++) {
+      // the game's dust sprite is very faint: mostly smoke puffs, one dust layer for grain
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: i === 2 ? map : smoke, color: 0xe8dcc0, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false }));
+      sp.position.copy(v3(x + (Math.random() - 0.5) * 0.8, y + (Math.random() - 0.5) * 0.8, TILE_H + 0.15));
+      sp.scale.setScalar(1.2 + Math.random() * 0.6);
+      sp.renderOrder = 5;
+      group.add(sp);
+      parts.push({ sp, v: new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.35 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5), grow: 0.6 + Math.random() * 0.5 });
+    }
+  }
+  s.board.add(group);
+  let age = 0;
+  const life = 1.8;
+  s.effects.push((dt) => {
+    age += dt;
+    const k = age / life;
+    for (const p of parts) {
+      p.sp.position.addScaledVector(p.v, dt);
+      p.sp.scale.multiplyScalar(1 + p.grow * dt * 0.6);
+      // hold, then fade out
+      p.sp.material.opacity = 0.9 * Math.min(1, Math.max(0, (1 - k) / 0.6));
+    }
+    if (k < 1) return true;
+    s.board.remove(group);
+    return false;
+  });
+}
+
+/** New tokens fall onto the board with a small bounce */
+function dropIn(s: State, g: THREE.Group, delay: number): void {
+  const y0 = g.position.y;
+  let t = -delay;
+  const dur = 0.45;
+  g.position.y = y0 + 1.6;
+  s.effects.push((dt) => {
+    t += dt;
+    if (t < 0) return true;
+    const k = Math.min(1, t / dur);
+    // ease-out with a little bounce at the end
+    const e = k < 0.8 ? 1 - Math.pow(1 - k / 0.8, 3) : 1 + Math.sin(((k - 0.8) / 0.2) * Math.PI) * 0.04;
+    g.position.y = y0 + 1.6 * (1 - e);
+    if (k < 1) return true;
+    g.position.y = y0;
+    return false;
+  });
+}
+
 interface State {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -196,9 +295,15 @@ interface State {
   tileMats: Map<number, { mat: THREE.MeshStandardMaterial; target: number }>;
   pulses: THREE.Mesh[];
   invalidate: () => void;
+  effects: Effect[];
+  /** Fog sprites around the shown map (rebuilt when the shown tiles change) */
+  fog: THREE.Group | null;
+  fogKey: string;
+  /** Token ids already on the board (new ones drop in) */
+  seen: Set<string>;
 }
 
-export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey }: Props) {
+export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {} }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<State | null>(null);
   const pickRef = useRef(onPick);
@@ -250,12 +355,17 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       frames = Math.max(frames, 90);
       if (!raf) raf = requestAnimationFrame(tick);
     };
+    let last = 0;
     const tick = (time: number) => {
       raf = 0;
       const s = st.current;
       if (!s) return;
+      const dt = last ? Math.min(0.1, (time - last) / 1000) : 1 / 60;
+      last = time;
       const moving = controls.update();
       let anim = false;
+      s.effects = s.effects.filter((f) => f(dt, time / 1000));
+      if (s.effects.length) anim = true;
       for (const { mat, target } of s.tileMats.values()) {
         const u = mat.userData.sepia as { value: number };
         if (Math.abs(u.value - target) > 0.005) { u.value += (target - u.value) * 0.08; anim = true; } else u.value = target;
@@ -268,7 +378,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       renderer.render(scene, camera);
       if (moving || anim) frames = Math.max(frames, 30);
       // active tokens pulse: keep a slow loop while there are any
-      if (--frames > 0 || s.pulses.length) raf = requestAnimationFrame(tick);
+      if (--frames > 0 || s.pulses.length || s.effects.length) raf = requestAnimationFrame(tick);
+      else last = 0;
     };
     controls.addEventListener("change", invalidate);
     THREE.DefaultLoadingManager.onLoad = invalidate;
@@ -302,7 +413,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
 
-    st.current = { renderer, scene, camera, controls, board, sun, tileMats: new Map(), pulses: [], invalidate };
+    st.current = { renderer, scene, camera, controls, board, sun, tileMats: new Map(), pulses: [], invalidate,
+      effects: [], fog: null, fogKey: "", seen: new Set() };
     resize();
     return () => {
       cancelAnimationFrame(raf);
@@ -336,7 +448,11 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         const mat = c.top.material as THREE.MeshStandardMaterial;
         (mat.userData.sepia as { value: number }).value = target; // new tiles appear in their state
         s.tileMats.set(t.tile.hashId, { mat, target });
-      } else s.tileMats.get(t.tile.hashId)!.target = target;
+      } else {
+        const tm = s.tileMats.get(t.tile.hashId)!;
+        if (tm.target === 1 && target === 0 && fx.dust) dustBurst(s, t, fx);
+        tm.target = target;
+      }
     }
     // tokens and labels: rebuilt on every change (few dozen objects)
     for (const o of [...s.board.children]) if (o.userData.token) {
@@ -344,6 +460,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       o.traverse((m) => { if ((m as THREE.Mesh).geometry) (m as THREE.Mesh).geometry.dispose(); });
     }
     s.pulses = [];
+    const seenNow = new Set<string>();
     for (const tk of tokens) {
       const g = new THREE.Group();
       g.userData.token = true;
@@ -371,6 +488,29 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       }
       g.position.copy(v3(tk.x, tk.y));
       s.board.add(g);
+      const key = tk.id ?? `${tk.x.toFixed(2)},${tk.y.toFixed(2)}`;
+      if (!s.seen.has(key)) dropIn(s, g, s.seen.size ? 0 : Math.random() * 0.25);
+      seenNow.add(key);
+    }
+    s.seen = seenNow;
+    // fog around the shown map
+    const fogKey = shown.map((t) => t.tile.hashId).sort((a, b) => a - b).join(",") + (fx.cloud ? "+" : "");
+    if (fogKey !== s.fogKey) {
+      s.fogKey = fogKey;
+      if (s.fog) s.board.remove(s.fog);
+      s.fog = fx.cloud || fx.smoke ? buildFog(shown, fx) : null;
+      if (s.fog) {
+        s.board.add(s.fog);
+        const fog = s.fog;
+        s.effects.push((dt, time) => {
+          if (st.current?.fog !== fog) return false;
+          for (const m of fog.children) {
+            m.rotation.z += m.userData.spin * dt;
+            m.position.y = m.userData.y + Math.sin(time * 0.5 + m.userData.bob) * 0.04;
+          }
+          return true;
+        });
+      }
     }
     // frame the camera on the shown tiles when the view key changes
     const refit = fitKey === undefined || fitKey !== lastFit.current;
@@ -396,7 +536,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       s.controls.update();
     }
     s.invalidate();
-  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey]);
+  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx]);
 
   return <div ref={host} className="board" />;
 }

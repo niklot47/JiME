@@ -8,7 +8,7 @@ import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadPackSet, packConfig } from "../data/pack.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadFx, loadEnemyArt, assetUrl, loadPackSet, packConfig } from "../data/pack.ts";
 import { textHtml } from "../text/markup.ts";
 
 const AUTOSAVE = "jime.autosave";
@@ -98,6 +98,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [db, setDb] = useState<any>(null);
   const [art, setArt] = useState<TileArtDb | null>(null);
   const [tokenArt, setTokenArt] = useState<Record<string, string>>({});
+  const [fx, setFx] = useState<Record<string, string>>({});
+  const [enemyArt, setEnemyArt] = useState<Record<string, string>>({});
   const [lang, setLang] = useState("ru");
   const [langs, setLangs] = useState(LANGS);
   const [text, setText] = useState<TextDb | null>(null);
@@ -122,8 +124,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     client.current = new GameClient();
     void installFonts();
     loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
-    Promise.all([loadDb(), loadTileArt(), loadTokenArt()])
-      .then(([d, a, t]) => { setDb(d); setArt(a); setTokenArt(t); })
+    Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt()])
+      .then(([d, a, t, f, e]) => { setDb(d); setArt(a); setTokenArt(t); setFx(f); setEnemyArt(e); })
       .catch((e) => setError(String(e)));
     return () => { client.current?.dispose(); client.current = null; };
   }, []);
@@ -231,7 +233,10 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const { view, pending } = state;
   return (
     <div className="game-screen">
-      <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} labels={labels} view3d={view3d} onAnswer={answer} />
+      <div className="board-wrap">
+        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} fx={fx} labels={labels} view3d={view3d} onAnswer={answer} />
+        <EnemyTracker view={view} pending={pending} art={enemyArt} say={say} disabled={busy} onAnswer={answer} />
+      </div>
       <aside className={busy ? "game-panel busy" : "game-panel"}>
         <div className="row spread">
           <button className="link" onClick={() => setGame(null)}>← Партии</button>
@@ -254,8 +259,9 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, labels, view3d, onAnswer }: {
-  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; labels: boolean; view3d: boolean; onAnswer: (a: Answer) => void;
+function GameBoard({ game, db, art, tokenArt, fx, labels, view3d, onAnswer }: {
+  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, string>; fx: Record<string, string>; labels: boolean; view3d: boolean;
+  onAnswer: (a: Answer) => void;
 }) {
   const { board, adv, state: { view, pending } } = game;
   const meshes = useMemo(() => (board && art ? layoutBoard(board, view.adv, art) : []), [board, art, view.adv]);
@@ -313,7 +319,7 @@ function GameBoard({ game, db, art, tokenArt, labels, view3d, onAnswer }: {
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Играйте через панель справа.</p></div>;
   if (view3d) {
     return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270}
-      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;
+      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}:${shown.size}`} fx={fx} />;
   }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
     shownTiles={shown} tileColors={colors} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;
@@ -339,13 +345,6 @@ function Status({ view, say }: { view: GameView; say: Say }) {
           </span>
         ))}
       </div>
-      {view.enemies.length > 0 && (
-        <ul className="enemies">
-          {view.enemies.map((e) => (
-            <li key={e.uid}><span dangerouslySetInnerHTML={{ __html: say(e.name) }} /> ×{e.size} · урон {e.damage}/{e.unitHp}{e.exhausted ? " · истощён" : ""}</li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -468,4 +467,37 @@ function GameLog({ log, say }: { log: readonly LogEntry[]; say: Say }) {
     if (html) items.push(<p key={i} dangerouslySetInnerHTML={{ __html: html }} />);
   });
   return <div className="log">{items}<div ref={end} /></div>;
+}
+
+// ---------------------------------------------------------------- enemy tracker
+/** Enemy groups as cards over the board (like the original's tracker); a card is a button when it can be attacked */
+function EnemyTracker({ view, pending, art, say, disabled, onAnswer }: {
+  view: GameView; pending: Decision | null; art: Record<string, string>; say: Say; disabled: boolean; onAnswer: (a: Answer) => void;
+}) {
+  if (!view.enemies.length) return null;
+  const attack = new Map<number, number>();
+  if (pending?.kind === "action") pending.options.forEach((o, i) => { if (o.type === "attack") attack.set(o.uid, i); });
+  return (
+    <div className="tracker">
+      {view.enemies.map((e) => {
+        const i = attack.get(e.uid);
+        const icon = art[String(e.model)];
+        const hp = Math.max(0, e.unitHp - e.damage);
+        const body = (
+          <>
+            {icon ? <img src={assetUrl(icon)} alt="" /> : <div className="noicon">?</div>}
+            <div className="info">
+              <b dangerouslySetInnerHTML={{ __html: say(e.name) }} />
+              <span className="count">×{e.size}{e.armor ? <span title="Броня"> · 🛡{e.armor}</span> : null}</span>
+              <div className="hp" title={`Здоровье текущего врага ${hp}/${e.unitHp}`}><div style={{ width: `${(100 * hp) / Math.max(1, e.unitHp)}%` }} /></div>
+              {e.exhausted && <span className="muted">истощён</span>}
+            </div>
+          </>
+        );
+        return i !== undefined
+          ? <button key={e.uid} className={`enemy can${e.exhausted ? " exhausted" : ""}`} disabled={disabled} title="Атаковать" onClick={() => onAnswer(i)}>{body}</button>
+          : <div key={e.uid} className={`enemy${e.exhausted ? " exhausted" : ""}`}>{body}</div>;
+      })}
+    </div>
+  );
 }

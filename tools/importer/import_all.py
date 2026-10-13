@@ -66,6 +66,8 @@ def main():
         ("export_tile_art", ["export_tile_art.py"]),
         ("export_fonts", ["export_fonts.py"]),
         ("export_tokens", ["export_tokens.py"]),
+        ("export_fx", ["export_fx.py"]),
+        ("export_icons", ["export_icons.py"]),
     ]
     say(f"game data: {data}")
     say(f"work: {work}")

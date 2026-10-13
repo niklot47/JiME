@@ -131,3 +131,20 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .packs.layers li.bad { border-color: #7a3a30; }
 .packs.layers label.check { align-items: flex-start; }
 .packs.layers input[type="checkbox"] { width: 22px; height: 22px; margin-top: 2px; flex-shrink: 0; }
+
+/* enemy tracker over the board */
+.board-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
+.board-wrap > .board { flex: 1; }
+.tracker { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 8px; overflow-x: auto; pointer-events: none; padding-bottom: 2px; }
+.tracker .enemy { pointer-events: auto; display: flex; gap: 8px; align-items: center; min-width: 190px; max-width: 240px; padding: 6px 10px 6px 6px;
+  background: rgba(26, 22, 17, 0.88); border: 1px solid #4a3f30; border-radius: 10px; color: var(--text); text-align: left; font: inherit; }
+.tracker .enemy.can { cursor: pointer; border-color: var(--accent); box-shadow: 0 0 0 1px rgba(201, 162, 74, 0.35); }
+.tracker .enemy.can:hover { background: rgba(48, 38, 24, 0.95); }
+.tracker .enemy.exhausted { filter: grayscale(0.8); opacity: 0.75; }
+.tracker img { width: 44px; height: 56px; object-fit: contain; filter: drop-shadow(0 2px 3px #000); }
+.tracker .noicon { width: 44px; height: 56px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.tracker .info { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 0.85rem; }
+.tracker .info b { font-family: var(--font-title); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tracker .hp { height: 6px; width: 110px; background: #15130f; border-radius: 3px; overflow: hidden; }
+.tracker .hp div { height: 100%; background: #b03a2e; }
+@media (max-width: 860px) { .board-wrap { flex: 0 0 45dvh; } }

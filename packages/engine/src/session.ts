@@ -14,7 +14,7 @@ import { PyRandom } from "./pyrandom.ts";
 export type ActionOption =
   | { type: "node"; uid: number; name: string; kind: string; token: number; encounter: number | null; tile: string | null; tileId: number | null; space: number }
   | { type: "explore"; tile: string; tileId: number }
-  | { type: "attack"; enemy: string; size: number; damage: number; unitHp: number }
+  | { type: "attack"; uid: number; enemy: string; size: number; damage: number; unitHp: number }
   | { type: "lastStand"; hero: number };
 
 export type Decision =
@@ -53,7 +53,7 @@ const describeOption = (g: Game, [kind, x]: Option): ActionOption => {
   };
   if (kind === "explore") return { type: "explore", tile: x.code, tileId: x.id };
   if (kind === "lastStand") return { type: "lastStand", hero: x };
-  return { type: "attack", enemy: String(g.enemyName(x.model, x.size)), size: x.size, damage: x.damage, unitHp: x.unitHp };
+  return { type: "attack", uid: x.uid, enemy: String(g.enemyName(x.model, x.size)), size: x.size, damage: x.damage, unitHp: x.unitHp };
 };
 
 const isInt = (a: unknown, min = 0, max = Infinity): a is number => Number.isInteger(a) && (a as number) >= min && (a as number) <= max;
@@ -260,7 +260,8 @@ export interface GameView {
   /** All game nodes; a node is shown when visible and (no tile or its tile is visible) */
   nodes: NodeView[];
   startTile: number;
-  enemies: { uid: number; name: string; size: number; damage: number; unitHp: number; exhausted: boolean }[];
+  /** model = EnemyModel id (icon), armor = EnemyModel.Armor */
+  enemies: { uid: number; model: number; name: string; size: number; damage: number; unitHp: number; armor: number; exhausted: boolean }[];
   campaign: { lore: number; xp: number; items: any[]; titles: any[]; next: any };
 }
 
@@ -276,7 +277,10 @@ export function viewOf(g: Game): GameView {
       tileId: n.tile ? n.tile.id : null, space: n.space, visible: n.visible && (n.tile === null || n.tile.visible),
     })),
     startTile: g.startTileId,
-    enemies: g.enemies.map((e) => ({ uid: e.uid, name: String(g.enemyName(e.model, e.size)), size: e.size, damage: e.damage, unitHp: e.unitHp, exhausted: e.exhausted })),
+    enemies: g.enemies.map((e) => ({
+      uid: e.uid, model: Number(e.model?._id ?? -1), name: String(g.enemyName(e.model, e.size)), size: e.size,
+      damage: e.damage, unitHp: e.unitHp, armor: Number(e.model?.Armor ?? 0), exhausted: e.exhausted,
+    })),
     campaign: { lore: g.campaign.lore, xp: g.campaign.xp, items: [...g.campaign.items], titles: [...g.campaign.titles], next: g.campaign.next_adventure },
   };
 }
