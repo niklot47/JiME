@@ -105,6 +105,7 @@
 - 13.10.2026: сохранение посреди A1 из оригинала (сид 1870785907) — генератор совпал полностью, включая координаты и повороты тайлов и секций. Добавлен `pnpm verify:maps`.
 - 13.10.2026: экран «Карта» в приложении — сгенерированная карта A1 совпала со скриншотом оригинала.
 - 13.10.2026, 3.2 (движок): `sessionBoard`/`boardEncounters`, `Session(..., { board })`, `GameView.nodes` + `startTile`, тип жетона (`Token3DType` → `TOKEN_TYPES`/`tokenFamily`). `pnpm verify:board` — 144/144, реплей 72/72, паритет 72/72.
+- 13.10.2026: `release.yml` — установщики Windows в GitHub Actions (тег `v*` → черновик релиза, ручной запуск → артефакт).
 - 13.10.2026: установщик (`pnpm tauri build`) проверен — импорт и игра работают из распакованного MSI.
 - 13.10.2026, 3.1: мастер первого запуска + `import_all.py`; импортёр исправлен для Windows (ключи FILES с `\\`, JSON в UTF-8, `PYTHONUTF8`).
 - 13.10.2026, 3.1/3.2: Tauri читает паки из папки (`jime-pack://`), экран «Паки»; `tools/dev/cdp.mjs` — проверка окна WebView2 по DevTools Protocol.
@@ -130,8 +131,9 @@
 - ✅ тип жетона: `GameNode.Token3DType` (`TOKEN_TYPES`, `tokenFamily()`);
 - ✅ Tauri: паки из папки пользователя через схему `jime-pack` (`src-tauri/src/lib.rs`), экран «Паки» (папка, список паков, смена/сброс). Проверено в окне через CDP: игра A1 грузится из `jime-pack.localhost`, выход за папку → 403.
 - ✅ Этап 3.1: мастер первого запуска (`SetupScreen`, `src-tauri/src/importer.rs`, `tools/importer/import_all.py`): поиск игры в Steam (libraryfolders.vdf + `X:\SteamLibrary`), Python и пакеты (`pip install --user`), импорт с логом и шагами. Проверено на Windows в окне: Python 3.14, пакеты поставлены мастером, импорт 37–45 с, пак совпал с эталонным (892 файла), партия A1 запускается.
+- ✅ GitHub Actions `release.yml`: Windows-установщики по тегу `v*` (черновик релиза) или вручную (артефакт).
 - ✅ `pnpm tauri build`: NSIS `JiME Reborn_0.1.0_x64-setup.exe` (2,1 МБ) и MSI (3,0 МБ), release-сборка ~2 мин, без предупреждений. MSI распакован (`msiexec /a`): `jime-app.exe` + `importer/*.py` + `requirements.txt`; из распакованной копии мастер прошёл импорт (ресурсы находятся через `resource_dir`), партия A1 с текстурами и шрифтами из `jime-pack`.
-- ⏳ менеджер паков со слоями; встроенный Python (embeddable) вместо системного — по желанию; сборка установщика в GitHub Actions (артефакт релиза); подпись кода (иначе SmartScreen предупреждает).
+- ⏳ менеджер паков со слоями; встроенный Python (embeddable) вместо системного — по желанию; подпись кода (иначе SmartScreen предупреждает).
 
 Отложено в 2.3: позиции объектов (MoveNode, RandomSpace), активации врагов, последний рубеж, тьма.
 

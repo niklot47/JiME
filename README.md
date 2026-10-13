@@ -56,6 +56,15 @@ pnpm tauri dev            # то же в окне Tauri (паки — из па�
 pnpm tauri build          # установщики Windows: target/release/bundle/{nsis,msi} (~2–3 МБ, без контента FFG)
 ```
 
+### Релизы
+Установщики Windows собирает GitHub Actions (`.github/workflows/release.yml`):
+- тег `vX.Y.Z` (версия должна совпадать с `apps/app/src-tauri/tauri.conf.json`) → черновик релиза с `.exe` (NSIS) и `.msi`;
+- «Run workflow» на вкладке Actions → установщики как артефакт сборки.
+
+```powershell
+git tag v0.1.0; git push origin v0.1.0
+```
+
 ### Паки в приложении (Tauri)
 Приложение читает паки из папки (первое найденное):
 1. переменная `JIME_PACKS`;
