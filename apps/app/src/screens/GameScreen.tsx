@@ -1,0 +1,414 @@
+// Game screen (Stage 3.2 MVP): board + log + decision panel on top of the engine Session.
+// The board is generated first (BrowserSource.prepare), then the Session replays on every answer.
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Session, keysOf, tokenFamily, type Answer, type Decision, type GameView, type SaveData, type SessionSetup } from "@jime/engine";
+import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
+import type { TextDb } from "@jime/content-tools/text";
+import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
+import { BrowserSource } from "../data/source.ts";
+import { installFonts, loadText, loadTileArt } from "../data/pack.ts";
+import { textHtml } from "../text/markup.ts";
+
+const AUTOSAVE = "jime.autosave";
+const LANGS = ["ru", "en", "it"];
+
+interface Game {
+  session: Session;
+  board: GeneratedMap | null;
+  adv: any;
+}
+
+const shortName = (n: string) => n.replace(/^\d+_/, "");
+
+// token look by Token3DType family (FFG colors approximated; a theme pack can override later)
+const TOKEN_LOOK: Record<string, { color: string; glyph: string }> = {
+  explore: { color: "#9cc27a", glyph: "✦" },
+  search: { color: "#e2c25b", glyph: "?" },
+  threat: { color: "#c0392b", glyph: "!" },
+  person: { color: "#6f9fd8", glyph: "☻" },
+  hexagon: { color: "#7a6a9a", glyph: "◆" },
+  terrain: { color: "#8e7f6a", glyph: "▪" },
+  none: { color: "#b0a48a", glyph: "·" },
+};
+
+function readAutosave(): SaveData | null {
+  try {
+    const s = localStorage.getItem(AUTOSAVE);
+    return s ? (JSON.parse(s) as SaveData) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAutosave(s: Session): void {
+  try {
+    localStorage.setItem(AUTOSAVE, JSON.stringify(s.save()));
+  } catch {
+    /* storage unavailable: the file save still works */
+  }
+}
+
+function download(name: string, data: unknown): void {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** World position of a tile space: mean of its hex centers */
+function spaceCenter(db: any, adv: any, t: GeneratedMap["sections"][number]["tiles"][number], si: number): [number, number] | null {
+  const geo = t.customPid !== null ? adv.ext?.customTiles?.[String(t.customPid)] : db.tiles.find((g: any) => g.code === t.code);
+  const hs: number[] | undefined = geo?.spaces?.[si]?.hexes;
+  if (!hs?.length) return null;
+  let x = 0, y = 0;
+  for (const hi of hs) { const [wx, wy] = cubeToWorld(t.hexes[hi]!); x += wx / hs.length; y += wy / hs.length; }
+  return [x, y];
+}
+
+function tileCenter(t: GeneratedMap["sections"][number]["tiles"][number]): [number, number] {
+  let x = 0, y = 0;
+  for (const h of t.hexes) { const [wx, wy] = cubeToWorld(h); x += wx / t.hexes.length; y += wy / t.hexes.length; }
+  return [x, y];
+}
+
+export function GameScreen({ onBack }: { onBack: () => void }) {
+  const [src, setSrc] = useState<BrowserSource | null>(null);
+  const [art, setArt] = useState<TileArtDb | null>(null);
+  const [lang, setLang] = useState("ru");
+  const [text, setText] = useState<TextDb | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [game, setGame] = useState<Game | null>(null);
+  const [, setVersion] = useState(0);
+  // setup form
+  const [adv, setAdv] = useState(1);
+  const [seed, setSeed] = useState(() => (Math.random() * 2 ** 31) | 0);
+  const [players, setPlayers] = useState(2);
+  const [coreOnly, setCoreOnly] = useState(true);
+  const [labels, setLabels] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void installFonts();
+    Promise.all([BrowserSource.create(), loadTileArt()]).then(([s, a]) => { setSrc(s); setArt(a); }).catch((e) => setError(String(e)));
+  }, []);
+  useEffect(() => { loadText(lang).then(setText).catch((e) => setError(String(e))); }, [lang]);
+
+  const say = (key: string | null | undefined, ins: readonly string[] = []) => (key && text ? textHtml(text, key, ins) : "");
+
+  const adventures = useMemo(() => {
+    if (!src) return [];
+    const AM = src.db().models.AdventureModel;
+    return keysOf(AM).map(Number).sort((a, b) => a - b).filter((k) => AM[k]?.Prefab?.Path)
+      .map((k) => ({ id: k, name: (text && AM[k].NameKey && text.raw(AM[k].NameKey)) || shortName(AM[k].m_Name) }));
+  }, [src, text]);
+
+  async function start(setup: SessionSetup, save?: SaveData) {
+    if (!src) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await new Promise((r) => setTimeout(r, 0)); // let "busy" render: board generation can take a while
+      const board = await src.prepare(setup);
+      const session = save ? Session.load(src, save, { board }) : new Session(src, setup, [], { board });
+      setGame({ session, board, adv: src.adventure(setup.adv) });
+      writeAutosave(session);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function answer(a: Answer) {
+    if (!game) return;
+    try {
+      game.session.answer(a);
+      writeAutosave(game.session);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    setVersion((v) => v + 1);
+  }
+
+  function undo() {
+    if (!game || !game.session.answers.length) return;
+    game.session.undo();
+    writeAutosave(game.session);
+    setVersion((v) => v + 1);
+  }
+
+  async function loadFile(f: File) {
+    try {
+      const data = JSON.parse(await f.text()) as SaveData;
+      if (data.format !== "jime-save") throw new Error("Это не файл сохранения JiME");
+      await start(data.setup, data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  // ---------------------------------------------------------------- setup screen
+  if (!game) {
+    const auto = readAutosave();
+    return (
+      <div className="shell">
+        <button className="link" onClick={onBack}>← Меню</button>
+        <h2 className="title">Новая партия</h2>
+        {!src && !error && <p className="muted">Загрузка пака…</p>}
+        <div className="form">
+          <label>Приключение
+            <select value={adv} onChange={(e) => setAdv(Number(e.target.value))}>
+              {adventures.map((a) => <option key={a.id} value={a.id}>{a.id}. {a.name}</option>)}
+            </select>
+          </label>
+          <label>Игроков
+            <div className="row seg">
+              {[1, 2, 3, 4, 5].map((n) => <button key={n} className={n === players ? "on" : ""} onClick={() => setPlayers(n)}>{n}</button>)}
+            </div>
+          </label>
+          <label>Язык
+            <div className="row seg">
+              {LANGS.map((l) => <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>{l}</button>)}
+            </div>
+          </label>
+          <label>Сид
+            <div className="row">
+              <input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) | 0)} />
+              <button onClick={() => setSeed((Math.random() * 2 ** 31) | 0)} title="Случайный сид">🎲</button>
+            </div>
+          </label>
+          <label className="check"><input type="checkbox" checked={coreOnly} onChange={(e) => setCoreOnly(e.target.checked)} /> Только базовая коробка</label>
+          <button className="primary" disabled={!src || busy}
+            onClick={() => start({ adv, seed, players, language: lang, ...(coreOnly ? { products: [0] } : {}) })}>
+            {busy ? "Подготовка…" : "Начать"}
+          </button>
+          {auto && (
+            <button disabled={!src || busy} onClick={() => start(auto.setup, auto)}>
+              Продолжить: приключение {auto.setup.adv}, ходов {auto.answers.length}
+            </button>
+          )}
+          <button disabled={!src || busy} onClick={() => fileInput.current?.click()}>Загрузить из файла…</button>
+          <input ref={fileInput} type="file" accept=".json,application/json" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void loadFile(f); }} />
+          {error && <p className="error">{error}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------- game screen
+  const { session } = game;
+  const view = session.view();
+  const pending = session.pending;
+  return (
+    <div className="game-screen">
+      <GameBoard game={game} view={view} art={art} pending={pending} labels={labels} onAnswer={answer} />
+      <aside className="game-panel">
+        <div className="row spread">
+          <button className="link" onClick={() => setGame(null)}>← Партии</button>
+          <div className="row">
+            <button onClick={undo} disabled={!session.answers.length} title="Отменить последний ответ">↶ Отмена</button>
+            <button onClick={() => download(`jime-${view.adv}-${session.setup.seed}.json`, session.save())} title="Сохранить в файл">💾</button>
+          </div>
+        </div>
+        <Status view={view} say={say} />
+        <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Названия жетонов</label>
+        {error && <p className="error">{error}</p>}
+        <DecisionPanel key={session.answers.length} d={pending} view={view} say={say} onAnswer={answer} />
+        <GameLog session={session} say={say} />
+      </aside>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- board
+function GameBoard({ game, view, art, pending, labels, onAnswer }: {
+  game: Game; view: GameView; art: TileArtDb | null; pending: Decision | null; labels: boolean; onAnswer: (a: Answer) => void;
+}) {
+  const { board, adv } = game;
+  const db = game.session.src.db();
+  const meshes = useMemo(() => (board && art ? layoutBoard(board, view.adv, art) : []), [board, art, view.adv]);
+  const genTiles = useMemo(() => new Map((board?.sections ?? []).flatMap((s) => s.tiles).map((t) => [t.hashId, t])), [board]);
+
+  // option index by pick target for the current hero action
+  const targets = new Map<string, number>();
+  if (pending?.kind === "action") {
+    pending.options.forEach((o, i) => {
+      if (o.type === "node") targets.set(`n:${o.uid}`, i);
+      else if (o.type === "explore") targets.set(`t:${o.tileId}`, i);
+    });
+  }
+  const viewKey = JSON.stringify([view.tiles, view.nodes]);
+  const targetKey = [...targets.keys()].join(",");
+
+  const { tokens, shown, colors } = useMemo(() => {
+    const tokens: Token[] = [];
+    const shown = new Set<number>();
+    const colors = new Map<number, number>();
+    for (const t of view.tiles) {
+      if (!t.visible) continue;
+      shown.add(t.id);
+      if (!t.explored) colors.set(t.id, 0x7a7a7a);
+      const gt = genTiles.get(t.id);
+      if (gt && !t.explored && t.token) {
+        const [x, y] = tileCenter(gt);
+        const id = `t:${t.id}`;
+        tokens.push({ x, y, id, label: labels ? t.code : "", ...TOKEN_LOOK.explore!, active: targets.has(id) });
+      }
+    }
+    for (const n of view.nodes) {
+      if (!n.visible || n.tileId === null) continue;
+      const gt = genTiles.get(n.tileId);
+      const p = gt && spaceCenter(db, adv, gt, n.space);
+      if (!p) continue;
+      const id = `n:${n.uid}`;
+      tokens.push({ x: p[0], y: p[1], id, label: labels ? shortName(n.name) : "", ...TOKEN_LOOK[tokenFamily(n.token)]!, active: targets.has(id) });
+    }
+    return { tokens, shown, colors };
+  }, [viewKey, targetKey, labels, genTiles]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function pick(p: Pick) {
+    const id = p.kind === "token" ? p.id : `t:${p.id}`;
+    const i = targets.get(id);
+    if (i !== undefined) onAnswer(i);
+  }
+
+  if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Играйте через панель справа.</p></div>;
+  return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
+    shownTiles={shown} tileColors={colors} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;
+}
+
+// ---------------------------------------------------------------- status
+type Say = (key: string | null | undefined, ins?: readonly string[]) => string;
+
+function Status({ view, say }: { view: GameView; say: Say }) {
+  const pct = view.threatMax > 0 ? Math.min(100, (100 * view.threat) / view.threatMax) : 0;
+  return (
+    <div className="status">
+      <div className="row spread">
+        <span>Раунд <b>{view.round}</b></span>
+        <span>Угроза <b>{view.threat}</b>{view.threatMax > 0 ? ` / ${view.threatMax}` : ""}</span>
+      </div>
+      {view.threatMax > 0 && <div className="bar"><div style={{ width: `${pct}%` }} /></div>}
+      {view.objective && <p className="objective" dangerouslySetInnerHTML={{ __html: say(view.objective) }} />}
+      <div className="heroes">
+        {view.heroes.map((h, i) => (
+          <span key={i} className={h.defeated ? "hero down" : "hero"}>Герой {i + 1}: урон {h.damage}, страх {h.fear}</span>
+        ))}
+      </div>
+      {view.enemies.length > 0 && (
+        <ul className="enemies">
+          {view.enemies.map((e) => (
+            <li key={e.uid}><span dangerouslySetInnerHTML={{ __html: say(e.name) }} /> ×{e.size} · урон {e.damage}/{e.unitHp}{e.exhausted ? " · истощён" : ""}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- decision
+function Stepper({ initial = 0, label, onOk }: { initial?: number; label: string; onOk: (n: number) => void }) {
+  const [n, setN] = useState(initial);
+  return (
+    <div className="stepper">
+      <span>{label}</span>
+      <div className="row">
+        <button onClick={() => setN((v) => Math.max(0, v - 1))}>−</button>
+        <b className="num">{n}</b>
+        <button onClick={() => setN((v) => v + 1)}>+</button>
+        <button className="primary" onClick={() => onOk(n)}>Готово</button>
+      </div>
+    </div>
+  );
+}
+
+function DecisionPanel({ d, view, say, onAnswer }: { d: Decision | null; view: GameView; say: Say; onAnswer: (a: Answer) => void }) {
+  if (!d) {
+    return (
+      <div className="decision">
+        <h3>Игра окончена</h3>
+        <p>{view.result === "victory" ? "Победа" : view.result === "defeat" ? "Поражение" : view.ended}</p>
+        <p className="muted">Раунд {view.round} · лор {view.campaign.lore} · опыт {view.campaign.xp}</p>
+      </div>
+    );
+  }
+  const prompt = "key" in d && d.key ? <p className="prompt" dangerouslySetInnerHTML={{ __html: say(d.key) }} /> : null;
+  switch (d.kind) {
+    case "choice":
+      return (
+        <div className="decision">
+          {prompt}
+          {d.choices.map((c, i) => <button key={i} onClick={() => onAnswer(i)} dangerouslySetInnerHTML={{ __html: say(c.key) || `#${i + 1}` }} />)}
+          {d.canCancel && <button className="link" onClick={() => onAnswer(null)}>Отмена</button>}
+        </div>
+      );
+    case "test":
+      return <div className="decision">{prompt}<Stepper label={`Сколько успехов? (важно до ${d.top})`} onOk={onAnswer} /></div>;
+    case "attack":
+      return (
+        <div className="decision">
+          <p className="prompt"><span dangerouslySetInnerHTML={{ __html: say(d.enemy) }} /> ×{d.size} · урон {d.damage}/{d.unitHp}</p>
+          <Stepper label="Нанесённый урон" onOk={onAnswer} />
+        </div>
+      );
+    case "confirm":
+      return (
+        <div className="decision">
+          {prompt}
+          <div className="row"><button className="primary" onClick={() => onAnswer(true)}>Да</button><button onClick={() => onAnswer(false)}>Нет</button></div>
+        </div>
+      );
+    case "lastStand":
+      return (
+        <div className="decision">
+          <p className="prompt">Последний рубеж героя {d.hero + 1} ({d.physical ? "урон" : "страх"})</p>
+          <div className="row"><button className="primary" onClick={() => onAnswer(true)}>Пройден</button><button onClick={() => onAnswer(false)}>Провален</button></div>
+        </div>
+      );
+    case "hero":
+      return (
+        <div className="decision">
+          {prompt}
+          <div className="row wrap">
+            {Array.from({ length: d.players }, (_, i) => <button key={i} onClick={() => onAnswer({ player: i, skip: false })}>Герой {i + 1}</button>)}
+          </div>
+          {d.canSkip && <button className="link" onClick={() => onAnswer({ player: 0, skip: true })}>Пропустить</button>}
+        </div>
+      );
+    case "action":
+      return (
+        <div className="decision">
+          <h3>Ход героя {d.hero + 1}</h3>
+          <p className="muted">Нажмите на жетон или тайл на карте, или выберите действие:</p>
+          {d.options.map((o, i) => (
+            <button key={i} onClick={() => onAnswer(i)}>
+              {o.type === "node" ? `Жетон: ${shortName(o.name)}`
+                : o.type === "explore" ? `Исследовать тайл ${o.tile}`
+                : <>Атаковать: <span dangerouslySetInnerHTML={{ __html: say(o.enemy) }} /> ×{o.size}</>}
+            </button>
+          ))}
+          <button className="link" onClick={() => onAnswer(null)}>Закончить ход героя</button>
+        </div>
+      );
+  }
+}
+
+// ---------------------------------------------------------------- log
+function GameLog({ session, say }: { session: Session; say: Say }) {
+  const end = useRef<HTMLDivElement>(null);
+  const log = session.log;
+  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [log.length]);
+  const items: ReactNode[] = [];
+  let round = 0;
+  log.forEach(([, r, key, ins], i) => {
+    if (r !== round) { round = r; items.push(<div key={`r${i}`} className="round">Раунд {r}</div>); }
+    const html = say(key, ins);
+    if (html) items.push(<p key={i} dangerouslySetInnerHTML={{ __html: html }} />);
+  });
+  return <div className="log">{items}<div ref={end} /></div>;
+}

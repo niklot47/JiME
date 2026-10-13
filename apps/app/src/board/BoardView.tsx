@@ -1,4 +1,4 @@
-// Top-down board: textured tile meshes + encounter tokens. Pan with drag, zoom with wheel / pinch.
+// Top-down board: textured tile meshes + encounter tokens. Pan with drag, zoom with wheel / pinch, tap to pick.
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { TileMesh } from "@jime/engine/map";
@@ -10,7 +10,16 @@ export interface Token {
   label: string;
   color: string;
   section?: number;
+  /** Pick id reported by onPick (tokens without id are not pickable) */
+  id?: string;
+  /** Short text drawn on the token (one or two characters) */
+  glyph?: string;
+  /** Draw a bright ring: the token is a valid target right now */
+  active?: boolean;
 }
+
+/** What a tap hit: a token (its id) or a tile (its hash id) */
+export type Pick = { kind: "token"; id: string } | { kind: "tile"; id: number };
 
 interface Props {
   tiles: TileMesh[];
@@ -24,6 +33,13 @@ interface Props {
   showCodes?: boolean;
   /** Only these sections (debug / comparison with the original's revealed area) */
   sections?: number[] | null;
+  /** Per-tile color multiplier by tile hash id (e.g. grey for unexplored); missing tiles use the default */
+  tileColors?: Map<number, number> | null;
+  /** Only these tiles are drawn (by hash id); null = all */
+  shownTiles?: Set<number> | null;
+  onPick?: (p: Pick) => void;
+  /** The camera is re-fitted only when this changes (default: on every content change) */
+  fitKey?: string;
 }
 
 const SECTION_COLORS = [0xffffff, 0xffd9a8, 0xb8e0ff, 0xd8ffb8, 0xffc4e1, 0xe0d0ff, 0xfff3a8, 0xc0fff4];
@@ -39,6 +55,26 @@ function texture(path: string): THREE.Texture {
     texCache.set(path, t);
   }
   return t;
+}
+
+const glyphCache = new Map<string, THREE.Texture>();
+function glyphSprite(text: string): THREE.Sprite {
+  let tex = glyphCache.get(text);
+  if (!tex) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const ctx = c.getContext("2d")!;
+    ctx.font = "700 40px system-ui, sans-serif";
+    ctx.fillStyle = "#1a140c"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(text, 32, 35);
+    tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    glyphCache.set(text, tex);
+  }
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  s.scale.set(0.5, 0.5, 1);
+  s.renderOrder = 3;
+  return s;
 }
 
 function labelSprite(text: string): THREE.Sprite {
@@ -60,8 +96,12 @@ function labelSprite(text: string): THREE.Sprite {
   return s;
 }
 
-export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, showCodes = false, sections = null }: Props) {
+export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, showCodes = false, sections = null,
+  tileColors = null, shownTiles = null, onPick, fitKey }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
+  const lastFit = useRef<string | undefined>(undefined);
   const state = useRef<{ renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.OrthographicCamera; board: THREE.Group; render: () => void; fit: (w: number, h: number) => void } | null>(null);
 
   // renderer, camera and input (once)
@@ -92,10 +132,28 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
     const pointers = new Map<number, { x: number; y: number }>();
     let pinch = 0;
     const worldPerPixel = () => (camera.top - camera.bottom) / el.clientHeight;
-    const onDown = (e: PointerEvent) => { el.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
+    // tap = press and release without moving (and without a second finger)
+    let tap: { x: number; y: number } | null = null;
+    const raycaster = new THREE.Raycaster();
+    const pickAt = (cx: number, cy: number) => {
+      const r = el.getBoundingClientRect();
+      const ndc = new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      for (const hit of raycaster.intersectObjects(board.children, true)) {
+        const p = hit.object.userData.pick as Pick | undefined;
+        if (p) return p;
+      }
+      return null;
+    };
+    const onDown = (e: PointerEvent) => {
+      el.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      tap = pointers.size === 1 ? { x: e.clientX, y: e.clientY } : null;
+    };
     const onMove = (e: PointerEvent) => {
       const p = pointers.get(e.pointerId);
       if (!p) return;
+      if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 6) tap = null;
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         const d0 = Math.hypot(a!.x - b!.x, a!.y - b!.y);
@@ -111,7 +169,15 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
       p.x = e.clientX; p.y = e.clientY;
       render();
     };
-    const onUp = (e: PointerEvent) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = 0; };
+    const onUp = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch = 0;
+      if (tap && e.type === "pointerup" && pickRef.current) {
+        const p = pickAt(e.clientX, e.clientY);
+        if (p) pickRef.current(p);
+      }
+      tap = null;
+    };
     const onWheel = (e: WheelEvent) => { e.preventDefault(); zoom = Math.min(8, Math.max(0.2, zoom * Math.exp(-e.deltaY * 0.0015))); resize(); };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
@@ -144,7 +210,7 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
       c.traverse((o) => { if ((o as THREE.Mesh).geometry) (o as THREE.Mesh).geometry.dispose(); });
     }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const shown = sections ? tiles.filter((t) => sections.includes(t.tile.section)) : tiles;
+    const shown = tiles.filter((t) => (!sections || sections.includes(t.tile.section)) && (!shownTiles || shownTiles.has(t.tile.hashId)));
     const rot = (-rotation * Math.PI) / 180;
     for (const t of shown) {
       const g = new THREE.BufferGeometry();
@@ -159,9 +225,11 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
       g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(t.uvs, 2));
       g.setIndex(t.indices);
-      const color = sectionTint ? SECTION_COLORS[t.tile.section % SECTION_COLORS.length]! : 0xffffff;
+      const color = tileColors?.get(t.tile.hashId) ?? (sectionTint ? SECTION_COLORS[t.tile.section % SECTION_COLORS.length]! : 0xffffff);
       const m = new THREE.MeshBasicMaterial({ map: t.texture ? texture(t.texture) : null, color, side: THREE.DoubleSide });
-      s.board.add(new THREE.Mesh(g, m));
+      const mesh = new THREE.Mesh(g, m);
+      mesh.userData.pick = { kind: "tile", id: t.tile.hashId } satisfies Pick;
+      s.board.add(mesh);
       if (showCodes) {
         const n = t.hexCenters.length;
         const cx = t.hexCenters.reduce((a, c) => a + c[0], 0) / n, cy = t.hexCenters.reduce((a, c) => a + c[1], 0) / n;
@@ -175,10 +243,17 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
       const disc = new THREE.Mesh(new THREE.CircleGeometry(0.32, 32), new THREE.MeshBasicMaterial({ color: tk.color, depthTest: false }));
       disc.position.set(tk.x, tk.y, 0.01);
       disc.renderOrder = 2;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.38, 32), new THREE.MeshBasicMaterial({ color: 0x1a140c, depthTest: false }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.32, tk.active ? 0.44 : 0.38, 32),
+        new THREE.MeshBasicMaterial({ color: tk.active ? 0xfff1b0 : 0x1a140c, depthTest: false }));
       ring.position.set(tk.x, tk.y, 0.011);
       ring.renderOrder = 2;
+      if (tk.id !== undefined) disc.userData.pick = ring.userData.pick = { kind: "token", id: tk.id } satisfies Pick;
       s.board.add(disc, ring);
+      if (tk.glyph) {
+        const gl = glyphSprite(tk.glyph);
+        gl.position.set(tk.x, tk.y, 0.015);
+        s.board.add(gl);
+      }
       if (showLabels && tk.label) {
         const l = labelSprite(tk.label);
         l.position.set(tk.x, tk.y - 0.62, 0.02);
@@ -186,12 +261,14 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
       }
     }
     s.board.rotation.z = rot;
-    if (shown.length) {
+    const refit = fitKey === undefined || fitKey !== lastFit.current;
+    if (shown.length && refit) {
+      lastFit.current = fitKey;
       s.camera.position.set((minX + maxX) / 2, (minY + maxY) / 2, 10);
       s.fit(maxX - minX, maxY - minY);
     }
     s.render();
-  }, [tiles, tokens, showLabels, rotation, sectionTint, showCodes, sections]);
+  }, [tiles, tokens, showLabels, rotation, sectionTint, showCodes, sections, tileColors, shownTiles, fitKey]);
 
   return <div ref={host} className="board" />;
 }

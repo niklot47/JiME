@@ -6,7 +6,7 @@ import { PyRandom } from "./pyrandom.ts";
 import { keysOf, valuesOf } from "./ojson.ts";
 import { Counter, gd, isDict, or, pyStr, toInt, truthy } from "./py.ts";
 import { ACTIONS } from "./actions.ts";
-import { generateMap, type GeneratedMap } from "./map/mapgen.ts";
+import { generateMap, type GeneratedMap, type MapGenOptions } from "./map/mapgen.ts";
 
 /** Supplies scenario data (pack on disk, in-memory, network ...) */
 export interface ContentSource {
@@ -38,6 +38,28 @@ export function keyOf(v: unknown): any {
 export class EndGame extends Error {}
 
 export const NODE_KINDS = ["Encounter", "Explore", "Threat", "Terrain", "Darkness", "Difficult", "Fortified"];
+
+/** FFG Token3DManager.TokenTypes: which token a GameNode shows on the board (0 = none) */
+export const TOKEN_TYPES: Record<number, string> = {
+  0: "None", 1: "Circle_Explore", 2: "Circle_Search", 3: "Circle_Threat",
+  4: "Circle_Dwarf", 5: "Circle_Elf", 6: "Circle_Hobbit", 7: "Circle_Human",
+  31: "Hexagon_Darkness", 32: "Hexagon_Difficult", 33: "Hexagon_Fortified",
+  50: "Terrain_Bushes", 51: "Terrain_Rocks", 100: "Terrain_Fog", 101: "Terrain_Pit", 102: "Terrain_Fire",
+  103: "Terrain_Statue", 104: "Terrain_Rubble", 105: "Terrain_Web", 106: "Terrain_Fountain", 107: "Terrain_Pond",
+  150: "Terrain_Barrel", 151: "Terrain_Table", 152: "Terrain_Log", 153: "Terrain_Elevation", 154: "Terrain_Chest",
+  155: "Terrain_Barricade", 200: "Terrain_Stream", 201: "Terrain_Wall", 202: "Terrain_Trench", 203: "Terrain_Fence",
+};
+
+/** Token family for UI: person (Circle_Dwarf..Circle_Human), search, threat, explore, hexagon, terrain, none */
+export function tokenFamily(t: number): "none" | "explore" | "search" | "threat" | "person" | "hexagon" | "terrain" {
+  if (t === 1) return "explore";
+  if (t === 2) return "search";
+  if (t === 3) return "threat";
+  if (t >= 4 && t <= 7) return "person";
+  if (t >= 31 && t <= 33) return "hexagon";
+  if (t >= 50) return "terrain";
+  return "none";
+}
 
 // ---------------------------------------------------------------- FSM instance
 export class Fsm {
@@ -194,6 +216,10 @@ export class Tile {
 
 export class GameNode {
   visible = false;
+  /** Id within one game in creation order (stable across replays of the same setup), for UI */
+  readonly uid: number;
+  /** Token3DType of the object's GameNode component (TOKEN_TYPES; 0 = no token) */
+  readonly token: number;
   readonly game: Game;
   readonly obj: Obj;
   readonly tile: Tile | null;
@@ -208,6 +234,9 @@ export class GameNode {
     this.space = space;
     this.kind = kind;
     this.encId = encId;
+    this.uid = game.nodeSeq++;
+    const gn = obj.components.GameNode;
+    this.token = gn && typeof gn.Token3DType === "number" ? gn.Token3DType : 0;
     obj.node = this;
   }
 }
@@ -284,6 +313,37 @@ export interface GameOptions {
   logRoundPrefix?: number;
 }
 
+/** MapBuilder options for a game setup (shared by Game and generateBoard) */
+export function mapGenOptions(D: any, opts: GameOptions, campaign: Campaign): MapGenOptions {
+  const c = campaign;
+  const products = opts.products ?? (D.productOrder ?? keysOf(D.models.ProductModel).map(Number));
+  return {
+    seed: opts.mapSeed ?? opts.seed ?? 0, players: opts.players ?? 2, products, language: opts.language ?? "English",
+    unlockedChain: c.unlocked_chain, usedEncounters: c.used_encounters, usedGroups: c.used_groups ?? [],
+    groupItems: opts.groupItems ?? c.items,
+  };
+}
+
+/** True if the adventure prefab has a MapBuilder (generated board, not a battle map or a fixed one) */
+export const hasMapBuilder = (adv: any): boolean =>
+  Object.values<any>(adv.gameObjects).some((o) => Object.hasOwn(o.components ?? {}, "MapBuilder"));
+
+/**
+ * The board a Game with these options would generate, without running it (null: legacy map mode or no MapBuilder).
+ * Lets a client generate first, fetch only the encounters in `spawnOrder`, then start the game with `board`.
+ * Pass a copy of the campaign: generation reads it, the game later mutates it.
+ */
+export function generateBoard(src: ContentSource, advId: number, opts: GameOptions = {}): GeneratedMap | null {
+  const D = src.db();
+  if ((opts.mapMode ?? (D.tiles ? "ffg" : "legacy")) !== "ffg") return null;
+  const adv = src.adventure(advId);
+  if (!hasMapBuilder(adv)) return null;
+  return generateMap(D, adv, mapGenOptions(D, opts, opts.campaign ?? newCampaign()));
+}
+
+/** Encounter ids a board spawns (what a client must preload before starting the game) */
+export const boardEncounters = (m: GeneratedMap): number[] => [...new Set(m.spawnOrder.map(([, , e]) => e))];
+
 // ---------------------------------------------------------------- game
 export class Game {
   readonly rng: PyRandom;
@@ -323,6 +383,8 @@ export class Game {
   tiles = new Map<number, Tile>();
   nodes: GameNode[] = [];
   advNodes: GameNode[] = [];
+  /** GameNode.uid counter */
+  nodeSeq = 0;
   startTileId = -1;
   encounterGroup: any = null;
   private ending = false;
@@ -582,12 +644,7 @@ export class Game {
     const hasBuilder = [...this.advObjs.values()].some((o) => Object.hasOwn(o.components, "MapBuilder"));
     if (!hasBuilder) return;
     const c = this.campaign;
-    const products = this.opts.products ?? (this.D.productOrder ?? keysOf(this.D.models.ProductModel).map(Number));
-    const m = this.opts.board ?? generateMap(this.D, this.adv, {
-      seed: this.opts.mapSeed ?? this.seed, players: this.players, products, language: this.opts.language ?? "English",
-      unlockedChain: c.unlocked_chain, usedEncounters: c.used_encounters, usedGroups: c.used_groups ?? [],
-      groupItems: this.opts.groupItems ?? c.items,
-    });
+    const m = this.opts.board ?? generateMap(this.D, this.adv, mapGenOptions(this.D, { ...this.opts, seed: this.seed, players: this.players }, c));
     this.board = m;
     const byHash = new Map<number, Tile>();
     for (const s of m.sections) {

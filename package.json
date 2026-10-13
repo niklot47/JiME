@@ -12,7 +12,7 @@
   "scripts": {
     "test": "pnpm -r --filter \"./packages/*\" test",
     "typecheck": "pnpm -r --filter \"./packages/*\" typecheck",
-    "packs:build": "node scripts/run-python.mjs tools/importer/export_tiles.py && node scripts/run-python.mjs tools/importer/make_pack.py && node scripts/run-python.mjs tools/importer/export_tile_art.py",
+    "packs:build": "node scripts/run-python.mjs tools/importer/export_tiles.py && node scripts/run-python.mjs tools/importer/make_pack.py && node scripts/run-python.mjs tools/importer/export_tile_art.py && node scripts/run-python.mjs tools/importer/export_fonts.py",
     "packs:validate": "pnpm --filter @jime/content-tools validate",
     "fuzz": "node packages/engine/cli/fuzz-all.ts 10",
     "dev": "pnpm --filter @jime/app dev",
@@ -22,7 +22,8 @@
     "play": "node packages/engine/cli/play.ts",
     "play:bot": "node packages/engine/cli/run.ts",
     "mapgen": "node packages/engine/cli/mapgen.ts",
-    "verify:maps": "node packages/engine/cli/verify-saves.ts"
+    "verify:maps": "node packages/engine/cli/verify-saves.ts",
+    "verify:board": "node packages/engine/cli/board-check.ts 2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

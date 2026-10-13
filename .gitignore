@@ -1,5 +1,5 @@
 # FFG content and generated data never go to git
-data/
+/data/
 Декомпилированые файлы/
 prototype_3d/jime3d.html
 prototype_3d/*.png
@@ -13,3 +13,5 @@ jime_data.zip
 .tmp*/
 apps/app/src-tauri/gen/
 *.tsbuildinfo
+# local screenshots and files from Claude sessions (may contain FFG art)
+Claude outputs/

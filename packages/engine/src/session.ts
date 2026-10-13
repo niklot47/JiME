@@ -4,7 +4,7 @@
 // answers the players gave. When the interpreter needs a decision that is not in the list yet, the
 // ScriptedPlayer throws NeedInput; the Session keeps that decision as `pending`. After the answer is
 // appended, the game is replayed from scratch (~10-20 ms). Save = setup + answers; undo = drop answers.
-import { Bot, Game, keyOf, newCampaign, type Campaign, type ContentSource, type Difficulty, type EnemyGroup,
+import { Bot, Game, generateBoard, keyOf, newCampaign, type Campaign, type ContentSource, type Difficulty, type EnemyGroup,
   type LogEntry, type Option, type Player } from "./game.ts";
 import { gd } from "./py.ts";
 import type { GeneratedMap } from "./map/mapgen.ts";
@@ -12,7 +12,7 @@ import { PyRandom } from "./pyrandom.ts";
 
 // ---------------------------------------------------------------- decisions (plain JSON, for UI)
 export type ActionOption =
-  | { type: "node"; name: string; encounter: number | null; tile: string | null }
+  | { type: "node"; uid: number; name: string; kind: string; token: number; encounter: number | null; tile: string | null; tileId: number | null; space: number }
   | { type: "explore"; tile: string; tileId: number }
   | { type: "attack"; enemy: string; size: number; damage: number; unitHp: number };
 
@@ -43,7 +43,10 @@ export class NeedInput extends Error {
 export class AnswerError extends Error {}
 
 const describeOption = (g: Game, [kind, x]: Option): ActionOption => {
-  if (kind === "node") return { type: "node", name: x.obj.name, encounter: x.encId, tile: x.tile ? x.tile.code : null };
+  if (kind === "node") return {
+    type: "node", uid: x.uid, name: x.obj.name, kind: x.kind, token: x.token, encounter: x.encId,
+    tile: x.tile ? x.tile.code : null, tileId: x.tile ? x.tile.id : null, space: x.space,
+  };
   if (kind === "explore") return { type: "explore", tile: x.code, tileId: x.id };
   return { type: "attack", enemy: String(g.enemyName(x.model, x.size)), size: x.size, damage: x.damage, unitHp: x.unitHp };
 };
@@ -207,6 +210,20 @@ export interface SaveData {
   answers: Answer[];
 }
 
+export interface NodeView {
+  uid: number;
+  name: string;
+  /** NODE_KINDS value (may change at runtime: SetGameNodeType) */
+  kind: string;
+  /** TOKEN_TYPES id, see tokenFamily() */
+  token: number;
+  encounter: number | null;
+  /** Tile hash id and space index; null tile = adventure-level node (position not modelled yet) */
+  tileId: number | null;
+  space: number;
+  visible: boolean;
+}
+
 /** Plain snapshot of the visible game state for UI */
 export interface GameView {
   adv: number;
@@ -217,7 +234,11 @@ export interface GameView {
   ended: string | null;
   result: string | null;
   heroes: { damage: number; fear: number; defeated: boolean }[];
+  /** token = the tile still has its exploration token */
   tiles: { id: number; code: string; section: number; visible: boolean; explored: boolean; token: boolean }[];
+  /** All game nodes; a node is shown when visible and (no tile or its tile is visible) */
+  nodes: NodeView[];
+  startTile: number;
   enemies: { uid: number; name: string; size: number; damage: number; unitHp: number; exhausted: boolean }[];
   campaign: { lore: number; xp: number; items: any[]; titles: any[]; next: any };
 }
@@ -228,9 +249,23 @@ export function viewOf(g: Game): GameView {
     ended: g.ended, result: g.result,
     heroes: g.heroes.map((h) => ({ ...h })),
     tiles: [...g.tiles.values()].map((t) => ({ id: t.id, code: t.code, section: t.section, visible: t.visible, explored: t.explored, token: t.exploreToken })),
+    nodes: [...g.nodes, ...g.advNodes].sort((a, b) => a.uid - b.uid).map((n) => ({
+      uid: n.uid, name: n.obj.name, kind: n.kind, token: n.token, encounter: n.encId,
+      tileId: n.tile ? n.tile.id : null, space: n.space, visible: n.visible && (n.tile === null || n.tile.visible),
+    })),
+    startTile: g.startTileId,
     enemies: g.enemies.map((e) => ({ uid: e.uid, name: String(g.enemyName(e.model, e.size)), size: e.size, damage: e.damage, unitHp: e.unitHp, exhausted: e.exhausted })),
     campaign: { lore: g.campaign.lore, xp: g.campaign.xp, items: [...g.campaign.items], titles: [...g.campaign.titles], next: g.campaign.next_adventure },
   };
+}
+
+export interface SessionOptions {
+  board?: GeneratedMap | null;
+}
+
+/** The board a Session with this setup will play on (null: no generated map), see Session opts.board */
+export function sessionBoard(src: ContentSource, setup: SessionSetup): GeneratedMap | null {
+  return generateBoard(src, setup.adv, gameOpts(setup));
 }
 
 export const ENGINE_SAVE_VERSION = "0.3.0";
@@ -244,10 +279,15 @@ export class Session {
   /** Board of the first replay, reused by later replays (map generation can take up to seconds) */
   private board: GeneratedMap | undefined;
 
-  constructor(src: ContentSource, setup: SessionSetup, answers: Answer[] = []) {
+  /**
+   * opts.board: a board from sessionBoard() for the same setup. Then the source only needs the encounters
+   * of that board (boardEncounters) - a browser client can preload them and stay synchronous.
+   */
+  constructor(src: ContentSource, setup: SessionSetup, answers: Answer[] = [], opts: SessionOptions = {}) {
     this.src = src;
     this.setup = structuredClone(setup);
     this.answers.push(...answers);
+    this.board = opts.board ?? undefined;
     this.replay();
   }
 
@@ -301,9 +341,9 @@ export class Session {
     };
   }
 
-  static load(src: ContentSource, data: SaveData): Session {
+  static load(src: ContentSource, data: SaveData, opts: SessionOptions = {}): Session {
     if (data.format !== "jime-save" || data.formatVersion !== 1) throw new Error("not a JiME save (format/version)");
-    return new Session(src, data.setup, data.answers);
+    return new Session(src, data.setup, data.answers, opts);
   }
 }
 

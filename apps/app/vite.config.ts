@@ -6,7 +6,7 @@ import { extname, join, normalize, resolve } from "node:path";
 // Dev-time access to locally imported packs (FFG content never goes into the build):
 // GET /packs/<pack-id>/<path> -> $JIME_PACKS | $JIME_WORK/packs | <repo>/data/packs
 const packsDir = process.env.JIME_PACKS ?? join(process.env.JIME_WORK ?? resolve(__dirname, "../../data"), "packs");
-const TYPES: Record<string, string> = { ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".csv": "text/csv; charset=utf-8" };
+const TYPES: Record<string, string> = { ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".csv": "text/csv; charset=utf-8", ".ttf": "font/ttf" };
 
 function servePacks(): Plugin {
   return {

@@ -29,7 +29,7 @@
 | `packages/schema/` | JSON Schema + типы TS: пак, сценарий, база (`docs/PACKS.md`) |
 | `packages/engine/` | Движок без UI (TS): интерпретатор FSM, бот, фаззер, сверка с `engine-py` (`docs/ENGINE.md`) |
 | `packages/content-tools/` | Загрузка паков, зависимости, слои, CSV-локализация, CLI проверки |
-| `apps/app/` | Приложение: Tauri 2 + React + Vite |
+| `apps/app/` | Приложение: Tauri 2 + React + Vite. Экраны «Игра» (`screens/GameScreen.tsx`) и «Карта» |
 | `scripts/` | Мелкие кроссплатформенные обёртки для `pnpm` |
 | `tools/importer/` | Python: чтение ассетов Unity из установленной игры → нейтральный JSON (`export_all.py`), локализация (`extract_loc.py`), 3D-ассеты (`proto_extract.py`) |
 | `engine-py/` | Прототип интерпретатора сценариев на Python + бот, фаззер, сверка с реальным логом |
@@ -51,7 +51,7 @@ pnpm fuzz                 # бот по всем 72 приключениям (TS
 pnpm play 1 7             # сыграть A1 (сид 7) в терминале на русском
 pnpm play:bot 1 7         # та же партия ботом
 pnpm parity               # сверка TS-движка с engine-py
-pnpm dev                  # интерфейс в браузере, http://localhost:1420 (экран «Карта»)
+pnpm dev                  # интерфейс в браузере, http://localhost:1420 (экраны «Игра» и «Карта»)
 pnpm tauri dev            # то же в окне Tauri
 pnpm tauri build          # установщик Windows
 ```
@@ -66,6 +66,7 @@ python3 engine-py/fuzz.py 1 300 data/ref/LogA_slot2.txt   # 300 партий + �
 python3 engine-py/fuzz_all.py 10                  # все 72 приключения
 python3 engine-py/story.py 1 7 ru > story.md      # читаемая история партии
 python3 tools/importer/export_tiles.py            # геометрия тайлов (нужна папка игры)
+python3 tools/importer/export_fonts.py            # шрифты игры с иконками → packs/core-ffg/fonts
 python3 tools/importer/make_pack.py               # собрать пак core-ffg
 bash tools/vm-node.sh test                        # JS: зеркало в $HOME/jime_build, pnpm install, тесты
 bash tools/vm-node.sh packs:validate

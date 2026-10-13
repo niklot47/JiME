@@ -38,5 +38,6 @@
 ## Git
 
 - Репозиторий: `D:\JiME_Claude`. В `.gitignore`: `data/`, `Декомпилированые файлы/`, `node_modules/`, сборки, всё с контентом FFG.
-- Коммиты удобнее делать самому в PowerShell (`git add -A; git commit -m "..."`). Если коммитит Claude из VM, ему нужно разрешение на удаление в папке `JiME_Claude`: git удаляет свои lock-файлы.
+- Коммитит Claude через Desktop Commander (`start_process`, PowerShell прямо на Windows): `cd D:\JiME_Claude; git add -A; git commit -m "..."`. Пуш делает пользователь. Из VM git не работает: папка `.git` там не видна.
+- `.gitignore`: `/data/` — только корневая папка (раньше `data/` скрывал и `apps/app/src/data`).
 - Позже можно завести приватный репозиторий на GitHub: тогда облачная сессия сможет клонировать код без ПК.
