@@ -57,7 +57,8 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
             <div className="ramp" style={{ width: frac > 0 ? `${100 / frac}%` : "100%", backgroundImage: url(art.threatGradient) }} />
             {art.threatLiquid && <div className="liquid" style={{ backgroundImage: url(art.threatLiquid) }} />}
           </div>
-          {frac > 0 && art.threatFire && <span key={view.threat} className="flame" style={{ left: `${100 * frac}%`, backgroundImage: url(art.threatFire) }} />}
+          {/* the burning edge of the fill: the flame sprite turned so it licks back along the fill (data/ref/video) */}
+          {frac > 0 && art.threatFire && <span key={view.threat} className="flame" style={{ left: `${100 * frac}%` }}><i style={{ backgroundImage: url(art.threatFire) }} /></span>}
         </div>
         {art.threatMeter && <img className="ng-threat-img" src={assetUrl(art.threatMeter)} alt="" />}
         </>

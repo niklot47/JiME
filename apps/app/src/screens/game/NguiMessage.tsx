@@ -62,8 +62,9 @@ export function NguiMessage({ layout, atlas, say, content }: { layout: UiLayoutF
         b.ButtonCancelChallenge = { show: false };
         break;
       case "confirm":
-        btn("Button_Confirm", () => content.onAnswer(true), { node: "Label_Confirm", html: "Да" });
-        btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: "Нет" });
+        // MessagePopup.ShowConfirmCancelMessage: the action's ConfirmLabel / CancelLabel
+        btn("Button_Confirm", () => content.onAnswer(true), { node: "Label_Confirm", html: say(d.yes) || yes });
+        btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: say(d.no) || "Отмена" });
         break;
       case "lastStand":
         b.Label_Message!.html = `Последний рубеж: Герой ${d.hero + 1} (${d.physical ? "урон" : "страх"})${d.key ? `<br><br>${say(d.key, d.inserts)}` : ""}`;

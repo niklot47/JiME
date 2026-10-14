@@ -97,8 +97,8 @@ export function DecisionDialog({ d, view, atlas, say, enemyArt, onAnswer }: {
         <div className="dialog-area">
           {prompt && <MessageBox atlas={atlas}>{prompt}</MessageBox>}
           <div className="dialog-buttons">
-            <GreenButton atlas={atlas} onClick={() => onAnswer(true)}>Да</GreenButton>
-            <GreenButton atlas={atlas} onClick={() => onAnswer(false)}>Нет</GreenButton>
+            <GreenButton atlas={atlas} onClick={() => onAnswer(false)}><span dangerouslySetInnerHTML={{ __html: say(d.no) || "Отмена" }} /></GreenButton>
+            <GreenButton atlas={atlas} onClick={() => onAnswer(true)}><span dangerouslySetInnerHTML={{ __html: say(d.yes) || "Подтвердить" }} /></GreenButton>
           </div>
         </div>
       );

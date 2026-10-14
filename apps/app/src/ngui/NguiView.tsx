@@ -39,6 +39,54 @@ function tintUrl(src: string, c: number[]): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------- sliced sprites, drawn once per size
+// CSS border-image leaves seams between the slices when the UI is scaled, and cannot stretch a zero-width middle:
+// many NGUI sprites are all border (Frame_Empty 64 x 37 with borders 32 + 32 / 28 + 9), NGUI then stretches the one
+// texel line between the borders. Here the nine parts are drawn into one canvas at twice the UI size.
+const SLICE_SCALE = 2;
+const sliced = new Map<string, string | null>();
+const images = new Map<string, Promise<HTMLImageElement>>();
+function loadImage(src: string): Promise<HTMLImageElement> {
+  let p = images.get(src);
+  if (!p) {
+    p = new Promise((ok, fail) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = fail; i.src = src; });
+    images.set(src, p);
+  }
+  return p;
+}
+
+/** URL of `src` 9-sliced to w x h UI units with borders [l, r, t, b] (cached; null while it is being made) */
+function slicedUrl(src: string, border: [number, number, number, number], w: number, h: number): string | null {
+  const W = Math.max(1, Math.round(w * SLICE_SCALE)), H = Math.max(1, Math.round(h * SLICE_SCALE));
+  const key = `${src}|${W}x${H}`;
+  if (sliced.has(key)) return sliced.get(key)!;
+  sliced.set(key, null);
+  void loadImage(src).then((img) => {
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const [l, r, t, b] = border;
+    // source columns / rows: border, middle (at least one texel), border
+    const sx = [0, Math.min(l, iw - 1), Math.max(Math.min(l, iw - 1) + 1, iw - r), iw];
+    const sy = [0, Math.min(t, ih - 1), Math.max(Math.min(t, ih - 1) + 1, ih - b), ih];
+    // destination: borders at their UI size (shrunk together when the widget is smaller), middle stretched
+    const kx = Math.min(1, w / Math.max(1, l + r)), ky = Math.min(1, h / Math.max(1, t + b));
+    const dl = Math.round(l * kx * SLICE_SCALE), dr = Math.round(r * kx * SLICE_SCALE);
+    const dt = Math.round(t * ky * SLICE_SCALE), db = Math.round(b * ky * SLICE_SCALE);
+    const dx = [0, dl, W - dr, W], dy = [0, dt, H - db, H];
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const g = cv.getContext("2d")!;
+    g.imageSmoothingQuality = "high";
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        const sw = sx[i + 1]! - sx[i]!, sh = sy[j + 1]! - sy[j]!, ow = dx[i + 1]! - dx[i]!, oh = dy[j + 1]! - dy[j]!;
+        if (sw > 0 && sh > 0 && ow > 0 && oh > 0) g.drawImage(img, sx[i]!, sy[j]!, sw, sh, dx[i]!, dy[j]!, ow, oh);
+      }
+    }
+    cv.toBlob((bl) => { if (bl) { sliced.set(key, URL.createObjectURL(bl)); version++; for (const f of listeners) f(); } });
+  }).catch(() => undefined);
+  return null;
+}
+
 // ---------------------------------------------------------------- widget styles
 const MAT_GAIN = 1.6;
 const isWhite = (c?: number[]) => !c || (c[0] === 1 && c[1] === 1 && c[2] === 1);
@@ -69,7 +117,11 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
   if (!isWhite(color)) url = tintUrl(url, color!) ?? url;
   const st: CSSProperties = {};
   const [l, r, t, b] = border;
-  if (w.t === 1 && (l || r || t || b)) {
+  const ready = w.t === 1 && (l || r || t || b) ? slicedUrl(url, border, box.width, box.height) : null;
+  if (ready) {
+    st.backgroundImage = `url("${ready}")`;
+    st.backgroundSize = "100% 100%";
+  } else if (w.t === 1 && (l || r || t || b)) {
     st.borderStyle = "solid";
     st.borderWidth = `${t}px ${r}px ${b}px ${l}px`;
     st.borderImage = `url("${url}") ${t} ${r} ${b} ${l} fill / ${t}px ${r}px ${b}px ${l}px stretch`;

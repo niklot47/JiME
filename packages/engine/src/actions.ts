@@ -92,7 +92,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
     return pairs.length ? gd(pairs[pairs.length - 1], "Event") : null;
   },
   DisplayMessageCancelConfirm: (g, f, p) => {
-    if (g.player.confirm(g, showKey(p, g, f))) {
+    if (g.player.confirm(g, showKey(p, g, f), keyOf(gd(p, "ConfirmLabel")), keyOf(gd(p, "CancelLabel")))) {
       g.show(f, gd(p, "Message"));
       g.emit(or(keyOf(gd(p, "ConfirmLabel")), "UI_CONFIRM"));
       return "CONFIRM";

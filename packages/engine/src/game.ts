@@ -1451,8 +1451,8 @@ export type Option = ["node", GameNode] | ["explore", Tile] | ["attack", EnemyGr
 export interface Player {
   /** Skill test: how many successes the players rolled (top = highest threshold of interest) */
   successes(g: Game, top: number, key: any): number;
-  /** Confirm/cancel dialog */
-  confirm(g: Game, key: any): boolean;
+  /** Confirm/cancel dialog (button labels: localization keys, default UI_CONFIRM / UI_CANCEL) */
+  confirm(g: Game, key: any, yes?: string | null, no?: string | null): boolean;
   /** Multiple choice: one of `choices`, or null = cancel (only if canCancel) */
   choose(g: Game, key: any, choices: any[], canCancel: boolean): any;
   /** "Choose a hero" dialog */

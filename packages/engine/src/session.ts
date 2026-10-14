@@ -19,7 +19,8 @@ export type ActionOption =
 
 export type Decision =
   | { kind: "test"; key: string | null; inserts: string[]; top: number }
-  | { kind: "confirm"; key: string | null; inserts: string[] }
+  /** yes / no: button label keys (DisplayMessageCancelConfirm.ConfirmLabel / CancelLabel) */
+  | { kind: "confirm"; key: string | null; inserts: string[]; yes: string; no: string }
   | { kind: "choice"; key: string | null; inserts: string[]; choices: { key: string | null; inserts: string[] }[]; canCancel: boolean }
   | { kind: "hero"; key: string | null; inserts: string[]; players: number; canSkip: boolean }
   | { kind: "lastStand"; hero: number; physical: boolean; key: string | null; inserts: string[] }
@@ -108,8 +109,8 @@ export class ScriptedPlayer implements Player {
     return this.next({ kind: "test", key, inserts: g.promptInserts(), top });
   }
 
-  confirm(g: Game, key: any): boolean {
-    return this.next({ kind: "confirm", key, inserts: g.promptInserts() });
+  confirm(g: Game, key: any, yes?: string | null, no?: string | null): boolean {
+    return this.next({ kind: "confirm", key, inserts: g.promptInserts(), yes: yes || "UI_CONFIRM", no: no || "UI_CANCEL" });
   }
 
   choose(g: Game, key: any, choices: any[], canCancel: boolean): any {
@@ -162,8 +163,8 @@ export class RecordingPlayer implements Player {
     return this.rec(v, v);
   }
 
-  confirm(g: Game, key: any): boolean {
-    const v = this.inner.confirm(g, key);
+  confirm(g: Game, key: any, yes?: string | null, no?: string | null): boolean {
+    const v = this.inner.confirm(g, key, yes, no);
     return this.rec(v, v);
   }
 
