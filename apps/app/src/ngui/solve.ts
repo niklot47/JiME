@@ -34,6 +34,9 @@ export interface Bind {
    * for the lore gain, "top" for the threat bar when the interface is scaled down (the virtual screen gets taller)
    */
   pin?: string;
+  /** keep the saved height above the anchored bottom (the original's enemy bar shows at its saved 47, not the 61 its
+   *  anchors give) */
+  keepH?: boolean;
   /** panel depth override for the subtree (a popup inside a dialog whose saved panel depth is lower than the dialog's) */
   depth?: number;
   /** UIGrid cell size override (e.g. EnemyHealthBar: 350 / max health) */
@@ -133,6 +136,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
           if (!autoH) {
             if (B !== null && T !== null) { rc.b = B; rc.t = T; } else if (B !== null) { rc.t = B + (rc.t - rc.b); rc.b = B; } else if (T !== null) { rc.b = T - (rc.t - rc.b); rc.t = T; }
           }
+          if (b.keepH) rc.t = rc.b + (b.h ?? w.h) * Math.abs(nsy);
           ww = rc.r - rc.l; hh = rc.t - rc.b;
           x = rc.l + fx * ww; y = rc.b + fy * hh;
           // UIWidget.OnAnchor: the position comes from the anchored sides, then the size keeps its aspect ratio

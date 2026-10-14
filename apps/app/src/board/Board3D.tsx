@@ -27,6 +27,8 @@ interface Props {
   table?: string;
   /** Location highlight (board coordinates): the turning yellow arrows where enemies are to be placed */
   marker?: [number, number] | null;
+  /** a new game: even the first tiles drop in one by one (the view opens on the fog) */
+  intro?: boolean;
 }
 
 /** Animation step; returns false when finished */
@@ -231,16 +233,23 @@ function buildFog(hidden: TileMesh[], fx: Record<string, string>): THREE.Group {
   const tex = [fx.cloud, fx.smoke].filter(Boolean).map((p) => texture(p!));
   // flat cloud layers floating above the table (billboards would cut into the table at this camera tilt)
   const geo = new THREE.PlaneGeometry(1, 1);
+  // many large, faint layers (the original's fog is an even haze, no single clouds stand out), slowly drifting
   const add = (x: number, y: number, opacity: number, sc: number) => {
-    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex[Math.floor(Math.random() * tex.length)]!, color: 0xa39a8c, transparent: true, opacity, depthWrite: false }));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex[Math.floor(Math.random() * tex.length)]!, color: 0xa8a096, transparent: true, opacity, depthWrite: false }));
     m.scale.set(sc, sc, 1);
     m.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
-    m.position.copy(v3(x + (Math.random() - 0.5) * 0.5, y + (Math.random() - 0.5) * 0.5, 0.2 + Math.random() * 0.25));
-    m.userData = { spin: (Math.random() - 0.5) * 0.06, bob: Math.random() * 6, y: m.position.y };
+    m.position.copy(v3(x + (Math.random() - 0.5) * 0.8, y + (Math.random() - 0.5) * 0.8, 0.2 + Math.random() * 0.35));
+    m.userData = { spin: (Math.random() - 0.5) * 0.1, bob: Math.random() * 6, y: m.position.y, x: m.position.x, z: m.position.z,
+      drift: 0.25 + Math.random() * 0.35, speed: 0.15 + Math.random() * 0.2 };
     m.renderOrder = 4;
     g.add(m);
   };
-  for (const t of hidden) for (const [x, y] of t.hexCenters) add(x, y, 0.42 + Math.random() * 0.12, 2.4 + Math.random() * 1.0);
+  for (const t of hidden) {
+    for (const [x, y] of t.hexCenters) {
+      add(x, y, 0.16 + Math.random() * 0.06, 4.2 + Math.random() * 1.6);
+      add(x, y, 0.12 + Math.random() * 0.05, 5.5 + Math.random() * 2.0);
+    }
+  }
   return g;
 }
 
@@ -401,7 +410,7 @@ function markerGroup(fx: Record<string, string>): THREE.Group {
   return g;
 }
 
-export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table, marker = null }: Props) {
+export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table, marker = null, intro = false }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<State | null>(null);
   const pickRef = useRef(onPick);
@@ -470,7 +479,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       if (s.effects.length) anim = true;
       for (const { mat, target } of s.tileMats.values()) {
         const u = mat.userData.sepia as { value: number };
-        if (Math.abs(u.value - target) > 0.005) { u.value += (target - u.value) * 0.08; anim = true; } else u.value = target;
+        // gradual, like the original (a placed tile darkens over about a second)
+        if (Math.abs(u.value - target) > 0.005) { u.value += (target - u.value) * Math.min(1, dt * 2.2); anim = true; } else u.value = target;
       }
       for (const p of s.pulses) {
         const k = 1 + 0.06 * Math.sin(time / 260);
@@ -548,6 +558,9 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         t.repeat.set(24, 24);
         mat.map = t;
         mat.color.set(0xffffff);
+        // the original's table is lighter: the leather lit a little by itself
+        mat.emissive.set(0x786858);
+        mat.emissiveMap = t;
       } else {
         mat.map = tableTexture();
         mat.color.set(0xffffff);
@@ -555,7 +568,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       mat.needsUpdate = true;
     }
     // a new view (game, adventure): everything shows at once, no flights
-    if (fitKey === undefined || fitKey !== lastFit.current) { s.ready = false; s.queue = []; s.busy = false; }
+    if (fitKey === undefined || fitKey !== lastFit.current) { s.ready = intro; s.queue = []; s.busy = false; }
     // tiles: built once per tile, reused across updates (keeps the sepia fade going)
     const shown = tiles.filter((t) => !shownTiles || shownTiles.has(t.tile.hashId));
     const keep = new Set(shown.map((t) => t.tile.hashId));
@@ -570,7 +583,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         s.board.add(c.group);
         if (s.ready) { c.group.visible = false; s.queue.push({ kind: "tile", id: t.tile.hashId }); }
         const mat = c.top.material as THREE.MeshStandardMaterial;
-        (mat.userData.sepia as { value: number }).value = target; // new tiles appear in their state
+        // the first view appears in its state; a tile placed later comes in colour and darkens
+        (mat.userData.sepia as { value: number }).value = s.ready ? 0 : target;
         s.tileMats.set(t.tile.hashId, { mat, target });
       } else {
         const tm = s.tileMats.get(t.tile.hashId)!;
@@ -651,8 +665,11 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         s.effects.push((dt, time) => {
           if (st.current?.fog !== fog) return false;
           for (const m of fog.children) {
-            m.rotation.z += m.userData.spin * dt;
-            m.position.y = m.userData.y + Math.sin(time * 0.5 + m.userData.bob) * 0.04;
+            const u = m.userData;
+            m.rotation.z += u.spin * dt;
+            m.position.y = u.y + Math.sin(time * 0.5 + u.bob) * 0.04;
+            m.position.x = u.x + Math.sin(time * u.speed + u.bob) * u.drift;
+            m.position.z = u.z + Math.cos(time * u.speed * 0.8 + u.bob * 1.7) * u.drift;
           }
           return true;
         });
@@ -660,11 +677,18 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     }
     // frame the camera on the shown tiles when the view key changes (the first content shows at once)
     const refit = fitKey === undefined || fitKey !== lastFit.current;
-    if (refit && shown.length) {
+    const opening = refit && intro;
+    if (refit && tiles.length) {
       lastFit.current = fitKey;
       s.board.updateMatrixWorld(true);
       const box = new THREE.Box3();
       for (const t of shown) box.expandByObject(tileCache.current.get(t.tile.hashId)!.group);
+      // nothing placed yet / a new game opening on the fog: frame the whole map's area
+      if (!shown.length || opening) {
+        box.makeEmpty();
+        for (const t of tiles) for (const [x, y] of t.hexCenters) box.expandByPoint(v3(x, y).applyMatrix4(s.board.matrixWorld));
+        box.expandByScalar(1);
+      }
       const c = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
       const r = Math.max(size.x, size.z) * 0.5 + 1;
@@ -681,7 +705,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       sc.updateProjectionMatrix();
       s.controls.update();
     }
-    if (shown.length) s.ready = true;
+    if (tiles.length) s.ready = true;
     pump(s, tileCache.current, fx, tiles);
     s.invalidate();
   }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table, marker]);

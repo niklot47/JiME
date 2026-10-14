@@ -64,6 +64,7 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
   const b: Binds = {
     // the meter is placed from the screen centre in the layout: kept at the top when the interface is scaled down
     Panel_Threat: { pin: "top" },
+    Sprite_EnemyBar: { keepH: true },
     Dialog_ThreatEventInfo: { show: info !== null && canInfo },
     "Dialog_ThreatEventInfo/Dialog_ThreatEventInfo": {},
     Label_ThreatEventInfo: { html: info !== null ? say(view.threatInfo.filter((t) => t.threshold <= max)[info]?.info) : "" },

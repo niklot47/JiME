@@ -201,9 +201,21 @@ export interface Space {
   darkness: boolean;
 }
 
+/** Length of the running game's log (set by Game): when tiles and nodes appear, for the UI to show them with their message */
+export const LOG_CLOCK = { now: (): number => 0 };
+
 export class Tile {
   readonly spaces: Space[];
-  visible = false;
+  private shown = false;
+  /** log index from which the tile is shown (the message placing it); -1 = never */
+  shownAt = -1;
+  /** log index of the message placing its exploration token */
+  tokenAt = -1;
+  get visible(): boolean { return this.shown; }
+  set visible(v: boolean) {
+    if (v && !this.shown) { this.shownAt = LOG_CLOCK.now(); this.tokenAt = this.shownAt; }
+    this.shown = v;
+  }
   get hasDarkness(): boolean {
     return this.spaces.some((s) => s.darkness);
   }
@@ -227,7 +239,14 @@ export class Tile {
 }
 
 export class GameNode {
-  visible = false;
+  private shown = false;
+  /** log index from which the token is shown (see Tile.shownAt) */
+  shownAt = -1;
+  get visible(): boolean { return this.shown; }
+  set visible(v: boolean) {
+    if (v && !this.shown) this.shownAt = LOG_CLOCK.now();
+    this.shown = v;
+  }
   /** Id within one game in creation order (stable across replays of the same setup), for UI */
   readonly uid: number;
   /** Token3DType of the object's GameNode component (TOKEN_TYPES; 0 = no token) */
@@ -498,6 +517,7 @@ export class Game {
   private readonly opts: GameOptions;
 
   constructor(src: ContentSource, advId: number, opts: GameOptions = {}) {
+    LOG_CLOCK.now = () => this.log.length;
     this.src = src;
     this.advId = advId;
     this.seed = opts.seed ?? 0;
@@ -1146,6 +1166,8 @@ export class Game {
   }
 
   explore(t: Tile, skipAdjacent: any = false): void {
+    // the tokens found here come with the explore message just written
+    const at = this.log.length - 1;
     t.visible = true;
     t.explored = true;
     t.exploreToken = false;
@@ -1153,7 +1175,9 @@ export class Game {
       const nd = sp.node;
       if (nd === null) continue;
       for (const fs of nd.obj.fsms) if (fs.usesEvent("PRE_REVEAL")) fs.send("PRE_REVEAL");
+      const was = nd.visible;
       nd.visible = true;
+      if (!was && at >= 0) nd.shownAt = Math.min(nd.shownAt, at);
       for (const fs of nd.obj.fsms) if (fs.usesEvent("REVEALED")) fs.send("REVEALED");
     }
     if (!truthy(skipAdjacent) && t.adjacentSections.size && this.advFsm && this.advFsm.usesEvent("ADJACENT_TILE_EXPLORED")) {

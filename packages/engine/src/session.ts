@@ -247,6 +247,8 @@ export interface NodeView {
   tileId: number | null;
   space: number;
   visible: boolean;
+  /** log index of the message that placed it (see Tile.shownAt) */
+  shownAt: number;
 }
 
 /** Plain snapshot of the visible game state for UI */
@@ -268,7 +270,8 @@ export interface GameView {
   /** damage/fear: bot simulation only; lastStand: next last stand difficulty */
   heroes: { damage: number; fear: number; defeated: boolean; lastStand: number }[];
   /** token = the tile still has its exploration token */
-  tiles: { id: number; code: string; section: number; visible: boolean; explored: boolean; token: boolean }[];
+  /** shownAt / tokenAt: log index of the message placing the tile / its exploration token (the UI shows them then) */
+  tiles: { id: number; code: string; section: number; visible: boolean; explored: boolean; token: boolean; shownAt: number; tokenAt: number }[];
   /** All game nodes; a node is shown when visible and (no tile or its tile is visible) */
   nodes: NodeView[];
   startTile: number;
@@ -296,10 +299,10 @@ export function viewOf(g: Game): GameView {
     objectiveInserts: [...g.objectiveInserts],
     ended: g.ended, result: g.result,
     heroes: g.heroes.map((h) => ({ ...h })),
-    tiles: [...g.tiles.values()].map((t) => ({ id: t.id, code: t.code, section: t.section, visible: t.visible, explored: t.explored, token: t.exploreToken })),
+    tiles: [...g.tiles.values()].map((t) => ({ id: t.id, code: t.code, section: t.section, visible: t.visible, explored: t.explored, token: t.exploreToken, shownAt: t.shownAt, tokenAt: t.tokenAt })),
     nodes: [...g.nodes, ...g.advNodes].sort((a, b) => a.uid - b.uid).map((n) => ({
       uid: n.uid, name: n.obj.name, kind: n.kind, token: n.token, encounter: n.encId,
-      tileId: n.tile ? n.tile.id : null, space: n.space, visible: n.visible && (n.tile === null || n.tile.visible),
+      tileId: n.tile ? n.tile.id : null, space: n.space, visible: n.visible && (n.tile === null || n.tile.visible), shownAt: n.shownAt,
     })),
     startTile: g.startTileId,
     enemies: g.enemies.map((e) => ({

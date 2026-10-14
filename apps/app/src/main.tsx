@@ -4,11 +4,13 @@ import { App } from "./App.tsx";
 import { initHost } from "./data/host.ts";
 import { installTheme } from "./data/pack.ts";
 import { sound } from "./audio/sound.ts";
+import { installFullscreenKeys } from "./data/fullscreen.ts";
 import "./styles.css";
 
 initHost();
 void installTheme();
 sound.install();
+installFullscreenKeys();
 // a soft click for every enabled button (the original's UI button sound)
 document.addEventListener("click", (e) => {
   const b = (e.target as Element | null)?.closest?.("button");

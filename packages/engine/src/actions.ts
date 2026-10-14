@@ -304,6 +304,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
       g.emit("UI_SECTION_REVEAL_PLACE_TILE_FORMATTED", t.code);
     }
     const tokens = fresh.filter((t) => !t.explored).length;
+    for (const t of fresh) if (!t.explored) t.tokenAt = g.log.length; // dropped with the "place exploration tokens" message
     if (tokens === 1) g.emit("UI_PLACE_EXPLORE_TOKEN");
     else if (tokens > 1) g.emit("UI_PLACE_EXPLORE_TOKENS");
   },

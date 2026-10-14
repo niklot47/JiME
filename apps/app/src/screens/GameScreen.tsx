@@ -10,6 +10,7 @@ import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
 import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, loadUiLayout, loadHeroArt, assetUrl, type HeroArt, type AtlasSprite, themeChoice, loadPackSet, packConfig } from "../data/pack.ts";
 import { setHeroNames, textHtml } from "../text/markup.ts";
+import { toggleFullscreen } from "../data/fullscreen.ts";
 import { sound } from "../audio/sound.ts";
 import { PHASE_KEYS, gameSounds } from "../audio/gameFx.ts";
 import { BottomBar, GearButton, PhaseBanner, ThreatBar } from "./game/Hud.tsx";
@@ -384,6 +385,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
       <div className="board-wrap">
         <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d}
           marker={head && !banner ? head[4]?.at ?? null : null}
+          cut={head ? state.log.length - unread.length + unread.indexOf(head) : Infinity}
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         {uiLayout ? (
           <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
@@ -434,6 +436,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
               { label: "↶ Отменить ход", disabled: !state.answers || busy, onClick: () => { setModal(null); update({ type: "undo" }); } },
               { label: "Сохранить в файл", onClick: () => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save) },
               { label: view3d ? "Доска: 2D" : "Доска: 3D", onClick: () => toggleView(!view3d) },
+              { label: "Полный экран (F11)", onClick: () => void toggleFullscreen() },
             ]}
             onSurrender={() => { setModal(null); setGame(null); }} onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
         )}
@@ -459,10 +462,12 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, view3d, marker, onAnswer }: {
+function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, view3d, marker, cut, onAnswer }: {
   game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, TokenArt>; tokenMeshes: Record<string, TokenMeshData>; fx: Record<string, string>; table?: string; labels: boolean; view3d: boolean;
   /** the space a message points at (enemies to place there) */
   marker?: SpaceRef | null;
+  /** log index of the message on screen: tiles and tokens placed by later messages wait for theirs */
+  cut: number;
   onAnswer: (a: Answer) => void;
 }) {
   const { board, adv, state: { view, pending } } = game;
@@ -493,12 +498,13 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
       return { ...TOKEN_LOOK[tokenFamily(t)]!, image: a?.top, shape: shapeOf(t), skin: a?.raw && m ? { texture: a.raw, mesh: a.mesh!, data: m } : undefined };
     };
     const meshById = new Map(meshes.map((m) => [m.tile.hashId, m]));
+    const tileShown = new Map(view.tiles.map((t) => [t.id, t.visible && t.shownAt <= cut]));
     for (const t of view.tiles) {
-      if (!t.visible) continue;
+      if (!tileShown.get(t.id)) continue;
       shown.add(t.id);
       if (!t.explored) { colors.set(t.id, 0x7a7a7a); sepia.add(t.id); }
       const gt = genTiles.get(t.id);
-      if (gt && !t.explored && t.token) {
+      if (gt && !t.explored && t.token && t.tokenAt <= cut) {
         // on the printed explore mark of the tile art, aligned with the tile
         const mesh = meshById.get(t.id);
         const [x, y] = mesh?.explore ?? tileCenter(gt);
@@ -507,7 +513,7 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
       }
     }
     for (const n of view.nodes) {
-      if (!n.visible || n.tileId === null) continue;
+      if (!n.visible || n.tileId === null || n.shownAt > cut || !tileShown.get(n.tileId)) continue;
       const gt = genTiles.get(n.tileId);
       // the space's node position from the tile art (TileSpace.NodePosition), else the centre of its hexes
       const p = meshById.get(n.tileId)?.nodes[n.space] ?? (gt && db ? spaceCenter(db, adv, gt, n.space) : null);
@@ -516,7 +522,7 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
       tokens.push({ x: p[0], y: p[1], id, label: labels ? shortName(n.name) : "", ...look(n.token), active: targets.has(id) });
     }
     return { tokens, shown, colors, sepia };
-  }, [view, targets, labels, genTiles, db, adv, tokenArt, tokenMeshes, meshes]);
+  }, [view, targets, labels, genTiles, db, adv, tokenArt, tokenMeshes, meshes, cut]);
 
   // the location highlight: the space's node position on the tile art, else the centre of the space's hexes
   const markerAt = useMemo((): [number, number] | null => {
@@ -534,7 +540,7 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Решения — в диалогах поверх экрана.</p></div>;
   if (view3d) {
     // framed once per adventure; new tiles and tokens then appear one by one with the camera flying to them
-    return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} marker={markerAt}
+    return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} marker={markerAt} intro={game.state.answers === 0}
       shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}`} fx={fx} table={table} />;
   }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
