@@ -38,7 +38,8 @@ export function NguiMessage({ layout, atlas, say, content, party = [] }: {
     // InitializePlacement: pivot Top at y = 0, width 750, centred (label.height > minHeight always holds)
     Label_Message: { pv: 1, at: [0, 0], w: 750, al: 2 },
     // InitializePopup: the extra icon (elite banner) only with PopupOptions.ExtraSpriteId > 0
-    Sprite_ExtraIcon: { show: false },
+    Sprite_ExtraIcon: content.kind === "message" && (content.entry[4]?.banner ?? 0) > 0
+      ? { show: true, sprite: `Banner${String(content.entry[4]!.banner).padStart(2, "0")}` } : { show: false },
   };
   const btn = (name: string, onClick: () => void, label?: { node: string; html: string }) => {
     b[name] = { show: true, onClick };

@@ -36,13 +36,15 @@ function hudLayout(layout: UiLayoutFile): UiLayoutFile {
   return l;
 }
 
-export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, loreGain, canInfo, tileCallout, onParty, onSettings, onEndRound, onEnemy }: {
+export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, loreGain, canInfo, tileCallout, saving, onParty, onSettings, onEndRound, onEnemy }: {
   layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; enemyArt: Record<string, string>; say: Say; view: GameView;
   canEndRound: boolean; endTitle: string; attackable: Set<number>; activating?: number;
   /** provoke: the button is enabled / provoke mode is on (Dialog_Provoke shown) */
   canProvoke: boolean; provoking: boolean; onProvoke: () => void;
   /** UI_Game.AnimateLoreGain: the last change of lore (key restarts the animation) */
   loreGain?: { key: number; amount: number } | null;
+  /** Label_AutoSaving is shown */
+  saving?: boolean;
   /** threat markers can be clicked for their info (not while a message is up) */
   canInfo: boolean;
   /** UITileCallout: the placed tile's code at a screen point (CSS px) */
@@ -55,7 +57,7 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
   const game = findNode(layout.root, "UI_Game");
   if (!game) return null;
   const pick = (name: string) => (game.ch ?? []).find((c) => c.n === name) ?? findNode(game, name);
-  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke", "Dialog_Provoke", "Panel_GainAnimation", "TileCallout"]
+  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke", "Dialog_Provoke", "Panel_GainAnimation", "TileCallout", "Label_AutoSaving"]
     .map(pick).filter((n): n is UiNode => !!n);
 
   const max = view.threatMax;
@@ -134,6 +136,7 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
           html: say("UI_LORE_GAIN", [loreGain.amount >= 0 ? "+" : "", String(loreGain.amount)]) || `${loreGain.amount >= 0 ? "+" : ""}${loreGain.amount} Сведения` }
       : { show: false },
     z_Darkening: { onClick: onProvoke },
+    Label_AutoSaving: { show: !!saving },
     // EnemyMiniView per group: portrait (grey when exhausted), elite frame, ranged mark, highlight while attackable
     EnemyMiniView: {
       show: view.enemies.length > 0, step: [105, 0],
@@ -141,8 +144,9 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
         EnemyMiniView: { onClick: () => onEnemy(e.uid), title: `${say(e.name) || e.name}${e.size > 1 ? ` ×${e.size}` : ""}` },
         SpriteEnemy: { tex: enemyArt[String(e.model)], color: e.exhausted ? [0.5, 0.5, 0.5, 1] : undefined },
         SpriteHighlight: { show: activating !== undefined ? activating === e.uid : provoking ? !e.exhausted : attackable.has(e.uid) },
-        Sprite_UniqueId_Background: { show: false },
-        Sprite_EliteFrame: { show: e.named },
+        // the banner (Banner{UniqueTokenId + 1:D2}) and the elite frame (IsElite)
+        Sprite_UniqueId_Background: e.banner > 0 ? { show: true, sprite: `Banner${String(e.banner).padStart(2, "0")}` } : { show: false },
+        Sprite_EliteFrame: { show: e.elite },
         Sprite_Ranged: { show: e.ranged },
       })),
     },

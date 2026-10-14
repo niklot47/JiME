@@ -27,6 +27,36 @@ function byName(n: UiNode, name: string): UiNode | null {
   return null;
 }
 
+// Table_Bonuses (UITable, 2 columns, centred, padding 6): the keyword plates of 1..3 bonuses
+const PLATES: [number, number][][] = [[], [[0, 0]], [[-59, 0], [59, 0]], [[-59, 20.5], [59, 20.5], [0, -20.5]]];
+// Table_Bonus_Descriptions (UITable, 1 column from the top, padding 8): text 22 px in 232 px, lines of ~26 px
+const DESC_W_CHARS = 21, DESC_LINE = 26;
+
+function bonusBinds(b: Binds, enemy: EnemyView, say: Say): void {
+  const n = enemy.bonuses.length;
+  for (let i = 0; i < 3; i++) {
+    const bonus = enemy.bonuses[i];
+    b[`Sprite_Bonus_${i}`] = bonus ? { show: true, at: PLATES[n]![i]! } : { show: false };
+    if (bonus) b[`Label_Bonus_Name_${i}`] = { html: say(bonus.name) || bonus.name };
+  }
+  // LoadBonusDescriptions: UI_BONUS_FORMAT (name, description) per bonus; the border grows with the table
+  let y = -8;
+  for (let i = 0; i < 3; i++) {
+    const bonus = enemy.bonuses[i];
+    const key = `Table_Bonus_Descriptions/Label_Bonus_${i + 1}`;
+    if (!bonus) { b[key] = { show: false }; continue; }
+    const name = say(bonus.name) || bonus.name, desc = say(bonus.desc) || bonus.desc;
+    const html = say("UI_BONUS_FORMAT", [name, desc]) || `<b>${name}</b> - ${desc}`;
+    const chars = html.replace(/<[^>]+>/g, "").length;
+    const h = Math.max(1, Math.ceil(chars / DESC_W_CHARS)) * DESC_LINE;
+    b[key] = { show: true, html, h, at: [0, y - h / 2] };
+    y -= h + 16;
+  }
+  b["Table_Bonus_Descriptions/Widget_Spacer"] = { at: [0, y - 1] };
+  // Sprite_Border: top fixed, bottom anchored 19 below the spacer (the table starts 25 below the top)
+  b["Panel_BonusInfo/Sprite_Border"] = { h: 25 - y + 2 + 19 };
+}
+
 export function NguiEnemy({ layout, atlas, say, art, enemy, canAttack, onAttack, onClose }: {
   layout: UiLayoutFile; atlas: Atlas; say: Say; art: Record<string, string>; enemy: EnemyView; canAttack: boolean;
   /** the attack answer: hits + 100 x AttackAbilityType flags */
@@ -36,6 +66,7 @@ export function NguiEnemy({ layout, atlas, say, art, enemy, canAttack, onAttack,
   const [damage, setDamage] = useState(0);
   const [on, setOn] = useState<Set<AttackAbility>>(new Set());
   const [confirm, setConfirm] = useState(false);
+  const [bonusInfo, setBonusInfo] = useState(false);
   const dialog = byName(layout.root, "Dialog_EnemyInfo/Combat");
   if (!dialog) return null;
 
@@ -60,12 +91,15 @@ export function NguiEnemy({ layout, atlas, say, art, enemy, canAttack, onAttack,
     // EnemyMiniView: portrait (grey when exhausted), elite frame, ranged mark
     SpriteEnemy: { tex: art[String(enemy.model)], color: stunned ? [0.5, 0.5, 0.5, 1] : undefined },
     SpriteHighlight: { show: false },
-    Sprite_UniqueId_Background: { show: false },
-    Sprite_EliteFrame: { show: enemy.named },
+    Sprite_UniqueId_Background: enemy.banner > 0 ? { show: true, sprite: `Banner${String(enemy.banner).padStart(2, "0")}` } : { show: false },
+    Sprite_EliteFrame: { show: enemy.elite },
     Sprite_Ranged: { show: enemy.ranged },
     Label_Enemy_Name: { html: say(enemy.nameOne) || enemy.nameOne },
-    Label_NoBonuses: { show: true }, // bonuses are not modelled by the engine yet
-    Panel_BonusInfo: { show: false },
+    // Load: one keyword plate per bonus (Table_Bonuses), "no bonuses" without any; a click opens the descriptions
+    Label_NoBonuses: { show: enemy.bonuses.length === 0 },
+    Button_OpenBonuses: { onClick: enemy.bonuses.length ? () => { void sound.sfx("InfoDrawerOpen", 0.6); setBonusInfo(true); } : undefined },
+    Panel_BonusInfo: { show: bonusInfo },
+    "Panel_BonusInfo/Button_CloseDialog": { onClick: () => setBonusInfo(false) },
     Button_OpenCombat: {
       disabled: !canAttack, title: canAttack ? say("UI_ATTACK") || "Атака" : "Сейчас атаковать нельзя",
       onClick: () => {
@@ -91,7 +125,10 @@ export function NguiEnemy({ layout, atlas, say, art, enemy, canAttack, onAttack,
       },
     },
   };
+  bonusBinds(b, enemy, say);
   ABILITIES.forEach((a, i) => {
+    // abilities blocked by the group's bonuses are hidden (EnemyInfoDialog._blockedAbilities)
+    if (enemy.blocked & ATTACK_ABILITIES[a]) { b[`Button_Ability_${a}`] = { show: false }; return; }
     b[`Button_Ability_${a}`] = { onClick: () => toggle(a), className: on.has(a) ? "ng-on" : "" };
     b[`Sprite_Selected (${i})`] = { show: on.has(a) };
   });

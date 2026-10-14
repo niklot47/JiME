@@ -525,7 +525,7 @@ export interface GeneratedMap {
 
 export class MapGenError extends Error {}
 
-const LANG: Record<string, string> = {
+export const LANG: Record<string, string> = {
   en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian", pt: "Portuguese", pl: "Polish",
   hu: "Hungarian", zh: "Chinese", cz: "Czech", cs: "Czech", ru: "Russian", ko: "Korean", uk: "Ukrainian",
 };

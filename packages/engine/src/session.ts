@@ -282,8 +282,14 @@ export interface GameView {
     startSize: number; sorcery: number; nameOne: string; ranged: boolean;
     /** per unit (UnitStartCount entries): health (0 = defeated), armor (Sunder lowers it) and sorcery */
     units: EnemyUnit[];
-    /** EnemyModel.IsNamed (a unique, named foe). FFG shows the elite frame for groups with bonuses; bonuses are not modelled yet */
+    /** EnemyModel.IsNamed (a unique, named foe) */
     named: boolean;
+    /** IsElite (has bonuses: the elite frame); bonuses: EnemyBonusModel KeyName / KeyDescription */
+    elite: boolean; bonuses: { name: string; desc: string }[];
+    /** AttackAbilityType flags the bonuses block; banner: Banner{n:D2} sprite number (0 = none) */
+    blocked: number; banner: number;
+    /** log index of the message placing the group (-1 = from the start) */
+    shownAt: number;
   }[];
   campaign: { lore: number; xp: number; items: any[]; titles: any[]; next: any };
 }
@@ -310,7 +316,8 @@ export function viewOf(g: Game): GameView {
       damage: e.damage, unitHp: e.unitHp, armor: e.maxArmor, exhausted: e.exhausted,
       named: !!Number(e.model?.IsNamed ?? 0),
       startSize: e.startSize, sorcery: e.maxSorcery, nameOne: String(g.enemyName(e.model, 1)), units: e.units(),
-      ranged: (Number(e.model?.Traits ?? 0) & 0x400) !== 0,
+      ranged: e.ranged, elite: e.elite, blocked: e.blockedAbilities, banner: e.uniqueId + 1, shownAt: e.shownAt,
+      bonuses: e.bonuses.map((b) => ({ name: String(b?.KeyName ?? ""), desc: String(b?.KeyDescription ?? "") })),
     })),
     campaign: { lore: g.campaign.lore, xp: g.campaign.xp, items: [...g.campaign.items], titles: [...g.campaign.titles], next: g.campaign.next_adventure },
   };

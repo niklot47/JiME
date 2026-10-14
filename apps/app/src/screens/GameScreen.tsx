@@ -191,6 +191,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 
   const start = (setup: SessionSetup, save?: SaveData) => run(async (c) => {
     const [r, a] = await Promise.all([c.request({ type: "start", setup, save, packConfig: packConfig() }), loadAdventure(setup.adv)]);
+    savedRound.current = 0;
     setGame({ state: r.state, board: r.board ?? null, adv: a });
     writeAutosave(r.state.save);
   });
@@ -230,6 +231,17 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [provoking, setProvoking] = useState(false);
   const [calloutPx, setCalloutPx] = useState<[number, number] | null>(null);
   const [loreGain, setLoreGain] = useState<{ key: number; amount: number } | null>(null);
+  // GameController / Adventure: "Saving..." (Label_AutoSaving) after ROUND_START, once the round's messages are read
+  const [saving, setSaving] = useState(false);
+  const idleRound = useRef(-1);
+  const savedRound = useRef(0);
+  useEffect(() => {
+    if (idleRound.current <= savedRound.current) return;
+    savedRound.current = idleRound.current;
+    setSaving(true);
+    const t = setTimeout(() => setSaving(false), 1500);
+    return () => clearTimeout(t);
+  });
   useEffect(() => {
     if (!loreGain) return;
     const t = setTimeout(() => setLoreGain(null), 2600);
@@ -343,8 +355,13 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const banner = head && PHASE_KEYS.has(head[2]) ? head : null;
   const messages = queue.filter(([, , k]) => !PHASE_KEYS.has(k));
   const talking = queue.length > 0;
+  // (only once the new log entries are queued: prevState is updated by the effect after this render)
+  (window as any).__jimeGame.talking = talking;
+  idleRound.current = !talking && !view.ended && prevState.current === state ? view.round : -1;
   // UITileCallout: the code of the tile the message on screen places, next to it on the board
   const headIndex = head ? state.log.length - unread.length + unread.indexOf(head) : -1;
+  // the tracker gets a group with the message placing it (EnemyGroup.AddToTracker before the message is shown)
+  const hudView = head ? { ...view, enemies: view.enemies.filter((e) => e.shownAt <= headIndex) } : view;
   const placing = head && !PHASE_KEYS.has(head[2]) ? (view.tiles.find((t) => t.visible && t.shownAt === headIndex) ?? null) : null;
   const headAt = head ? unread.indexOf(head) : -1;
   const dmg = headAt >= 0 ? unread[headAt + 1] : undefined;
@@ -395,7 +412,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           callout={placing ? placing.id : null} onCallout={setCalloutPx}
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         {uiLayout ? (
-          <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
+          <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={hudView} canEndRound={!!action && !talking && !busy} saving={saving}
             attackable={new Set(attackable.keys())} activating={activating}
             tileCallout={placing && calloutPx ? { code: placing.code, px: calloutPx } : null} loreGain={loreGain} canInfo={!talking} canProvoke={canProvoke} provoking={provoking && canProvoke}
             onProvoke={() => setProvoking((p) => !p)}

@@ -6,7 +6,7 @@ import { PyRandom } from "./pyrandom.ts";
 import { keysOf, valuesOf } from "./ojson.ts";
 import { Counter, gd, isDict, or, pyStr, toInt, truthy } from "./py.ts";
 import { ACTIONS } from "./actions.ts";
-import { generateMap, type GeneratedMap, type MapGenOptions } from "./map/mapgen.ts";
+import { generateMap, LANG, type GeneratedMap, type MapGenOptions } from "./map/mapgen.ts";
 
 /** Supplies scenario data (pack on disk, in-memory, network ...) */
 export interface ContentSource {
@@ -22,7 +22,8 @@ export type Difficulty = "normal" | "hard" | "adventure";
  * enemy: uid of the group activating / attacking when it was written (the original shows those in its enemy popup);
  * log: chronicle only (MasterMessageCache.AddMessage / Adventure.LogMessage), the players saw it as a question already
  */
-export interface LogMeta { enemy?: number; log?: true; at?: SpaceRef }
+/** banner: PopupOptions.ExtraSpriteId (Banner{n:D2}) of a spawned group's message */
+export interface LogMeta { enemy?: number; log?: true; at?: SpaceRef; banner?: number }
 /** A tile space on the board (the location highlight where enemies are to be placed) */
 export interface SpaceRef { tile: number; space: number }
 export type LogEntry = [advIndex: number, round: number, key: string, inserts: string[], meta?: LogMeta];
@@ -274,6 +275,13 @@ export class GameNode {
 
 /** FFG AttackAbilityType flags (the combat card's modifiers) */
 export const ATTACK_ABILITIES = { Pierce: 1, Smite: 2, Lethal: 4, Sunder: 8, Stun: 16, Cleave: 32 } as const;
+/** EnemyBonusTraits.Ranged */
+const BONUS_RANGED = 0x800;
+/** EnemyBonusModel.GetCost(num): -1 when the bonus has no cost for that group size */
+export function bonusCost(b: any, n: number): number {
+  for (const c of or(gd(b, "Costs"), [])) { if (gd(c, "Num", 1) === n) return toInt(gd(c, "Cost", 0)); }
+  return -1;
+}
 export type AttackAbility = keyof typeof ATTACK_ABILITIES;
 /** One unit of an enemy group: health 0 = defeated */
 export interface EnemyUnit { hp: number; armor: number; sorcery: number }
@@ -312,10 +320,16 @@ export class EnemyGroup {
   hp: number[];
   armor: number[];
   sorcery: number[];
-  /** GetMaxUnitHealth / Armor / Sorcery (enemy bonuses are not modelled yet) */
+  /** GetMaxUnitHealth / Armor / Sorcery (includeBonuses: true) */
   maxHp: number;
   maxArmor: number;
   maxSorcery: number;
+  /** EnemyGroup._activeBonuses (EnemyBonusModel), at most 3; a group with any is elite */
+  readonly bonuses: any[] = [];
+  /** EnemyGroup.UniqueTokenId: the banner (Banner{id + 1:D2}) telling apart groups of one kind; -1 = none */
+  uniqueId = -1;
+  /** log index of the message placing the group (the UI adds it to the tracker then); -1 = from the start */
+  shownAt = -1;
   exhausted = false;
   /** FFG EnemyGroup.AttackReduction: each further attack in a round deals 1 less (reset on refresh) */
   attackReduction = 0;
@@ -346,6 +360,38 @@ export class EnemyGroup {
   /** damage on the first living unit */
   get damage(): number { const i = this.hp.findIndex((h) => h > 0); return i < 0 ? 0 : this.maxHp - this.hp[i]!; }
   units(): EnemyUnit[] { return this.hp.map((hp, i) => ({ hp, armor: this.armor[i]!, sorcery: this.sorcery[i]! })); }
+
+  /** IsElite */
+  get elite(): boolean { return this.bonuses.length > 0; }
+  /** IsRanged: the Range trait (0x400) or a bonus with the Ranged trait */
+  get ranged(): boolean {
+    return (toInt(or(gd(this.model, "Traits"), 0)) & 0x400) !== 0 || this.bonuses.some((b) => (toInt(or(gd(b, "Traits"), 0)) & BONUS_RANGED) !== 0);
+  }
+  /** GetBonusDamage(Physical / Fear) */
+  bonusDamage(physical: boolean): number { return this.bonuses.reduce((s, b) => s + toInt(or(gd(b, physical ? "Physical" : "Fear"), 0)), 0); }
+  /** EnemyInfoDialog._blockedAbilities: AttackAbilityType flags the players may not use against this group */
+  get blockedAbilities(): number { return this.bonuses.reduce((s, b) => s | toInt(or(gd(b, "BlocksModifiers"), 0)), 0); }
+  /** ContainsWithTraits */
+  hasBonusTraits(traits: number): boolean { return this.bonuses.some((b) => (toInt(or(gd(b, "Traits"), 0)) & traits) !== 0); }
+
+  /** Add(bonus, applyBonus): the bonus raises the maxima, applied also to every unit */
+  addBonus(b: any, apply: boolean): void {
+    if (this.bonuses.includes(b)) return;
+    this.bonuses.push(b);
+    const h = toInt(or(gd(b, "Health"), 0)), a = toInt(or(gd(b, "Armor"), 0)), so = toInt(or(gd(b, "Sorcery"), 0));
+    this.maxHp += h; this.maxArmor += a; this.maxSorcery += so;
+    if (!apply) return;
+    for (let i = 0; i < this.hp.length; i++) {
+      if (this.hp[i]! <= 0) continue;
+      this.hp[i] = this.hp[i]! + h; this.armor[i] = this.armor[i]! + a; this.sorcery[i] = this.sorcery[i]! + so;
+    }
+  }
+
+  /** TryAddFigure: one more unit, every unit like the first one */
+  grow(): void {
+    this.hp.push(this.hp[0]!); this.armor.push(this.armor[0]!); this.sorcery.push(this.sorcery[0]!);
+    for (let i = 1; i < this.hp.length; i++) { this.hp[i] = this.hp[0]!; this.armor[i] = this.armor[0]!; this.sorcery[i] = this.sorcery[0]!; }
+  }
 
   /** HealGroup: one health at a time to each damaged living unit, in order */
   heal(amount: number): void {
@@ -473,6 +519,15 @@ export class Game {
   readonly activeThreatEvents: Obj[] = [];
   readonly enemies: EnemyGroup[] = [];
   readonly reserve: number[] = [];
+  /** Adventure._uniqueNormalEnemyIds / _uniqueEliteIds: free banners (normal groups of a kind already in play, elites) */
+  readonly uniqueNormal = [1, 4, 5, 8, 10, 11];
+  readonly uniqueElite = [0, 2, 3, 6, 7, 9];
+  /** Adventure.CurrentReservedEliteBannerIdList (AdventureModel.NumberReservedEliteBanners, for scripted elites) */
+  readonly reservedElite: number[] = [];
+  /** Adventure.PendingEnemiesToAdd: groups being bought by a random spawn */
+  pendingEnemies: EnemyGroup[] = [];
+  /** FFG language name (EnemyBonusModel.UnsupportedLanguage) */
+  readonly language: string;
   ended: string | null = null;
   result: "victory" | "defeat" | null = null;
   objective: any = null;
@@ -533,6 +588,7 @@ export class Game {
     this.opts = opts;
     this.mapMode = opts.mapMode ?? (this.D.tiles ? "ffg" : "legacy");
     this.flow = opts.flow ?? this.mapMode;
+    this.language = LANG[opts.language ?? "English"] ?? opts.language ?? "English";
     this.campaign = opts.campaign ?? newCampaign();
     for (const k of keysOf(this.D.globals)) this.globals[k] = structuredClone(this.D.globals[k].value);
     for (const [k, v] of Object.entries(this.campaign.flags)) this.globals[k] = v;
@@ -547,6 +603,7 @@ export class Game {
       const em = this.enemyModel(gd(q, "Enemy"));
       for (let i = 0; i < gd(q, "Quantity", 0); i++) if (truthy(em)) this.reserve.push(em._id);
     }
+    for (let k = 0; k < toInt(or(gd(this.model, "NumberReservedEliteBanners"), 0)) && this.uniqueElite.length; k++) this.reservedElite.push(this.uniqueElite.pop()!);
     this.heroes = Array.from({ length: this.players }, () => ({ damage: 0, fear: 0, defeated: false, lastStand: 1 }));
     this.buildAdventureScene();
     if (this.mapMode === "ffg") this.buildMapFfg();
@@ -592,20 +649,28 @@ export class Game {
 
   /** the location of the next written entry (SpawnEnemyGroup / SpawnRandomEnemyGroups highlight) */
   private nextAt: SpaceRef | null = null;
+  /** the banner of the next written entry (0 = none) */
+  private nextBanner = 0;
 
   private write(key: any, inserts: unknown[], logOnly: boolean): void {
     if (key === null || key === undefined) return;
     const e: LogEntry = [this.advIndex, this.round, key, inserts.map(pyStr)];
     const at = logOnly ? null : this.nextAt;
-    if (!logOnly) this.nextAt = null;
-    if (this.activating || logOnly || at) {
-      e.push({ ...(this.activating ? { enemy: this.activating.uid } : {}), ...(logOnly ? { log: true as const } : {}), ...(at ? { at } : {}) });
+    const banner = logOnly ? 0 : this.nextBanner;
+    if (!logOnly) { this.nextAt = null; this.nextBanner = 0; }
+    if (this.activating || logOnly || at || banner > 0) {
+      e.push({ ...(this.activating ? { enemy: this.activating.uid } : {}), ...(logOnly ? { log: true as const } : {}), ...(at ? { at } : {}),
+        ...(banner > 0 ? { banner } : {}) });
     }
     this.log.push(e);
   }
 
   /** The next shown message points at this space */
   pointAt(at: SpaceRef | null): void { this.nextAt = at; }
+  /** The next shown message carries this banner (PopupOptions.ExtraSpriteId, 0 = none) */
+  bannerNext(id: number): void { this.nextBanner = id; }
+  /** The game node of a scene object (a spawn position on a tile) */
+  nodeOf(o: Obj | null): GameNode | undefined { return o ? [...this.nodes, ...this.advNodes].find((x) => x.obj === o) : undefined; }
 
   /**
    * Where a spawned group goes: the space of the SpawnPosition object (a node on a tile), else a space of an explored
@@ -1202,12 +1267,203 @@ export class Game {
   spawnGroup(m: any, size: number, logic: Obj | null = null, announce = true): EnemyGroup {
     const g = new EnemyGroup(this.nextId(), m, size, logic);
     this.enemies.push(g);
-    if (announce) {
-      this.pointAt(this.spawnSpot(null));
-      this.emit("UI_SPAWN_GROUP_FORMAT", size, this.enemyName(m, size));
-    } else this.note("UI_SPAWN_GROUP_FORMAT", size, this.enemyName(m, size));
+    this.announceGroup(g, announce);
     if (logic !== null) logic.enemyGroup = g;
     return g;
+  }
+
+  /** UI_SPAWN_GROUP_FORMAT at a space with the group's banner (false: chronicle only) */
+  announceGroup(g: EnemyGroup, announce: boolean, at: SpaceRef | null = null): void {
+    const n = g.startSize;
+    if (announce) {
+      g.shownAt = this.log.length;
+      this.pointAt(at ?? this.spawnSpot(null));
+      this.nextBanner = g.uniqueId + 1;
+      this.emit("UI_SPAWN_GROUP_FORMAT", n, this.enemyName(g.model, n));
+    } else this.note("UI_SPAWN_GROUP_FORMAT", n, this.enemyName(g.model, n));
+  }
+
+  // ------------------------------------------------------------ FFG spawning (Adventure, SpawnRandomEnemyGroups, ...)
+  /** EnemyModel.GetCost: -1 when the model has no cost for that size */
+  modelCost(m: any, n: number): number {
+    for (const c of or(gd(m, "Costs"), [])) { if (gd(c, "Num", 1) === n) return toInt(gd(c, "Cost", 0)); }
+    return -1;
+  }
+
+  /** EnemyModel.AreLinked (or the same model) */
+  sameKind(a: any, b: any): boolean {
+    if (!a || !b) return false;
+    return a === b || a._id === gd(b, "LinkedEnemyId", 0) || b._id === gd(a, "LinkedEnemyId", 0);
+  }
+
+  /** GetUnitsInPlayCount + GetUnitsPendingCount + GetUnitsReservedCount */
+  unitsOfKind(m: any): number {
+    let n = 0;
+    for (const g of this.enemies) if (this.sameKind(g.model, m)) n += g.size;
+    for (const g of this.pendingEnemies) if (this.sameKind(g.model, m)) n += g.size;
+    for (const id of this.reserve) if (this.sameKind(this.enemyModel(id), m)) n++;
+    return n;
+  }
+
+  /** Adventure.IsEnemyEligibleForSpawn */
+  canSpawn(m: any, pts: number): boolean {
+    if (!truthy(m) || this.modelCost(m, 1) > pts) return false;
+    let max = toInt(or(gd(m, "MaxUnitsInPlay"), 0));
+    const linked = toInt(or(gd(m, "LinkedEnemyId"), 0));
+    if (linked > 0) { const l = this.enemyModel(linked); if (truthy(l)) max = Math.max(max, toInt(or(gd(l, "MaxUnitsInPlay"), 0))); }
+    return this.unitsOfKind(m) < max;
+  }
+
+  /** Adventure.GetEligibleEnemyModels: not unique, passes the adventure's and the action's filters, affordable */
+  eligibleFfg(pts: number, flt: any = null): any[] {
+    const meets = (f: any, m: any) => {
+      if (!truthy(f)) return true;
+      const tr = toInt(or(gd(m, "Traits"), 0));
+      const ex = toInt(or(gd(f, "ExcludeIfAny"), 0)), all = toInt(or(gd(f, "MustHaveAll"), 0)), any = toInt(or(gd(f, "MustHaveAny"), 0));
+      return !(ex && tr & ex) && !(all && (tr & all) !== all) && !(any && !(tr & any));
+    };
+    const gflt = gd(this.model, "GlobalEnemyFilter");
+    return valuesOf(this.D.models.EnemyModel).filter((m: any) => !truthy(gd(m, "IsUnique")) && meets(gflt, m) && meets(flt, m) && this.canSpawn(m, pts));
+  }
+
+  /** EnemyGroup.GetEligibleBonuses: the model's bonuses this group can still take for these points */
+  eligibleBonuses(g: EnemyGroup, pts: number): any[] {
+    if (g.bonuses.length >= 3) return [];
+    const out: any[] = [];
+    for (const ref of or(gd(g.model, "Bonuses"), [])) {
+      const b = this.modelBy("EnemyBonusModel", ref);
+      if (!truthy(b) || truthy(gd(gd(b, "UnsupportedLanguage"), this.language))) continue;
+      const c = bonusCost(b, g.startSize);
+      if (c >= 0 && c <= pts && !g.bonuses.includes(b) && !g.hasBonusTraits(toInt(or(gd(b, "Traits"), 0)))) out.push(b);
+    }
+    return out;
+  }
+
+  /** MaxNumberOfElitesInPlay */
+  get maxElites(): number { return 6 - this.reservedElite.length; }
+
+  /** Adventure.GetUniqueId: elites always get a banner, a normal group only when its kind is already in play */
+  takeUniqueId(g: EnemyGroup): number {
+    if (!g.elite && !this.enemies.some((e) => e.model === g.model && !e.elite)) return -1;
+    const l = g.elite ? this.uniqueElite : this.uniqueNormal;
+    return l.length ? l.shift()! : -1;
+  }
+
+  /** Adventure.ReturnUniqueId */
+  returnUniqueId(g: EnemyGroup): void {
+    if (g.uniqueId < 0) return;
+    const l = g.elite ? this.uniqueElite : this.uniqueNormal;
+    if (!l.includes(g.uniqueId)) l.unshift(g.uniqueId);
+    g.uniqueId = -1;
+  }
+
+  /** Adds the group to the tracker with its banner (EnemiesInPlay.Add after GetUniqueId) */
+  enterPlay(g: EnemyGroup): void {
+    g.uniqueId = this.takeUniqueId(g);
+    this.enemies.push(g);
+  }
+
+  private tryAddBonus(pending: EnemyGroup[], st: { pts: number }): boolean {
+    const room = this.enemies.filter((e) => e.elite).length + this.pendingEnemies.filter((e) => e.elite).length < this.maxElites;
+    for (const g of pending) {
+      if (!g.elite && !room) continue;
+      const el = this.eligibleBonuses(g, st.pts);
+      if (!el.length) continue;
+      const b = this.rng.choice(el);
+      g.addBonus(b, true);
+      st.pts -= bonusCost(b, g.size);
+      return true;
+    }
+    return false;
+  }
+
+  private tryAddFigure(pending: EnemyGroup[], st: { pts: number }): boolean {
+    for (const g of pending) {
+      const n = g.startSize;
+      if (n >= toInt(or(gd(g.model, "MaxUnitCount"), 1)) || this.unitsOfKind(g.model) >= toInt(or(gd(g.model, "MaxUnitsInPlay"), 0))) continue;
+      let cost = this.modelCost(g.model, n + 1) - this.modelCost(g.model, n);
+      for (const b of g.bonuses) cost += bonusCost(b, n + 1) - bonusCost(b, n);
+      if (cost > st.pts) continue;
+      g.grow();
+      st.pts -= cost;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * One step of buying with enemy points (SpawnRandomEnemyGroups / SpawnEnemyGroupsFromSpawnPoints): weights for a new
+   * group, a bonus and a figure; returns true when a new group should be bought
+   */
+  private spendStep(pending: EnemyGroup[], st: { pts: number }, eligible: boolean, inPlay: number, inPlayElite: number): boolean {
+    const P = this.players, p2 = P * P;
+    const bonusPref = Number(or(gd(this.model, "BonusPref"), 1)), figurePref = Number(or(gd(this.model, "FigurePref"), 1));
+    let a = eligible ? p2 / (pending.length + inPlay) : 0;
+    const b = (p2 / (P + inPlayElite + pending.filter((g) => g.elite).length)) * bonusPref;
+    const c = (P + 3) * figurePref;
+    const r = this.rng.random() * (a + b + c);
+    this.rng.shuffle(pending);
+    if (r < a) return true;
+    if (r < a + b) {
+      if (this.tryAddBonus(pending, st)) return false;
+      a = eligible ? a + b / 2 : 0;
+      return r < a || !this.tryAddFigure(pending, st);
+    }
+    if (this.tryAddFigure(pending, st)) return false;
+    a = eligible ? a + c / 2 : 0;
+    return r < a || !this.tryAddBonus(pending, st);
+  }
+
+  /** SpawnRandomEnemyGroups.SpawnGroups: groups bought with the points until a share depending on threat is spent */
+  buyRandomGroups(points: number, flt: any): { groups: EnemyGroup[]; pts: number } {
+    const st = { pts: points };
+    const start = points;
+    const pending: EnemyGroup[] = (this.pendingEnemies = []);
+    try {
+      const t = this.threatMax > 0 ? Math.min(1, Math.max(0, toInt(or(gd(this.globals, "Threat"), 0)) / this.threatMax)) : 1;
+      const share = 0.7 + 0.3 * t;
+      const inPlay = this.enemies.length, inPlayElite = this.enemies.filter((e) => e.elite).length;
+      let el = this.eligibleFfg(st.pts, flt);
+      if (!el.length) return { groups: [], pts: st.pts };
+      const buy = () => { const m = this.rng.choice(el); pending.push(new EnemyGroup(this.nextId(), m, 1)); st.pts -= this.modelCost(m, 1); };
+      buy();
+      el = this.eligibleFfg(st.pts, flt);
+      while (st.pts > 0) {
+        if (this.spendStep(pending, st, el.length > 0, inPlay, inPlayElite)) {
+          if (!el.length) break;
+          buy();
+        }
+        el = this.eligibleFfg(st.pts, flt);
+        if (1 - st.pts / start > share) break;
+      }
+      return { groups: [...pending], pts: st.pts };
+    } finally { this.pendingEnemies = []; }
+  }
+
+  /** SpawnEnemyGroupsFromSpawnPoints.SpawnGroups: per spawn point, the points spent the same way; groups by point */
+  buySpawnPointGroups(points: number[], filters: any[]): EnemyGroup[][] {
+    const st = points.map((p) => ({ pts: p }));
+    const done = points.map(() => false);
+    const groups: EnemyGroup[][] = points.map(() => []);
+    this.pendingEnemies = [];
+    try {
+      const inPlay = this.enemies.length, inPlayElite = this.enemies.filter((e) => e.elite).length;
+      const open = () => st.map((s, i) => (s.pts > 0 && !done[i] ? i : -1)).filter((i) => i >= 0);
+      for (let idx = open(); idx.length; idx = open()) {
+        const i = this.rng.choice(idx);
+        const el = this.eligibleFfg(st[i]!.pts, filters[i]);
+        const pending = groups[i]!;
+        const fresh = !pending.length || this.spendStep(pending, st[i]!, el.length > 0, inPlay, inPlayElite);
+        if (!fresh) continue;
+        if (!el.length) { done[i] = true; continue; }
+        const m = this.rng.choice(el);
+        const g = new EnemyGroup(this.nextId(), m, 1);
+        st[i]!.pts -= this.modelCost(m, 1);
+        pending.push(g);
+        this.pendingEnemies.push(g);
+      }
+      return groups;
+    } finally { this.pendingEnemies = []; }
   }
 
   /** Grow the group while the next size is affordable */
@@ -1247,7 +1503,7 @@ export class Game {
 
   removeEnemy(g: EnemyGroup | null): void {
     const i = g === null ? -1 : this.enemies.indexOf(g);
-    if (i >= 0) this.enemies.splice(i, 1);
+    if (i >= 0) { this.enemies.splice(i, 1); this.returnUniqueId(g!); }
   }
 
   defeatGroup(g: EnemyGroup): void {
@@ -1371,7 +1627,8 @@ export class Game {
   playerAttack(g: EnemyGroup): void {
     const a = this.player.attackDamage(this, g);
     if (this.flow === "legacy") return this.legacyAttack(g, attackHits(a));
-    const ab = attackAbilities(a);
+    // EnemyInfoDialog hides the abilities the group's bonuses block
+    const ab = attackAbilities(a) & ~g.blockedAbilities;
     const on = (k: AttackAbility) => (ab & ATTACK_ABILITIES[k]) !== 0;
     const before = g.size;
     const res = calculateHealth(g.units(), attackHits(a), ab);
@@ -1382,8 +1639,8 @@ export class Game {
       if (g.hp[i]! <= 0) { g.armor[i] = 0; g.sorcery[i] = 0; }
     }
     if (!g.exhausted && on("Stun")) g.exhausted = true;
-    // elites (enemy bonuses) are not modelled: an elite would counter-attack even when exhausted
-    const counter = g.health > 0 && !on("Stun") && !g.exhausted;
+    // an elite counter-attacks even when exhausted
+    const counter = g.health > 0 && !on("Stun") && (g.elite || !g.exhausted);
     const removed = before - g.size;
     if (removed > 0) {
       const unique = truthy(gd(g.model, "IsUnique")) || truthy(gd(g.model, "IsNamed"));
@@ -1412,7 +1669,7 @@ export class Game {
     this.activating = g;
     try {
       if (this.player.confirm(this, "UI_PROMPT_CAN_ATTACK", "UI_YES", "UI_NO")) {
-        this.enemyAttack(g, a, false);
+        this.enemyAttack(g, a, g.elite);
         g.exhausted = true;
       }
     } finally { this.activating = null; }
@@ -1470,18 +1727,18 @@ export class Game {
     this.prompt = null;
     if (i === 0) this.enemyAttack(g, a, true);
     else if (i === 2) {
-      // stopped by a fortified space: may it still attack? (no attack reduction unless elite: elites not modelled)
+      // stopped by a fortified space: may it still attack? (attack reduction for elites)
       // the activation is drawn before the players are asked
       const r = this.randomActivation(g);
-      if (r && this.player.confirm(this, "UI_PROMPT_CAN_ATTACK", "UI_YES", "UI_NO")) this.enemyAttack(g, r, false);
+      if (r && this.player.confirm(this, "UI_PROMPT_CAN_ATTACK", "UI_YES", "UI_NO")) this.enemyAttack(g, r, g.elite);
     } else this.emit(gd(a, "KeyAltActivation"));
   }
 
-  /** Adventure.CoroutinePerformEnemyAttack (enemy bonuses are not modelled yet) */
+  /** Adventure.CoroutinePerformEnemyAttack: the activation's damage for the group size plus the bonuses' */
   enemyAttack(g: EnemyGroup, a: any, reduce: boolean): void {
     const d = or(gd(a, "Damage"), []).find((x: any) => gd(x, "Size") === g.size);
-    let ph = d ? gd(d, "Physical", 0) : 0;
-    let fe = d ? gd(d, "Fear", 0) : 0;
+    let ph = (d ? gd(d, "Physical", 0) : 0) + g.bonusDamage(true);
+    let fe = (d ? gd(d, "Fear", 0) : 0) + g.bonusDamage(false);
     if (reduce) {
       for (let n = g.attackReduction; n > 0 && ph + fe > 1; n--) {
         if (ph === 0) fe--;

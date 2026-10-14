@@ -1,7 +1,7 @@
 // FSM action handlers (PlayMaker action name -> behaviour). Port of the a_* methods of engine-py Game.
 // A handler returns an event name to fire on the current state, or nothing.
 import type { Fsm, Game } from "./game.ts";
-import { EndGame, GameNode, NODE_KINDS, keyOf } from "./game.ts";
+import { EndGame, EnemyGroup, GameNode, NODE_KINDS, bonusCost, keyOf } from "./game.ts";
 import { gd, or, pyFloat, removeFirst, truthy } from "./py.ts";
 
 export type ActionHandler = (g: Game, f: Fsm, p: any) => any;
@@ -68,6 +68,81 @@ const COSMETIC = [
   "ClearHeroHighlights", "SetHeroHighlights", "ShowTutorialArrow", "HideTutorialArrows", "SetLockedUI", "SetForcedUI", "ClearForcedUI",
 ];
 
+/** SpawnEnemyGroup.TrySpawnEnemy + OnEnter: size 1 unless specified, random or listed bonuses, the banner, then the message */
+function spawnEnemyGroupFfg(g: Game, f: Fsm, p: any, m: any): any {
+  const ignore = truthy(gd(p, "IgnoreCost"));
+  let pts = g.num(f, "@EnemyPoints") + g.num(f, gd(p, "AdditionalPoints"));
+  if (!g.canSpawn(m, ignore ? 1000 : pts)) return gd(p, "Failed");
+  const size = truthy(gd(p, "SpecifySize")) ? Math.max(1, g.num(f, gd(p, "GroupSize"), 1)) : 1;
+  const logic = g.objRef(f.owner.src, gd(p, "Logic"));
+  const grp = new EnemyGroup(g.nextId(), m, size, logic);
+  pts -= g.modelCost(m, size);
+  if (!ignore && truthy(gd(p, "RandomBonuses"))) {
+    const list = g.eligibleBonuses(grp, pts);
+    while (list.length && pts > 0 && grp.bonuses.length < 3) {
+      const b = list.splice(g.rng.randrange(list.length), 1)[0];
+      if (pts >= bonusCost(b, grp.startSize)) {
+        grp.addBonus(b, true);
+        pts -= bonusCost(b, grp.startSize);
+        list.splice(0, list.length, ...g.eligibleBonuses(grp, pts));
+      }
+    }
+  } else {
+    for (const ref of or(gd(p, "Bonuses"), [])) {
+      const b = g.modelBy("EnemyBonusModel", ref);
+      if (!truthy(b)) continue;
+      grp.addBonus(b, true);
+      pts -= bonusCost(b, grp.startSize);
+    }
+  }
+  g.enterPlay(grp);
+  if (logic !== null) logic.enemyGroup = grp;
+  if (!ignore) g.globals.EnemyPoints = Math.min(Math.max(pts, 0), 5 * g.players);
+  // the message at the spawn position (highlighted); the banner only on a random space; without a message nothing is shown
+  const hasMsg = !!g.quietly(() => g.msgKey(f, gd(p, "Message"))[0]);
+  const pos = g.objRef(f.owner.src, gd(p, "SpawnPosition"));
+  if (hasMsg) g.pointAt(g.spawnSpot(pos));
+  if (hasMsg && !g.nodeOf(pos)) g.bannerNext(grp.uniqueId + 1);
+  grp.shownAt = g.log.length;
+  g.show(f, gd(p, "Message"));
+  g.pointAt(null);
+  g.bannerNext(0);
+  g.announceGroup(grp, false);
+  return gd(p, "Succeeded");
+}
+
+/** SpawnRandomEnemyGroups: the message, the groups bought, one placement message per group; leftover points stay */
+function spawnRandomFfg(g: Game, f: Fsm, p: any): void {
+  const exclude = truthy(gd(p, "ExcludeGameEnemyPts"));
+  let pts = g.num(f, gd(p, "Points")) + (exclude ? 0 : g.num(f, "@EnemyPoints"));
+  g.show(f, gd(p, "Message"));
+  const restrict = truthy(gd(p, "RestrictToSections"));
+  const forced: number[] = or(gd(p, "ForcedSectionIds"), []).map(Number);
+  const spaces = [...g.tiles.values()].some((t) => t.visible && t.explored && (!restrict || forced.includes(t.section)));
+  if (pts > 0 && spaces) {
+    const st = g.buyRandomGroups(pts, gd(p, "Filter"));
+    pts = st.pts;
+    for (const grp of st.groups) g.enterPlay(grp);
+    for (const grp of st.groups) g.announceGroup(grp, true);
+  }
+  if (!exclude) g.globals.EnemyPoints = Math.max(pts, 0);
+}
+
+/** SpawnEnemyGroupsFromSpawnPoints: each point's points (+ EnemyPoints dealt round), groups placed point by point */
+function spawnFromPointsFfg(g: Game, f: Fsm, p: any): void {
+  const sps: any[] = or(gd(p, "SpawnPoints"), []);
+  if (!sps.length) return;
+  const per: any[] = or(gd(p, "SpawnPointsEnemyPoints"), []);
+  const pts = sps.map((_, i) => (i < per.length ? g.num(f, per[i]) : 0));
+  for (let n = g.num(f, gd(p, "EnemyPoints")), i = 0; n > 0; n--, i = (i + 1) % pts.length) pts[i]!++;
+  const objs = sps.map((sp) => g.objRef(f.owner.src, sp));
+  const filters = objs.map((o) => gd(or(o ? gd(o.components, "EnemySpawnPoint") : null, {}), "Filter"));
+  const groups = g.buySpawnPointGroups(pts, filters);
+  // PendingEnemiesToAdd order: as bought
+  for (const grp of groups.flat().sort((a, b) => a.uid - b.uid)) g.enterPlay(grp);
+  groups.forEach((list, i) => { for (const grp of list) g.announceGroup(grp, true, g.spawnSpot(objs[i] ?? null)); });
+}
+
 export const ACTIONS: Record<string, ActionHandler> = {
   ...Object.fromEntries(COSMETIC.map((n) => [n, noop])),
 
@@ -100,7 +175,10 @@ export const ACTIONS: Record<string, ActionHandler> = {
     return "CANCEL";
   },
   DisplayMessageMultipleChoice: (g, f, p) => {
-    const choices = or(gd(p, "Choices"), []).filter((c: any) => !truthy(gd(c, "HasDependencies")) || g.boolean(f, gd(c, "Requirement")));
+    // MessageButtonController.InitializeMultipleChoice: item i goes to button i and there are 5 buttons, so only the
+    // first 5 items can be offered (adventure 70 lists 8); the legacy flow keeps engine-py's list
+    const all: any[] = or(gd(p, "Choices"), []);
+    const choices = (g.flow === "ffg" ? all.slice(0, 5) : all).filter((c: any) => !truthy(gd(c, "HasDependencies")) || g.boolean(f, gd(c, "Requirement")));
     const cancel = or(gd(p, "CancelChoice"), {});
     const c = g.player.choose(g, showKey(p, g, f), choices, truthy(gd(cancel, "Event")));
     if (c === null) return gd(cancel, "Event");
@@ -360,6 +438,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
   SpawnEnemyGroup: (g, f, p) => {
     const m = g.enemyModel(gd(p, "GroupToSpawn"));
     if (m === null) return gd(p, "Failed");
+    if (g.flow === "ffg") return spawnEnemyGroupFfg(g, f, p, m);
     const size = truthy(gd(p, "SpecifySize"))
       ? Math.max(1, g.num(f, gd(p, "GroupSize"), 1))
       : g.groupSize(m, g.num(f, gd(p, "AdditionalPoints")));
@@ -372,6 +451,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
     return gd(p, "Succeeded");
   },
   SpawnRandomEnemyGroups: (g, f, p) => {
+    if (g.flow === "ffg") return spawnRandomFfg(g, f, p);
     let pts = g.num(f, gd(p, "Points")) + (truthy(gd(p, "ExcludeGameEnemyPts")) ? 0 : g.num(f, "@EnemyPoints"));
     g.show(f, gd(p, "Message"));
     const reserve = g.reserve.map((e) => g.enemyModel(e));
@@ -389,6 +469,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
     g.globals.EnemyPoints = 0;
   },
   SpawnEnemyGroupsFromSpawnPoints: (g, f, p) => {
+    if (g.flow === "ffg") return spawnFromPointsFfg(g, f, p);
     const sps: any[] = or(gd(p, "SpawnPoints"), []);
     const per: any[] = or(gd(p, "SpawnPointsEnemyPoints"), []);
     const total = g.num(f, gd(p, "EnemyPoints"));
@@ -408,7 +489,13 @@ export const ACTIONS: Record<string, ActionHandler> = {
     const n = g.num(f, gd(p, "Quantity"), 1);
     for (let i = 0; i < n; i++) if (truthy(m) && g.reserve.includes(m._id)) removeFirst(g.reserve, m._id);
   },
-  EnemyBannerRemoveFromReserve: noop,
+  // the reserved elite banners go back to the free ones
+  EnemyBannerRemoveFromReserve: (g, f, p) => {
+    for (let n = g.num(f, gd(p, "Quantity"), 1); n > 0 && g.reservedElite.length; n--) {
+      const id = g.reservedElite.shift()!;
+      if (!g.uniqueElite.includes(id)) g.uniqueElite.unshift(id);
+    }
+  },
   EnemyGroupAddToTracker: (g, f, p) => {
     const o = g.objRef(f.owner.src, or(gd(p, "Group"), gd(p, "Logic")));
     const eg = or(o ? gd(o.components, "EnemyGroup") : null, {});
@@ -426,8 +513,14 @@ export const ACTIONS: Record<string, ActionHandler> = {
       grp.armor = arr("_unitArmor", grp.maxArmor);
       grp.sorcery = arr("_unitSorcery", grp.maxSorcery);
     }
+    // EnemyGroupAddToTracker: an elite placed in the scene gets its bonuses applied, then its banner
+    if (g.flow === "ffg") {
+      for (const ref of or(gd(eg, "_activeBonuses"), [])) { const b = g.modelBy("EnemyBonusModel", ref); if (truthy(b)) grp.addBonus(b, true); }
+      g.enemies.splice(g.enemies.indexOf(grp), 1);
+      g.enterPlay(grp);
+    }
   },
-  EnemyGroupRemoveAll: (g) => { g.enemies.length = 0; },
+  EnemyGroupRemoveAll: (g) => { for (const e of g.enemies) g.returnUniqueId(e); g.enemies.length = 0; },
   EnemyGroupRemove: (g, f, p) => g.removeEnemy(g.groupByLogic(f, p)),
   EnemyGroupDefeat: (g, f, p) => {
     const grp = g.groupByLogic(f, p);
