@@ -4,7 +4,7 @@
 // answers the players gave. When the interpreter needs a decision that is not in the list yet, the
 // ScriptedPlayer throws NeedInput; the Session keeps that decision as `pending`. After the answer is
 // appended, the game is replayed from scratch (~10-20 ms). Save = setup + answers; undo = drop answers.
-import { Bot, Game, generateBoard, keyOf, newCampaign, type Campaign, type ContentSource, type Difficulty, type EnemyGroup,
+import { Bot, Game, generateBoard, keyOf, newCampaign, type Campaign, type ContentSource, type Difficulty, type EnemyGroup, type EnemyUnit,
   type LogEntry, type Option, type Player } from "./game.ts";
 import { gd } from "./py.ts";
 import type { GeneratedMap } from "./map/mapgen.ts";
@@ -32,7 +32,7 @@ export type Decision =
 
 /**
  * Answers, by decision kind:
- * test/attack -> integer >= 0; confirm/lastStand/lastStandType -> boolean; choice -> index or null (cancel);
+ * test -> integer >= 0; attack -> hits + 100 x AttackAbilityType flags (see attackHits / attackAbilities); confirm/lastStand/lastStandType -> boolean; choice -> index or null (cancel);
  * hero -> { player, skip }; action -> option index or null (end hero turn)
  */
 export type Answer = number | boolean | null | { player: number; skip: boolean };
@@ -270,6 +270,8 @@ export interface GameView {
     uid: number; model: number; name: string; size: number; damage: number; unitHp: number; armor: number; exhausted: boolean;
     /** FFG EnemyGroup.UnitStartCount, EnemyModel.Sorcery, KeySingular, Traits has Range (0x400) */
     startSize: number; sorcery: number; nameOne: string; ranged: boolean;
+    /** per unit (UnitStartCount entries): health (0 = defeated), armor (Sunder lowers it) and sorcery */
+    units: EnemyUnit[];
     /** EnemyModel.IsNamed (a unique, named foe). FFG shows the elite frame for groups with bonuses; bonuses are not modelled yet */
     named: boolean;
   }[];
@@ -292,9 +294,9 @@ export function viewOf(g: Game): GameView {
     startTile: g.startTileId,
     enemies: g.enemies.map((e) => ({
       uid: e.uid, model: Number(e.model?._id ?? -1), name: String(g.enemyName(e.model, e.size)), size: e.size,
-      damage: e.damage, unitHp: e.unitHp, armor: Number(e.model?.Armor ?? 0), exhausted: e.exhausted,
+      damage: e.damage, unitHp: e.unitHp, armor: e.maxArmor, exhausted: e.exhausted,
       named: !!Number(e.model?.IsNamed ?? 0),
-      startSize: Math.max(e.startSize, e.size), sorcery: Number(e.model?.Sorcery ?? 0), nameOne: String(g.enemyName(e.model, 1)),
+      startSize: e.startSize, sorcery: e.maxSorcery, nameOne: String(g.enemyName(e.model, 1)), units: e.units(),
       ranged: (Number(e.model?.Traits ?? 0) & 0x400) !== 0,
     })),
     campaign: { lore: g.campaign.lore, xp: g.campaign.xp, items: [...g.campaign.items], titles: [...g.campaign.titles], next: g.campaign.next_adventure },

@@ -206,13 +206,13 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [modal, setModal] = useState<null | "party" | "settings">(null);
   const [enemyInfo, setEnemyInfo] = useState<number | null>(null);
   // the NGUI combat card resolves the hits itself: the attack action is answered, then its damage question
-  const attackHits = useRef<{ uid: number; hp: number } | null>(null);
+  const attackHits = useRef<{ uid: number; answer: number } | null>(null);
   useEffect(() => {
     const d = game?.state.pending;
     const a = attackHits.current;
     if (!a || !d) return;
     attackHits.current = null;
-    if (d.kind === "attack" && d.uid === a.uid) update({ type: "answer", answer: a.hp });
+    if (d.kind === "attack" && d.uid === a.uid) update({ type: "answer", answer: a.answer });
   }, [game?.state]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const prev = prevState.current;
@@ -366,7 +366,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
         {enemy && uiLayout && (
           <NguiEnemy key={enemy.uid} layout={uiLayout} atlas={atlas} say={say} art={enemyArt} enemy={enemy}
             canAttack={attackable.has(enemy.uid) && !talking && !busy}
-            onAttack={(hp) => { setEnemyInfo(null); attackHits.current = { uid: enemy.uid, hp }; answer(attackable.get(enemy.uid)!); }}
+            onAttack={(v) => { setEnemyInfo(null); attackHits.current = { uid: enemy.uid, answer: v }; answer(attackable.get(enemy.uid)!); }}
             onClose={() => setEnemyInfo(null)} />
         )}
         {enemy && !uiLayout && (

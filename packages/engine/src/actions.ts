@@ -412,8 +412,15 @@ export const ACTIONS: Record<string, ActionHandler> = {
     const logic = g.objRef(f.owner.src, gd(eg, "Logic")) ?? o;
     const grp = g.spawnGroup(m, or(gd(eg, "_unitStartCount", 1), 1), logic);
     grp.obj = o;
+    // scene-placed groups carry their units (EnemyGroup._unitHealth / _unitArmor / _unitSorcery)
     const hp: number[] = or(gd(eg, "_unitHealth"), []);
-    if (hp.length) grp.unitHp = Math.max(...hp);
+    if (hp.length) {
+      grp.hp = grp.hp.map((d, i) => Number(hp[i] ?? d));
+      grp.maxHp = Math.max(...grp.hp);
+      const arr = (k: string, d: number) => { const v: number[] = or(gd(eg, k), []); return grp.hp.map((_, i) => Number(v[i] ?? d)); };
+      grp.armor = arr("_unitArmor", grp.maxArmor);
+      grp.sorcery = arr("_unitSorcery", grp.maxSorcery);
+    }
   },
   EnemyGroupRemoveAll: (g) => { g.enemies.length = 0; },
   EnemyGroupRemove: (g, f, p) => g.removeEnemy(g.groupByLogic(f, p)),
@@ -431,10 +438,10 @@ export const ACTIONS: Record<string, ActionHandler> = {
   },
   EnemyGroupHeal: (g, f, p) => {
     const grp = g.groupByLogic(f, p);
-    if (grp) grp.damage = Math.max(0, grp.damage - g.num(f, gd(p, "HealingAmount")));
+    if (grp) grp.heal(g.num(f, gd(p, "HealingAmount")));
   },
   EnemyGroupHealAll: (g, f, p) => {
-    for (const grp of g.enemies) grp.damage = Math.max(0, grp.damage - g.num(f, gd(p, "HealingAmount")));
+    for (const grp of g.enemies) grp.heal(g.num(f, gd(p, "HealingAmount")));
   },
   EnemyGroupResetStats: noop,
   SetEnemyActivationOverride: (g, f, p) => {

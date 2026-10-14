@@ -246,28 +246,90 @@ export class GameNode {
   }
 }
 
+/** FFG AttackAbilityType flags (the combat card's modifiers) */
+export const ATTACK_ABILITIES = { Pierce: 1, Smite: 2, Lethal: 4, Sunder: 8, Stun: 16, Cleave: 32 } as const;
+export type AttackAbility = keyof typeof ATTACK_ABILITIES;
+/** One unit of an enemy group: health 0 = defeated */
+export interface EnemyUnit { hp: number; armor: number; sorcery: number }
+
+/**
+ * EnemyInfoDialog.CalculateHealth: the hits go to the first living unit (each unit with Cleave): armor absorbs them
+ * (not with Pierce), then sorcery (not with Smite), then health (Lethal: at most half the health rounded up, and a
+ * unit brought to half or less dies); Sunder takes 1 armor first. Returns the units after the attack, as shown.
+ */
+export function calculateHealth(start: readonly EnemyUnit[], damage: number, abilities: number): EnemyUnit[] {
+  const on = (a: AttackAbility) => (abilities & ATTACK_ABILITIES[a]) !== 0;
+  const u = start.map((x) => ({ ...x }));
+  let num = damage;
+  for (let i = 0; i < u.length; i++) {
+    const x = u[i]!;
+    if (on("Cleave")) num = damage;
+    if (on("Sunder") && (on("Cleave") || i === 0 || u[i - 1]!.hp <= 0)) x.armor = Math.max(0, x.armor - 1);
+    if (num <= 0) continue;
+    if (!on("Pierce")) { const a = Math.min(num, x.armor); x.armor -= a; num -= a; }
+    if (!on("Smite")) { const s = Math.min(num, x.sorcery); x.sorcery -= s; num -= s; }
+    const h = on("Lethal") ? Math.min(num, Math.floor(x.hp / 2 + 0.5)) : Math.min(num, x.hp);
+    if (on("Lethal") && x.hp <= 2 * h) x.hp = 0;
+    else x.hp -= h;
+    num -= h;
+  }
+  return u;
+}
+
+/** The attack answer: hits (0..99) + 100 x AttackAbilityType flags */
+export const attackHits = (a: number) => a % 100;
+export const attackAbilities = (a: number) => Math.floor(a / 100);
+
 export class EnemyGroup {
   readonly uid: number;
-  unitHp: number;
-  damage = 0;
+  /** FFG EnemyGroup._unitHealth / _unitArmor / _unitSorcery, one entry per unit the group started with */
+  hp: number[];
+  armor: number[];
+  sorcery: number[];
+  /** GetMaxUnitHealth / Armor / Sorcery (enemy bonuses are not modelled yet) */
+  maxHp: number;
+  maxArmor: number;
+  maxSorcery: number;
   exhausted = false;
   /** FFG EnemyGroup.AttackReduction: each further attack in a round deals 1 less (reset on refresh) */
   attackReduction = 0;
   activationOverride: any = null;
   obj: Obj | null = null;
   readonly model: any;
-  size: number;
-  /** FFG EnemyGroup.UnitStartCount: units the group was spawned with (health bars in the enemy dialog) */
-  readonly startSize: number;
   readonly logic: Obj | null;
 
   constructor(uid: number, model: any, size: number, logic: Obj | null = null) {
     this.uid = uid;
     this.model = model;
-    this.size = size;
-    this.startSize = size;
     this.logic = logic;
-    this.unitHp = toInt(or(gd(model, "Health"), 3));
+    this.maxHp = toInt(or(gd(model, "Health"), 3));
+    this.maxArmor = toInt(or(gd(model, "Armor"), 0));
+    this.maxSorcery = toInt(or(gd(model, "Sorcery"), 0));
+    this.hp = Array.from({ length: size }, () => this.maxHp);
+    this.armor = Array.from({ length: size }, () => this.maxArmor);
+    this.sorcery = Array.from({ length: size }, () => this.maxSorcery);
+  }
+
+  /** UnitsRemaining */
+  get size(): number { return this.hp.filter((h) => h > 0).length; }
+  /** UnitStartCount */
+  get startSize(): number { return this.hp.length; }
+  get unitHp(): number { return this.maxHp; }
+  /** CurrentHealth */
+  get health(): number { return this.hp.reduce((s, h) => s + h, 0); }
+  /** damage on the first living unit */
+  get damage(): number { const i = this.hp.findIndex((h) => h > 0); return i < 0 ? 0 : this.maxHp - this.hp[i]!; }
+  units(): EnemyUnit[] { return this.hp.map((hp, i) => ({ hp, armor: this.armor[i]!, sorcery: this.sorcery[i]! })); }
+
+  /** HealGroup: one health at a time to each damaged living unit, in order */
+  heal(amount: number): void {
+    while (amount > 0) {
+      let any = false;
+      for (let i = 0; i < this.hp.length && amount > 0; i++) {
+        if (this.hp[i]! > 0 && this.hp[i]! < this.maxHp) { this.hp[i]!++; amount--; any = true; }
+      }
+      if (!any) break;
+    }
   }
 }
 
@@ -1224,15 +1286,43 @@ export class Game {
       this.emit("UI_EXPLORE_TILE_WITH_INTRO_FORMATTED", flav,
         this.difficulty !== "hard" ? "UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION" : "UI_DISCARD_EXPLORE_TOKEN");
       this.explore(x as Tile);
-    } else {
-      const g = x as EnemyGroup;
-      g.damage += this.player.attackDamage(this, g);
-      if (g.damage >= g.unitHp) {
-        const killed = Math.floor(g.damage / g.unitHp);
-        g.size -= killed;
-        g.damage -= killed * g.unitHp;
-        if (g.size <= 0) this.defeatGroup(g);
-      }
+    } else this.playerAttack(x as EnemyGroup);
+  }
+
+  /** EnemyInfoDialog.CoroutineDisplayDamage + Adventure.CoroutinePerformPlayerAttackFinish */
+  playerAttack(g: EnemyGroup): void {
+    const a = this.player.attackDamage(this, g);
+    const ab = attackAbilities(a);
+    const on = (k: AttackAbility) => (ab & ATTACK_ABILITIES[k]) !== 0;
+    const before = g.size;
+    const res = calculateHealth(g.units(), attackHits(a), ab);
+    // armor and sorcery only absorb hits; Sunder takes one armor for good, a defeated unit keeps nothing
+    for (let i = 0; i < res.length; i++) {
+      if (on("Sunder") && (on("Cleave") || i === 0 || res[i - 1]!.hp <= 0)) g.armor[i] = Math.max(0, g.armor[i]! - 1);
+      g.hp[i] = res[i]!.hp;
+      if (g.hp[i]! <= 0) { g.armor[i] = 0; g.sorcery[i] = 0; }
+    }
+    if (!g.exhausted && on("Stun")) g.exhausted = true;
+    // elites (enemy bonuses) are not modelled: an elite would counter-attack even when exhausted
+    const counter = g.health > 0 && !on("Stun") && !g.exhausted;
+    const removed = before - g.size;
+    if (removed > 0) {
+      const unique = truthy(gd(g.model, "IsUnique")) || truthy(gd(g.model, "IsNamed"));
+      this.emit(unique ? "UI_ENEMY_REMOVAL_UNIQUE_REMINDER_FORMATTED" : "UI_ENEMY_REMOVAL_REMINDER_FORMATTED",
+        truthy(gd(g.model, "IsNamed")) ? "" : removed, this.enemyName(g.model, removed),
+        g.health <= 0 ? "UI_ENEMY_DEFEATED_INSPIRATION_REMINDER" : "");
+    }
+    if (counter) this.enemyCounterAttack(g);
+    if (g.health <= 0) this.defeatGroup(g);
+  }
+
+  /** CoroutinePerformEnemyAttack(group, requirePrompt: true, performAttackReduction: IsElite) */
+  enemyCounterAttack(g: EnemyGroup): void {
+    const a = this.randomActivation(g);
+    if (!a) return;
+    if (this.player.confirm(this, "UI_PROMPT_CAN_ATTACK", "UI_YES", "UI_NO")) {
+      this.enemyAttack(g, a, false);
+      g.exhausted = true;
     }
   }
 
@@ -1282,10 +1372,9 @@ export class Game {
     if (i === 0) this.enemyAttack(g, a, true);
     else if (i === 2) {
       // stopped by a fortified space: may it still attack? (no attack reduction unless elite: elites not modelled)
-      if (this.player.confirm(this, "UI_PROMPT_CAN_ATTACK")) {
-        const r = this.randomActivation(g);
-        if (r) this.enemyAttack(g, r, false);
-      }
+      // the activation is drawn before the players are asked
+      const r = this.randomActivation(g);
+      if (r && this.player.confirm(this, "UI_PROMPT_CAN_ATTACK", "UI_YES", "UI_NO")) this.enemyAttack(g, r, false);
     } else this.emit(gd(a, "KeyAltActivation"));
   }
 
@@ -1518,6 +1607,6 @@ export class Bot implements Player {
   }
 
   attackDamage(_g: Game, _group: EnemyGroup): number {
-    return this.rng.randint(1, 4);
+    return this.rng.randint(1, 4); // hits, no abilities
   }
 }
