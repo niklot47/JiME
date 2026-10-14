@@ -25,6 +25,8 @@ interface Props {
   fx?: Record<string, string>;
   /** Table texture (pack path, tiled), e.g. the theme's leather; default: procedural cloth */
   table?: string;
+  /** Map drawn under the leather (the original's table: Middle-earth showing through the semi-transparent leather) */
+  tableMap?: string;
   /** Location highlight (board coordinates): the turning yellow arrows where enemies are to be placed */
   marker?: [number, number] | null;
   /** a new game: even the first tiles drop in one by one (the view opens on the fog) */
@@ -35,6 +37,7 @@ interface Props {
 type Effect = (dt: number, time: number) => boolean;
 
 const TILE_H = 0.12;
+const TILE_LIFT = 0.07;
 // sizes of the game's token meshes (Unity units): "Round" Ø 0.864, "Explore" 0.918 square
 const TOKEN_R = 0.40;
 const SQUARE = 0.86;
@@ -84,6 +87,7 @@ function tileGroup(t: TileMesh): { group: THREE.Group; top: THREE.Mesh } {
   g.setAttribute("normal", new THREE.Float32BufferAttribute(new Array(pos.length / 3).fill([0, 1, 0]).flat(), 3));
   const top = new THREE.Mesh(g, sepiaMaterial(t.texture ? texture(t.texture) : null));
   top.receiveShadow = true;
+  top.castShadow = true;
   // side walls along the outline: triangle edges used once (vertices are per hex, so match by position)
   const key = (i: number) => `${t.positions[2 * i]!.toFixed(3)},${t.positions[2 * i + 1]!.toFixed(3)}`;
   const edges = new Map<string, [number, number, number]>();
@@ -109,6 +113,8 @@ function tileGroup(t: TileMesh): { group: THREE.Group; top: THREE.Mesh } {
   sides.castShadow = true;
   const group = new THREE.Group();
   group.add(top, sides);
+  // lifted a touch above the table so they cast a visible shadow on it
+  group.position.y = TILE_LIFT;
   return { group, top };
 }
 
@@ -263,7 +269,7 @@ function dustBurst(s: State, t: TileMesh, fx: Record<string, string>): void {
     for (let i = 0; i < 3; i++) {
       // the game's dust sprite is very faint: mostly smoke puffs, one dust layer for grain
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: i === 2 ? map : smoke, color: 0xe8dcc0, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false }));
-      sp.position.copy(v3(x + (Math.random() - 0.5) * 0.8, y + (Math.random() - 0.5) * 0.8, TILE_H + 0.15));
+      sp.position.copy(v3(x + (Math.random() - 0.5) * 0.8, y + (Math.random() - 0.5) * 0.8, TILE_LIFT + TILE_H + 0.15));
       sp.scale.setScalar(1.2 + Math.random() * 0.6);
       sp.renderOrder = 5;
       group.add(sp);
@@ -326,6 +332,9 @@ interface State {
   seen: Set<string>;
   table: THREE.Mesh;
   tablePath: string | undefined;
+  /** the map under the leather (centred on the board when framed) */
+  mapMesh: THREE.Mesh | null;
+  mapPath: string | undefined;
   /** the first content is shown at once; later tiles and tokens appear one at a time, the camera flying to each */
   ready: boolean;
   queue: Reveal[];
@@ -411,7 +420,7 @@ function markerGroup(fx: Record<string, string>): THREE.Group {
   return g;
 }
 
-export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table, marker = null, intro = false }: Props) {
+export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table, tableMap, marker = null, intro = false }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<State | null>(null);
   const pickRef = useRef(onPick);
@@ -530,7 +539,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     el.addEventListener("pointerup", onUp);
 
     st.current = { renderer, scene, camera, controls, board, sun, tileMats: new Map(), pulses: [], invalidate,
-      effects: [], fog: null, fogKey: "", seen: new Set(), table: tableMesh, tablePath: undefined,
+      effects: [], fog: null, fogKey: "", seen: new Set(), table: tableMesh, tablePath: undefined, mapMesh: null, mapPath: undefined,
       ready: false, queue: [], busy: false, tokenGroups: new Map(), marker: null, markerKey: "" };
     (window as any).__board3d = st.current; // perf checks from devtools / CDP
     resize();
@@ -559,15 +568,37 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.repeat.set(24, 24);
         mat.map = t;
-        mat.color.set(0xffffff);
-        // the original's table is lighter: the leather lit a little by itself
-        mat.emissive.set(0x786858);
+        // the original's leather is redder
+        mat.color.set(0xffd2c0);
+        // the leather is a semi-transparent layer over the map (lit a little by itself, like the original's)
+        mat.emissive.set(0x40241c);
         mat.emissiveMap = t;
+        mat.transparent = !!tableMap;
+        mat.opacity = tableMap ? 0.93 : 1;
+        mat.depthWrite = !tableMap;
       } else {
         mat.map = tableTexture();
         mat.color.set(0xffffff);
       }
       mat.needsUpdate = true;
+    }
+    if (tableMap !== s.mapPath) {
+      s.mapPath = tableMap;
+      if (s.mapMesh) { s.scene.remove(s.mapMesh); s.mapMesh = null; }
+      if (tableMap) {
+        const t = texture(tableMap);
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: t, roughness: 1, color: 0xb8a890 }));
+        m.rotation.x = -Math.PI / 2;
+        m.position.y = -0.02;
+        m.receiveShadow = true;
+        const W = 110;
+        const fit = () => { const im = t.image as { width?: number; height?: number } | undefined; m.scale.set(W, W * ((im?.height ?? 1) / (im?.width ?? 1)), 1); s.invalidate(); };
+        fit();
+        THREE.DefaultLoadingManager.onLoad = () => { fit(); s.invalidate(); };
+        s.scene.add(m);
+        s.mapMesh = m;
+        s.table.renderOrder = 1;
+      }
     }
     // a new view (game, adventure): everything shows at once, no flights
     if (fitKey === undefined || fitKey !== lastFit.current) { s.ready = intro; s.queue = []; s.busy = false; }
@@ -608,7 +639,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       const g = new THREE.Group();
       g.userData.token = true;
       const m = tokenMesh(tk);
-      m.position.y = TILE_H + 0.002;
+      m.position.y = TILE_LIFT + TILE_H + 0.002;
       // square tokens lie aligned with their tile; round art faces the viewer's default direction
       m.rotation.y += tk.shape === "square" ? tk.angle ?? 0 : -rot;
       if (tk.id !== undefined) m.userData.pick = { kind: "token", id: tk.id } satisfies Pick;
@@ -617,7 +648,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       if (tk.active) m.position.y += 0.03;
       if (showLabels && tk.label) {
         const l = labelSprite(tk.label);
-        l.position.set(0, TILE_H + 0.75, 0);
+        l.position.set(0, TILE_LIFT + TILE_H + 0.75, 0);
         g.add(l);
       }
       g.position.copy(v3(tk.x, tk.y));
@@ -641,7 +672,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       s.queue = s.queue.filter((q) => q.kind !== "marker");
       if (marker) {
         const m = markerGroup(fx);
-        m.position.copy(v3(marker[0], marker[1], TILE_H + 0.012));
+        m.position.copy(v3(marker[0], marker[1], TILE_LIFT + TILE_H + 0.012));
         m.visible = false;
         s.board.add(m);
         s.marker = m;
@@ -700,6 +731,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       const dist = Math.max((size.z * 0.5 + 1) / tan * 0.85, (size.x * 0.5 + 1) / (tan * s.camera.aspect)) * 1.02;
       s.controls.target.copy(c);
       s.camera.position.set(c.x, c.y + dist * 0.82, c.z + dist * 0.58);
+      if (s.mapMesh) s.mapMesh.position.set(c.x, -0.02, c.z);
       // shadow camera covers the board
       s.sun.position.set(c.x - 14, 26, c.z + 10);
       s.sun.target.position.copy(c);
@@ -711,7 +743,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     if (tiles.length) s.ready = true;
     pump(s, tileCache.current, fx, tiles);
     s.invalidate();
-  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table, marker]);
+  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table, tableMap, marker]);
 
   return <div ref={host} className="board" />;
 }

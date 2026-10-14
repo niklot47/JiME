@@ -382,7 +382,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="game-screen hud">
       <div className="board-wrap">
-        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d}
+        <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} tableMap={uiArt.map} labels={labels} view3d={view3d}
           marker={head && !banner ? head[4]?.at ?? null : null}
           cut={head ? state.log.length - unread.length + unread.indexOf(head) : Infinity}
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
@@ -460,8 +460,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, view3d, marker, cut, onAnswer }: {
-  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, TokenArt>; tokenMeshes: Record<string, TokenMeshData>; fx: Record<string, string>; table?: string; labels: boolean; view3d: boolean;
+function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, tableMap, labels, view3d, marker, cut, onAnswer }: {
+  game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, TokenArt>; tokenMeshes: Record<string, TokenMeshData>; fx: Record<string, string>; table?: string; tableMap?: string; labels: boolean; view3d: boolean;
   /** the space a message points at (enemies to place there) */
   marker?: SpaceRef | null;
   /** log index of the message on screen: tiles and tokens placed by later messages wait for theirs */
@@ -539,7 +539,7 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
   if (view3d) {
     // framed once per adventure; new tiles and tokens then appear one by one with the camera flying to them
     return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} marker={markerAt} intro={game.state.answers === 0}
-      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}`} fx={fx} table={table} />;
+      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}`} fx={fx} table={table} tableMap={tableMap} />;
   }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
     shownTiles={shown} tileColors={colors} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;
