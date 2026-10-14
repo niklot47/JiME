@@ -18,8 +18,12 @@ export interface ContentSource {
 }
 
 export type Difficulty = "normal" | "hard" | "adventure";
-/** enemy: uid of the group activating / attacking when it was written (the original shows those in its enemy popup) */
-export type LogEntry = [advIndex: number, round: number, key: string, inserts: string[], enemy?: number];
+/**
+ * enemy: uid of the group activating / attacking when it was written (the original shows those in its enemy popup);
+ * log: chronicle only (MasterMessageCache.AddMessage / Adventure.LogMessage), the players saw it as a question already
+ */
+export interface LogMeta { enemy?: number; log?: true }
+export type LogEntry = [advIndex: number, round: number, key: string, inserts: string[], meta?: LogMeta];
 
 const KEY_RE = /^«([^\n]+)»\n?$/;
 
@@ -556,9 +560,18 @@ export class Game {
   }
 
   emit(key: any, ...inserts: unknown[]): void {
+    this.write(key, inserts, false);
+  }
+
+  /** A chronicle-only entry (see LogMeta.log) */
+  note(key: any, ...inserts: unknown[]): void {
+    this.write(key, inserts, true);
+  }
+
+  private write(key: any, inserts: unknown[], logOnly: boolean): void {
     if (key === null || key === undefined) return;
     const e: LogEntry = [this.advIndex, this.round, key, inserts.map(pyStr)];
-    if (this.activating) e.push(this.activating.uid);
+    if (this.activating || logOnly) e.push({ ...(this.activating ? { enemy: this.activating.uid } : {}), ...(logOnly ? { log: true as const } : {}) });
     this.log.push(e);
   }
 
@@ -1078,9 +1091,10 @@ export class Game {
     return [k, []];
   }
 
-  show(fsm: Fsm, msg: any): any {
+  /** logOnly: the message was the text of a question (challenge, confirm, choice): chronicle only */
+  show(fsm: Fsm, msg: any, logOnly = false): any {
     const [k, ins] = this.msgKey(fsm, msg);
-    if (truthy(k)) this.emit(k, ...ins);
+    if (truthy(k)) this.write(k, ins, logOnly);
     return k;
   }
 
@@ -1285,8 +1299,8 @@ export class Game {
     } else if (kind === "node") {
       for (const fs of (x as GameNode).obj.fsms) if (fs.canHandle("NODE CLICKED")) { fs.send("NODE CLICKED"); break; }
     } else if (kind === "explore") {
-      this.emit("UI_CONFIRM_EXPLORE");
-      this.emit("UI_CONFIRM");
+      this.note("UI_CONFIRM_EXPLORE");
+      this.note("UI_CONFIRM");
       const flav = this.flavor(x as Tile);
       this.emit("UI_EXPLORE_TILE_WITH_INTRO_FORMATTED", flav,
         this.difficulty !== "hard" ? "UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION" : "UI_DISCARD_EXPLORE_TOKEN");
@@ -1418,8 +1432,8 @@ export class Game {
       g.attackReduction++;
     }
     this.emit(gd(a, "KeyAttackFlavor"));
-    if (truthy(gd(a, "KeyAttackAdditionalEffect"))) this.emit("UI_DAMAGE_LOG_WITH_EFFECT_FORMATTED", ph, fe, a.KeyAttackAdditionalEffect);
-    else this.emit("UI_DAMAGE_LOG_FORMATTED", ph, fe);
+    if (truthy(gd(a, "KeyAttackAdditionalEffect"))) this.note("UI_DAMAGE_LOG_WITH_EFFECT_FORMATTED", ph, fe, a.KeyAttackAdditionalEffect);
+    else this.note("UI_DAMAGE_LOG_FORMATTED", ph, fe);
     // bot simulation of the hero's cards
     const h = this.heroes[this.randomHealthyHero()]!;
     h.damage += Math.max(0, ph - this.rng.randint(0, 2));
@@ -1438,8 +1452,8 @@ export class Game {
     this.prompt = { key: key ?? undefined, inserts: [String(h.lastStand)] };
     const ok = this.player.lastStand(this, hero, physical);
     this.prompt = null;
-    this.emit(key, h.lastStand);
-    this.emit(ok ? "UI_PASS" : "UI_FAIL");
+    this.note(key, h.lastStand);
+    this.note(ok ? "UI_PASS" : "UI_FAIL");
     if (ok) {
       h.lastStand++;
       this.emit(physical ? "UI_LAST_STAND_PASSED_PHYSICAL" : "UI_LAST_STAND_PASSED_FEAR");

@@ -194,6 +194,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   const host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<[number, number]>([1280, 720]);
   const [measured, setMeasured] = useState(() => new Map<string, Measured>());
+  // UILabel.Overflow.ShrinkContent: font factor per label until its text fits (reset when the text changes)
+  const [shrink, setShrink] = useState(() => new Map<string, { html: string; f: number }>());
   useSyncExternalStore(subscribe, snapshot);
   useLayoutEffect(() => {
     const el = host.current!;
@@ -221,6 +223,20 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
       if (!old || Math.abs(old.h - m.h) > 0.5 || Math.abs(old.w - m.w) > 0.5) { next.set(b.key, m); changed = true; }
     }
     if (changed) setMeasured(next);
+    let shrunk = false;
+    const sh = new Map(shrink);
+    for (const b of boxes) {
+      if (b.w.k !== "label" || b.w.lb!.ov !== 0 || b.autoH || b.autoW) continue;
+      const el = labelRefs.current.get(b.key);
+      if (!el) continue;
+      const html = el.firstElementChild?.innerHTML ?? "";
+      const cur = sh.get(b.key);
+      if (cur && cur.html !== html) { sh.set(b.key, { html, f: 1 }); shrunk = true; continue; }
+      const f = cur?.f ?? 1;
+      if (f > 0.3 && (el.scrollHeight > b.height + 1 || el.scrollWidth > b.width + 1)) { sh.set(b.key, { html, f: f * 0.92 }); shrunk = true; }
+      else if (!cur) sh.set(b.key, { html, f: 1 });
+    }
+    if (shrunk) setShrink(sh);
   });
 
   return (
@@ -238,7 +254,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             const keyText = /^[A-Z][A-Z0-9_]+$/.test(raw) ? say(raw) : "";
             const html = b.bind.html ?? (b.bind.text !== undefined ? escapeHtml(b.bind.text) : b.node.loc ? say(b.node.loc) : keyText || escapeHtml(raw));
             return (
-              <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...labelStyle(b, 1) }} title={b.bind.title} onClick={click}
+              <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...labelStyle(b, shrink.get(b.key)?.f ?? 1) }} title={b.bind.title} onClick={click}
                 ref={(el) => { if (el) labelRefs.current.set(b.key, el); else labelRefs.current.delete(b.key); }}>
                 <span dangerouslySetInnerHTML={{ __html: html }} />
                 {b.bind.content}

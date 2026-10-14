@@ -8,8 +8,8 @@ import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
 import { Board3D } from "../board/Board3D.tsx";
 import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
-import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, loadUiLayout, type AtlasSprite, themeChoice, loadPackSet, packConfig } from "../data/pack.ts";
-import { textHtml } from "../text/markup.ts";
+import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, loadUiLayout, loadHeroArt, assetUrl, type HeroArt, type AtlasSprite, themeChoice, loadPackSet, packConfig } from "../data/pack.ts";
+import { setHeroNames, textHtml } from "../text/markup.ts";
 import { sound } from "../audio/sound.ts";
 import { PHASE_KEYS, gameSounds } from "../audio/gameFx.ts";
 import { BottomBar, GearButton, PhaseBanner, ThreatBar } from "./game/Hud.tsx";
@@ -17,6 +17,7 @@ import { NguiMessage } from "./game/NguiMessage.tsx";
 import { NguiHud } from "./game/NguiHud.tsx";
 import type { UiLayoutFile } from "../ngui/types.ts";
 import { NguiEnemy } from "./game/NguiEnemy.tsx";
+import { NguiParty } from "./game/NguiParty.tsx";
 import { DecisionDialog, EnemyInfoDialog, GameOverDialog, GreenButton, MessageDialog, PartyDialog, SettingsDialog } from "./game/Dialogs.tsx";
 
 /** written to the chronicle only (Adventure.LogMessage), not shown as a popup */
@@ -98,6 +99,15 @@ function spaceCenter(db: any, adv: any, t: GenTile, si: number): [number, number
   return [x, y];
 }
 
+/** The party: the picked heroes, then the first others in id order, one per player */
+function partyOf(pick: number[], players: number, heroes: Record<string, HeroArt>): number[] | undefined {
+  const all = Object.keys(heroes).map(Number).sort((a, b) => a - b);
+  if (!all.length) return undefined;
+  const out = pick.slice(0, players);
+  for (const id of all) if (out.length < players && !out.includes(id)) out.push(id);
+  return out;
+}
+
 function tileCenter(t: GenTile): [number, number] {
   let x = 0, y = 0;
   for (const h of t.hexes) { const [wx, wy] = cubeToWorld(h); x += wx / t.hexes.length; y += wy / t.hexes.length; }
@@ -112,6 +122,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [tokenMeshes, setTokenMeshes] = useState<Record<string, TokenMeshData>>({});
   const [fx, setFx] = useState<Record<string, string>>({});
   const [enemyArt, setEnemyArt] = useState<Record<string, string>>({});
+  const [heroArt, setHeroArt] = useState<Record<string, HeroArt>>({});
+  const [heroPick, setHeroPick] = useState<number[]>([]);
   const [uiArt, setUiArt] = useState<Record<string, string>>({});
   const [atlas, setAtlas] = useState<Record<string, AtlasSprite>>({});
   const [uiLayout, setUiLayout] = useState<UiLayoutFile | null>(null);
@@ -138,6 +150,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     client.current = new GameClient();
     void loadUiLayout().then(setUiLayout);
+    void loadHeroArt().then(setHeroArt);
     void installFonts();
     loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
     Promise.all([loadDb(), loadTileArt(), loadTokenArt(), loadFx(), loadEnemyArt(), loadUiArt(), loadTokenMeshes(), loadUiAtlas()])
@@ -254,6 +267,21 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
               {[1, 2, 3, 4, 5].map((n) => <button key={n} className={n === players ? "on" : ""} onClick={() => setPlayers(n)}>{n}</button>)}
             </div>
           </label>
+          <label>Герои <span className="muted">({heroPick.length}/{players}; не выбранные — по порядку)</span>
+            <div className="hero-pick">
+              {Object.entries(heroArt).map(([id, h]) => {
+                const n = Number(id);
+                const on = heroPick.includes(n);
+                return (
+                  <button key={id} className={on ? "on" : ""} title={(text && text.raw(h.name)) || h.name}
+                    onClick={() => setHeroPick((p) => (on ? p.filter((x) => x !== n) : [...p, n].slice(-players)))}>
+                    {h.icon ? <img src={assetUrl(h.icon)} alt="" /> : null}
+                    <span>{(text && text.raw(h.name)) || h.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </label>
           <label>Язык
             <div className="row seg">
               {langs.map((l) => <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>{l}</button>)}
@@ -267,7 +295,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           </label>
           <label className="check"><input type="checkbox" checked={coreOnly} onChange={(e) => setCoreOnly(e.target.checked)} /> Только базовая коробка</label>
           <button className="primary" disabled={!ready}
-            onClick={() => start({ adv, seed, players, language: lang, ...(coreOnly ? { products: [0] } : {}) })}>
+            onClick={() => start({ adv, seed, players, language: lang, heroes: partyOf(heroPick, players, heroArt), ...(coreOnly ? { products: [0] } : {}) })}>
             {busy ? "Подготовка…" : "Начать"}
           </button>
           {auto && (
@@ -288,12 +316,15 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   // Like the original there is no side panel: messages and decisions are dialogs over the board, the rest is in the
   // party menu (status, chronicle, items) and the settings menu (gear, top right).
   const { state } = game;
+  // the party (SessionSetup.heroes): names for "@hero:<i>" inserts, portraits in the party menu
+  const party = (state.save.setup.heroes ?? []).map((id) => ({ id, ...(heroArt[String(id)] ?? { name: "" }) }));
+  setHeroNames(party.map((h) => (h.name && text ? text.raw(h.name) : "") || ""));
   const { view, pending } = state;
   const action = pending?.kind === "action" ? pending : null;
   (window as any).__jimeGame = { state, answer }; // dev checks over CDP (tools/dev)
   // queue head: a phase banner or a message (entries without text are skipped)
   // damage logs only go to the chronicle: the attack popup shows them as icons (MessageAdditionalInfo)
-  const queue = unread.filter(([, , k, ins]) => !LOG_ONLY.has(k) && (PHASE_KEYS.has(k) || !!say(k, ins)));
+  const queue = unread.filter(([, , k, ins, meta]) => !meta?.log && !LOG_ONLY.has(k) && (PHASE_KEYS.has(k) || !!say(k, ins)));
   const head = queue[0];
   const banner = head && PHASE_KEYS.has(head[2]) ? head : null;
   const messages = queue.filter(([, , k]) => !PHASE_KEYS.has(k));
@@ -303,7 +334,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const attackInfo = dmg && LOG_ONLY.has(dmg[2])
     ? { physical: Number(dmg[3][0]) || 0, fear: Number(dmg[3][1]) || 0, effect: dmg[3][2] ?? null } : undefined;
   // the group shown highlighted in the bar while it activates (Adventure._activatingEnemy)
-  const activating = head ? head[4] : pending && (pending.kind === "choice" || pending.kind === "confirm") ? pending.enemy : undefined;
+  const activating = head ? head[4]?.enemy : pending && (pending.kind === "choice" || pending.kind === "confirm") ? pending.enemy : undefined;
   const drop = (e: LogEntry) => setUnread((u) => u.slice(u.indexOf(e) + 1));
   // hero actions: tokens and tiles are picked on the board, enemies in the tracker; the rest gets small buttons
   const attackable = new Map<number, number>();
@@ -333,7 +364,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const dialog = banner || attackHits.current ? null
     : uiLayout && talking ? <NguiMessage layout={uiLayout} atlas={atlas} say={say}
         content={{ kind: "message", entry: head!, left: messages.length, info: attackInfo, onNext: () => drop(head!), onSkipAll: () => setUnread([]) }} />
-    : uiLayout && !talking && nguiOk(pending) ? <NguiMessage key={state.answers} layout={uiLayout} atlas={atlas} say={say}
+    : uiLayout && !talking && nguiOk(pending) ? <NguiMessage key={state.answers} layout={uiLayout} atlas={atlas} say={say} party={party}
         content={{ kind: "decision", d: pending!, onAnswer: answer }} />
     : talking ? <MessageDialog atlas={atlas} say={say} entry={head!} left={messages.length} onNext={() => drop(head!)} onSkipAll={() => setUnread([])} />
     : pending ? <DecisionDialog key={state.answers} d={pending} view={view} atlas={atlas} say={say} enemyArt={enemyArt} onAnswer={answer} />
@@ -352,7 +383,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
               else setEnemyInfo(uid);
             }}
             endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
-            onParty={() => setModal("party")} onSettings={() => setModal("settings")} onEndRound={() => answer(null)} />
+            onParty={() => setModal((m) => (m === "party" ? null : "party"))} onSettings={() => setModal("settings")} onEndRound={() => answer(null)} />
         ) : (
           <>
             <ThreatBar view={view} art={uiArt} atlas={atlas} say={say} />
@@ -375,7 +406,12 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
           onParty={() => setModal("party")} onEnemy={(uid) => setEnemyInfo(uid)} onEndRound={() => answer(null)} />}
         {error && <div className="toast error" onClick={() => setError(null)}>{error}</div>}
-        {modal === "party" && <PartyDialog view={view} atlas={atlas} say={say} log={state.log} items={items}
+        {modal === "party" && uiLayout && (
+          <NguiParty layout={uiLayout} atlas={atlas} say={say} view={view} log={state.log} party={party} items={items}
+            advName={db?.models?.AdventureModel?.[String(view.adv)]?.NameKey ?? null}
+            lastStands={talking || busy ? new Map() : lastStands} onLastStand={(i) => { setModal(null); answer(i); }} onClose={() => setModal(null)} />
+        )}
+        {modal === "party" && !uiLayout && <PartyDialog view={view} atlas={atlas} say={say} log={state.log} items={items}
           lastStands={talking || busy ? new Map() : lastStands} onLastStand={(i) => { setModal(null); answer(i); }} onClose={() => setModal(null)} />}
         {modal === "settings" && (
           <SettingsDialog atlas={atlas} say={say} view3d={view3d} labels={labels} canUndo={!!state.answers && !busy}

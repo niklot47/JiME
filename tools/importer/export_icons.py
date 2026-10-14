@@ -1,5 +1,7 @@
 # Export enemy icons (local only, FFG content) to <JIME_WORK>/packs/core-ffg/images/enemies/<EnemyModel id>.png
 # and images/enemies/enemies.json: { "<id>": "images/enemies/<id>.png" }. Source: EnemyModel.Icon (Resources path).
+# Hero icons and portraits (HeroModel.Icon / Portrait) to images/heroes/<id>_icon.png, <id>.png and
+# images/heroes/heroes.json: { "<id>": { "name": NameKey, "icon": path, "portrait": path } }.
 import os, json
 from jload import *
 from prefab import CONT, RA
@@ -46,6 +48,27 @@ def main():
     with open(os.path.join(OUT, "enemies.json"), "w", encoding="utf-8") as fp:
         json.dump(found, fp, indent=1)
     print(f"enemy icons: {len(found)}/{len(db['models']['EnemyModel'])} -> {OUT}")
+    heroes(db)
+
+def heroes(db):
+    out = os.path.join(PACK, "images", "heroes")
+    os.makedirs(out, exist_ok=True)
+    found = {}
+    for hid, m in db["models"].get("HeroModel", {}).items():
+        e = {"name": m.get("NameKey")}
+        for field, suffix, size in (("Icon", "_icon", SIZE), ("Portrait", "", 512)):
+            p = (m.get(field) or {}).get("Path")
+            try: img = load_res(p) if p else None
+            except Exception as ex: print("hero image failed", p, ex); img = None
+            if img is None: continue
+            img = img.convert("RGBA")
+            img.thumbnail((size, size))
+            img.save(os.path.join(out, f"{hid}{suffix}.png"))
+            e["icon" if field == "Icon" else "portrait"] = f"images/heroes/{hid}{suffix}.png"
+        found[hid] = e
+    with open(os.path.join(out, "heroes.json"), "w", encoding="utf-8") as fp:
+        json.dump(found, fp, indent=1, ensure_ascii=False)
+    print(f"heroes: {sum(1 for e in found.values() if 'portrait' in e)}/{len(found)} portraits -> {out}")
 
 if __name__ == "__main__":
     main()

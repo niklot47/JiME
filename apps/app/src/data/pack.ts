@@ -250,6 +250,17 @@ export const loadEnemyArt = () => once("enemies", async () => {
   }
 });
 
+/** A hero of the game (images/heroes/heroes.json from tools/importer/export_icons.py): HeroModel.NameKey, icon, portrait */
+export interface HeroArt { name: string; icon?: string; portrait?: string }
+/** Heroes by HeroModel id; {} if absent */
+export const loadHeroArt = () => once("heroes", async () => {
+  try {
+    return JSON.parse(await packText("images/heroes/heroes.json")) as Record<string, HeroArt>;
+  } catch {
+    return {} as Record<string, HeroArt>;
+  }
+});
+
 /** Interface art of the "Original" theme (images/ui/ui.json from tools/importer/export_ui.py); {} if absent */
 export const loadUiArt = () => once("ui", async () => {
   try {

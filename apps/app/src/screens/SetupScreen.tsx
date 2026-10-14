@@ -8,7 +8,7 @@ import { clearPackCache } from "../data/pack.ts";
 type Step = "game" | "python" | "import" | "done";
 const STEP_NAMES: Record<string, string> = {
   extract_loc: "тексты и переводы", export_all: "сценарии и встречи", export_tiles: "геометрия тайлов", make_pack: "сборка пака",
-  export_tile_art: "картинки тайлов", export_fonts: "шрифты", export_tokens: "жетоны", export_fx: "эффекты", export_icons: "портреты врагов", export_ui: "оформление", export_atlas: "элементы интерфейса", export_audio: "музыка и звуки", export_ui_layouts: "разметка интерфейса",
+  export_tile_art: "картинки тайлов", export_fonts: "шрифты", export_tokens: "жетоны", export_fx: "эффекты", export_icons: "портреты врагов и героев", export_ui: "оформление", export_atlas: "элементы интерфейса", export_audio: "музыка и звуки", export_ui_layouts: "разметка интерфейса",
 };
 
 export function SetupScreen({ onDone, onSkip }: { onDone: () => void; onSkip: () => void }) {

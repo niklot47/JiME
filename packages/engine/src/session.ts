@@ -215,6 +215,8 @@ export interface SessionSetup {
   mapSeed?: number;
   products?: number[];
   language?: string;
+  /** HeroModel id per player (the party; the engine does not use them, the UI shows names and portraits) */
+  heroes?: number[];
 }
 
 const gameOpts = (s: SessionSetup) => ({

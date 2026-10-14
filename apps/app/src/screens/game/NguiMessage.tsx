@@ -19,9 +19,13 @@ export type PopupContent =
   | { kind: "message"; entry: LogEntry; left: number; info?: AttackInfo; onNext: () => void; onSkipAll: () => void }
   | { kind: "decision"; d: Decision; onAnswer: (a: Answer) => void };
 
-export function NguiMessage({ layout, atlas, say, content }: { layout: UiLayoutFile; atlas: Atlas; say: Say; content: PopupContent }) {
+export function NguiMessage({ layout, atlas, say, content, party = [] }: {
+  layout: UiLayoutFile; atlas: Atlas; say: Say; content: PopupContent;
+  /** the party's hero icons (Button_HeroChoice / Texture_HeroIcon) and names */
+  party?: { name: string; icon?: string }[];
+}) {
   // UI_Game.MessageDialogEnemyActivation for what an activating enemy does (log entries / decisions tagged with it)
-  const enemy = content.kind === "message" ? content.entry[4] !== undefined : content.d.kind === "choice" && content.d.enemy !== undefined;
+  const enemy = content.kind === "message" ? content.entry[4]?.enemy !== undefined : content.d.kind === "choice" && content.d.enemy !== undefined;
   const popup = findNode(layout.root, enemy ? "UI_Game/MessagePopup_EnemyActivation" : "UI_Game/MessagePopup");
   const [value, setValue] = useState(0);
   const dKey = content.kind === "decision" ? content.d : null;
@@ -84,9 +88,10 @@ export function NguiMessage({ layout, atlas, say, content }: { layout: UiLayoutF
         btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: say(d.no) || "Отмена" });
         break;
       case "lastStand":
-        b.Label_Message!.html = `Последний рубеж: Герой ${d.hero + 1} (${d.physical ? "урон" : "страх"})${d.key ? `<br><br>${say(d.key, d.inserts)}` : ""}`;
-        btn("Button_Confirm", () => content.onAnswer(true), { node: "Label_Confirm", html: "Пройден" });
-        btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: "Провален" });
+        // UIHeroMenuDialog.PerformLastStand: the test text with the difficulty, Pass / Fail
+        b.Label_Message!.html = d.key ? say(d.key, d.inserts) : `Последний рубеж (${d.physical ? "урон" : "страх"})`;
+        btn("Button_Confirm", () => content.onAnswer(true), { node: "Label_Confirm", html: say("UI_PASS") || "Пройден" });
+        btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: say("UI_FAIL") || "Провален" });
         break;
       case "lastStandType":
         b.Label_Message!.html = say("UI_CHOOSE_LAST_STAND") || "От чего герой повержен?";
@@ -94,13 +99,16 @@ export function NguiMessage({ layout, atlas, say, content }: { layout: UiLayoutF
         btn("Button_Cancel", () => content.onAnswer(false), { node: "Label_Cancel", html: say("UI_FEAR") || "Страх" });
         break;
       case "hero": {
-        // HeroChoice: one portrait frame per player (no portraits yet: the number), skip when allowed
+        // HeroChoice: one icon frame per player (Texture_HeroIcon = Hero.Model.Icon; the number without icons)
         b.HeroChoice = { show: true };
         const names = ["Button_HeroChoice", "Button_HeroChoice (1)", "Button_HeroChoice (2)", "Button_HeroChoice (3)", "Button_HeroChoice (4)"];
         names.forEach((n, i) => {
+          const h = party[i];
           b[n] = i < d.players
-            ? { show: true, onClick: () => content.onAnswer({ player: i, skip: false }), content: <span className="ng-hero-num">{i + 1}</span>, title: `Герой ${i + 1}` }
+            ? { show: true, onClick: () => content.onAnswer({ player: i, skip: false }), title: (h?.name && say(h.name)) || `Герой ${i + 1}`,
+                ...(h?.icon ? {} : { content: <span className="ng-hero-num">{i + 1}</span> }) }
             : { show: false };
+          b[`${n}/Texture_HeroIcon`] = h?.icon ? { tex: h.icon } : { show: false };
         });
         b.ButtonConfirmPlayerChoice = { show: false };
         b.ButtonSkipPlayerChoice = d.canSkip ? { show: true, onClick: () => content.onAnswer({ player: 0, skip: true }) } : { show: false };

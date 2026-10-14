@@ -83,7 +83,7 @@ export const ACTIONS: Record<string, ActionHandler> = {
   },
   DisplayTutorialMessage: noop,
   DisplayMessageChallenge: (g, f, p) => {
-    g.show(f, gd(p, "Message"));
+    g.show(f, gd(p, "Message"), true);
     const pairs: any[] = or(gd(p, "ResultPairs"), []);
     const top = Math.max(...pairs.map((x) => g.num(f, gd(x, "Sum", 0))), 0);
     const s = g.player.successes(g, top, showKey(p, g, f));
@@ -93,8 +93,8 @@ export const ACTIONS: Record<string, ActionHandler> = {
   },
   DisplayMessageCancelConfirm: (g, f, p) => {
     if (g.player.confirm(g, showKey(p, g, f), keyOf(gd(p, "ConfirmLabel")), keyOf(gd(p, "CancelLabel")))) {
-      g.show(f, gd(p, "Message"));
-      g.emit(or(keyOf(gd(p, "ConfirmLabel")), "UI_CONFIRM"));
+      g.show(f, gd(p, "Message"), true);
+      g.note(or(keyOf(gd(p, "ConfirmLabel")), "UI_CONFIRM"));
       return "CONFIRM";
     }
     return "CANCEL";
@@ -104,12 +104,12 @@ export const ACTIONS: Record<string, ActionHandler> = {
     const cancel = or(gd(p, "CancelChoice"), {});
     const c = g.player.choose(g, showKey(p, g, f), choices, truthy(gd(cancel, "Event")));
     if (c === null) return gd(cancel, "Event");
-    g.show(f, gd(p, "Message"));
-    g.emit(keyOf(gd(c, "Localization")));
+    g.show(f, gd(p, "Message"), true);
+    g.note(keyOf(gd(c, "Localization")));
     return gd(c, "Event");
   },
   DisplayMessagePlayerChoice: (g, f, p) => {
-    g.show(f, gd(p, "Message"));
+    g.show(f, gd(p, "Message"), true);
     const r = g.player.playerChoice(g, showKey(p, g, f), truthy(gd(p, "CanSkip")));
     g.set(f, gd(p, "PlayerIndex"), r.player);
     if (r.skip) return gd(p, "SkipEvent");

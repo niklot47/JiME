@@ -8,11 +8,15 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
  * fallback: another language (English) for keys missing in `text` - e.g. DLC keys a translation lacks;
  * applies to the key itself and to inserts that are keys
  */
-/** Hero inserts from the engine ("@hero:<index>", "@hero:?" = a random hero); TODO: hero names once heroes are chosen */
+let heroNames: readonly string[] = [];
+/** Names of the party's heroes, by player index (the game screen sets them) */
+export function setHeroNames(names: readonly string[]): void { heroNames = names; }
+
+/** Hero inserts from the engine ("@hero:<index>", "@hero:?" = a random hero) */
 export function heroInsert(i: string): string | null {
   const m = /^@hero:(\d+|\?)$/.exec(i);
   if (!m) return null;
-  return m[1] === "?" ? "Один из героев" : `Герой ${Number(m[1]) + 1}`;
+  return m[1] === "?" ? "Один из героев" : heroNames[Number(m[1])] || `Герой ${Number(m[1]) + 1}`;
 }
 
 export function textHtml(text: TextDb, key: string, inserts: readonly string[] = [], fallback?: TextDb | null): string {

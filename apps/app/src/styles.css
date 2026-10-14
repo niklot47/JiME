@@ -401,3 +401,19 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui .ng-ready { animation: end-ready 2.2s ease-in-out infinite; }
 .ngui .ng-threat-img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* medallions over the NGUI enemy bar: EnemiesScrollView starts 173 UI units from the bar's left (bar: 100 from the screen edge) */
+/* setup: hero picker */
+.hero-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; max-height: 230px; overflow-y: auto; }
+.hero-pick button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; font-size: 0.75rem; }
+.hero-pick button img { width: 52px; height: 52px; object-fit: contain; }
+.hero-pick button.on { outline: 2px solid #e8b04a; background: rgba(232, 176, 74, 0.18); }
+/* NGUI party menu (Dialog_HeroMenu): modal catcher, the lists the game fills from prefabs */
+.ngui-modal { position: fixed; inset: 0; z-index: 30; }
+.ngui-modal .ngui { position: fixed; inset: 0; }
+.ngui .ng-list { position: absolute; inset: 0; overflow-y: auto; pointer-events: auto; display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; box-sizing: border-box; }
+.ngui .ng-rounds button { font-family: var(--font-title, serif); font-size: 22px; color: #3b2a17; background: rgba(255, 240, 200, 0.35); border: 1px solid rgba(80, 55, 25, 0.5); border-radius: 4px; padding: 10px 4px; cursor: pointer; }
+.ngui .ng-rounds button.on { background: rgba(255, 210, 120, 0.75); box-shadow: 0 0 10px rgba(255, 200, 90, 0.8); }
+.ngui .ng-messages p { margin: 0 0 10px; font-family: var(--font-text, serif); font-size: 19px; line-height: 1.25; color: #efe2c4; white-space: pre-line; text-shadow: 0 1px 2px #000; }
+.ngui .ng-list { scrollbar-width: thin; scrollbar-color: #8a6a3a rgba(0, 0, 0, 0.3); }
+.ngui .ng-items { flex-flow: row wrap; align-content: flex-start; }
+.ngui .ng-item { width: 46%; padding: 14px 10px; font-family: var(--font-title, serif); font-size: 20px; color: #f3e2bd; background: rgba(30, 20, 10, 0.75); border: 2px solid #8a6a3a; border-radius: 6px; }
+.ngui .ng-none { font-family: var(--font-title, serif); font-size: 22px; color: #efe2c4; text-align: center; width: 100%; }

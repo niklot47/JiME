@@ -29,6 +29,8 @@ export interface Bind {
   pv?: number;
   /** label alignment override (NGUIText.Alignment) */
   al?: number;
+  /** panel depth override for the subtree (a popup inside a dialog whose saved panel depth is lower than the dialog's) */
+  depth?: number;
   /** UIGrid cell size override (e.g. EnemyHealthBar: 350 / max health) */
   cell?: [number, number];
   /** replace the transform position (UI units, y up) */
@@ -100,7 +102,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       let x = n === root && rootIsScreen ? 0 : px + lx * sx;
       let y = n === root && rootIsScreen ? 0 : py + ly * sy;
       const nsx = n === root && rootIsScreen ? 1 : sx * (end.s?.[0] ?? n.s?.[0] ?? 1), nsy = n === root && rootIsScreen ? 1 : sy * (end.s?.[1] ?? n.s?.[1] ?? 1);
-      const pd = n.panel ? n.panel.d : panel;
+      const pd = b.depth ?? (n.panel ? n.panel.d : panel);
       const k = `${key}/${n.id}`;
       const w = n.w;
       if (w) {
