@@ -225,6 +225,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [enemyInfo, setEnemyInfo] = useState<number | null>(null);
   // Adventure.IsProvokeMode: the next medallion click makes that group attack
   const [provoking, setProvoking] = useState(false);
+  const [calloutPx, setCalloutPx] = useState<[number, number] | null>(null);
   const [loreGain, setLoreGain] = useState<{ key: number; amount: number } | null>(null);
   useEffect(() => {
     if (!loreGain) return;
@@ -339,6 +340,9 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const banner = head && PHASE_KEYS.has(head[2]) ? head : null;
   const messages = queue.filter(([, , k]) => !PHASE_KEYS.has(k));
   const talking = queue.length > 0;
+  // UITileCallout: the code of the tile the message on screen places, next to it on the board
+  const headIndex = head ? state.log.length - unread.length + unread.indexOf(head) : -1;
+  const placing = head && !PHASE_KEYS.has(head[2]) ? (view.tiles.find((t) => t.visible && t.shownAt === headIndex) ?? null) : null;
   const headAt = head ? unread.indexOf(head) : -1;
   const dmg = headAt >= 0 ? unread[headAt + 1] : undefined;
   const attackInfo = dmg && LOG_ONLY.has(dmg[2])
@@ -384,11 +388,13 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
       <div className="board-wrap">
         <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} tableMap={uiArt.map} labels={labels} view3d={view3d}
           marker={head && !banner ? head[4]?.at ?? null : null}
-          cut={head ? state.log.length - unread.length + unread.indexOf(head) : Infinity}
+          cut={head ? headIndex : Infinity}
+          callout={placing ? placing.id : null} onCallout={setCalloutPx}
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         {uiLayout ? (
           <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
-            attackable={new Set(attackable.keys())} activating={activating} loreGain={loreGain} canInfo={!talking} canProvoke={canProvoke} provoking={provoking && canProvoke}
+            attackable={new Set(attackable.keys())} activating={activating}
+            tileCallout={placing && calloutPx ? { code: placing.code, px: calloutPx } : null} loreGain={loreGain} canInfo={!talking} canProvoke={canProvoke} provoking={provoking && canProvoke}
             onProvoke={() => setProvoking((p) => !p)}
             onEnemy={(uid) => {
               if (provoking && canProvoke) { if (provokable.has(uid)) { setProvoking(false); answer(provokable.get(uid)!); } }
@@ -460,12 +466,15 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, tableMap, labels, view3d, marker, cut, onAnswer }: {
+function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, tableMap, labels, view3d, marker, cut, callout, onCallout, onAnswer }: {
   game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, TokenArt>; tokenMeshes: Record<string, TokenMeshData>; fx: Record<string, string>; table?: string; tableMap?: string; labels: boolean; view3d: boolean;
   /** the space a message points at (enemies to place there) */
   marker?: SpaceRef | null;
   /** log index of the message on screen: tiles and tokens placed by later messages wait for theirs */
   cut: number;
+  /** tile whose code callout follows it (the tile being placed) and where it is on screen */
+  callout?: number | null;
+  onCallout?: (p: [number, number] | null) => void;
   onAnswer: (a: Answer) => void;
 }) {
   const { board, adv, state: { view, pending } } = game;
@@ -538,7 +547,7 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, tableMap, 
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Решения — в диалогах поверх экрана.</p></div>;
   if (view3d) {
     // framed once per adventure; new tiles and tokens then appear one by one with the camera flying to them
-    return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} marker={markerAt} intro={game.state.answers === 0}
+    return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} marker={markerAt} intro={game.state.answers === 0} callout={callout} onCallout={onCallout}
       shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}`} fx={fx} table={table} tableMap={tableMap} />;
   }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}

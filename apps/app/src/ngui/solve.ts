@@ -41,6 +41,9 @@ export interface Bind {
   depth?: number;
   /** UIGrid cell size override (e.g. EnemyHealthBar: 350 / max health) */
   cell?: [number, number];
+  /** place at a screen point (CSS px from the view's top-left), for things that follow the 3D board; NguiView turns it
+   *  into `at` (the node's parents must sit at the root's origin) */
+  atPx?: [number, number];
   /** replace the transform position (UI units, y up) */
   at?: [number, number];
   className?: string;

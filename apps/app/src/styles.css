@@ -390,16 +390,20 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui .ng-threat-track { position: absolute; top: 30%; bottom: 30%; overflow: visible; }
 .ngui .ng-threat-track .fill { position: absolute; left: 0; top: 0; bottom: 0; overflow: hidden; transition: width 0.8s ease-out; }
 .ngui .ng-threat-track .ramp { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #52110d, #8c1000, #c04a10, #e78621); background-size: 100% 100%; }
-.ngui .ng-threat-track .liquid { position: absolute; inset: 0; background-size: auto 220%; mix-blend-mode: overlay; opacity: 0.9; animation: threat-flow 6s linear infinite reverse; }
+.ngui .ng-threat-track .liquid { position: absolute; inset: 0; background-size: auto 220%; mix-blend-mode: overlay; opacity: 0.9; animation: threat-flow 14s linear infinite reverse; }
 /* threat meter fire: a hot edge plus small flame particles (the sprite, rising and drifting back, fading) */
 .ngui .ng-threat-track .ng-fire { position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none; mix-blend-mode: screen; }
 .ngui .ng-fire .glow { position: absolute; z-index: 2; top: 2%; bottom: 2%; left: -20px; width: 21px; border-radius: 0 3px 3px 0;
-  background: linear-gradient(90deg, rgba(255, 90, 0, 0), rgba(255, 140, 20, 0.5) 45%, rgba(255, 200, 60, 0.9) 75%, rgba(255, 245, 190, 1) 92%, rgba(255, 255, 230, 1));
-  box-shadow: 3px 0 6px rgba(255, 200, 80, 0.8);
-  animation: ng-fire-glow 0.25s ease-in-out infinite alternate; }
+  background: linear-gradient(90deg, rgba(255, 80, 0, 0), rgba(255, 120, 10, 0.5) 45%, rgba(255, 170, 40, 0.9) 75%, rgba(255, 215, 120, 1) 92%, rgba(255, 235, 170, 1));
+  box-shadow: 3px 0 6px rgba(255, 150, 40, 0.8);
+  }
+/* the hot band shimmers: bright sparks running up and down it */
+.ngui .ng-fire .glow s { position: absolute; right: 0; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 245, 200, 0.95), rgba(255, 170, 50, 0) 70%);
+  animation: ng-fire-spark 1.6s ease-in-out infinite; }
+@keyframes ng-fire-spark { 0% { top: 10%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 80%; opacity: 0; } }
 .ngui .ng-fire i { position: absolute; left: -9px; width: 18px; height: 18px; margin-top: -9px; background-size: contain; background-repeat: no-repeat;
-  opacity: 0; animation-name: ng-fire-p; animation-timing-function: ease-out; animation-iteration-count: infinite; }
-@keyframes ng-fire-glow { from { opacity: 0.75; transform: scaleY(0.94); } to { opacity: 1; transform: scaleY(1.04); } }
+  opacity: 0; animation-name: ng-fire-p; animation-timing-function: ease-out; animation-iteration-count: infinite;
+  filter: saturate(1.5) hue-rotate(-8deg) brightness(1.05); }
 @keyframes ng-fire-p {
   0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)) scale(calc(var(--s) * 0.6)); }
   12% { opacity: 1; }
@@ -434,3 +438,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ng-phase .ngui { transform-origin: 50% 28%; }
 @keyframes ng-phase { 0% { opacity: 0; transform: scale(0.8); } 17% { opacity: 1; transform: scale(1); } 83% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
 .ngui .ng-range { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; pointer-events: auto; }
+/* UITileCallout: pops in (scale 0.1 -> 1, 0.3 s) then breathes (1 -> 1.1, 0.7 s ping-pong) */
+.ngui .ng-callout { transform-origin: 50% 50%; animation: ng-callout-in 0.3s ease-out, ng-callout-pulse 0.7s ease-in-out 0.3s infinite alternate; }
+@keyframes ng-callout-in { from { transform: scale(0.1); } to { transform: scale(1); } }
+@keyframes ng-callout-pulse { from { transform: scale(1); } to { transform: scale(1.1); } }

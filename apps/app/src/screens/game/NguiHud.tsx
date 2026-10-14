@@ -15,7 +15,7 @@ const TRACK = 594; // UIThreatMeter.GetXPositionOnTracker
 const FIRE = Array.from({ length: 16 }, (_, i) => {
   const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233) * 43758.5453) % 1 + 1) % 1;
   // strictly back along the fill (no rise), short flames that burn out quickly
-  return { y: 18 + 64 * r(1), dx: -8 - 16 * r(2), dy: 0, s: 0.45 + 0.45 * r(4), r: -15 + 30 * r(5), dur: 0.35 + 0.25 * r(6), delay: -r(7) * 0.6 };
+  return { y: 18 + 64 * r(1), dx: -8 - 16 * r(2), dy: 0, s: 0.45 + 0.45 * r(4), r: -15 + 30 * r(5), dur: 0.7 + 0.5 * r(6), delay: -r(7) * 1.2 };
 });
 const RED = [191 / 255, 28 / 255, 28 / 255, 1];
 // the fill's span inside the 744-wide meter: Widget_ThreatEvents (-335.4) .. +594
@@ -36,7 +36,7 @@ function hudLayout(layout: UiLayoutFile): UiLayoutFile {
   return l;
 }
 
-export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, loreGain, canInfo, onParty, onSettings, onEndRound, onEnemy }: {
+export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, loreGain, canInfo, tileCallout, onParty, onSettings, onEndRound, onEnemy }: {
   layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; enemyArt: Record<string, string>; say: Say; view: GameView;
   canEndRound: boolean; endTitle: string; attackable: Set<number>; activating?: number;
   /** provoke: the button is enabled / provoke mode is on (Dialog_Provoke shown) */
@@ -45,6 +45,8 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
   loreGain?: { key: number; amount: number } | null;
   /** threat markers can be clicked for their info (not while a message is up) */
   canInfo: boolean;
+  /** UITileCallout: the placed tile's code at a screen point (CSS px) */
+  tileCallout?: { code: string; px: [number, number] } | null;
   onParty: () => void; onSettings: () => void; onEndRound: () => void; onEnemy: (uid: number) => void;
 }) {
   const layout = hudLayout(base);
@@ -53,7 +55,7 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
   const game = findNode(layout.root, "UI_Game");
   if (!game) return null;
   const pick = (name: string) => (game.ch ?? []).find((c) => c.n === name) ?? findNode(game, name);
-  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke", "Dialog_Provoke", "Panel_GainAnimation"]
+  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke", "Dialog_Provoke", "Panel_GainAnimation", "TileCallout"]
     .map(pick).filter((n): n is UiNode => !!n);
 
   const max = view.threatMax;
@@ -66,6 +68,12 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
     // the meter is placed from the screen centre in the layout: kept at the top when the interface is scaled down
     Panel_Threat: { pin: "top" },
     Sprite_EnemyBar: { keepH: true },
+    // the plate's centre at the point: the callout's children sit 51 / 35..50 up-right of its bottom-left pivot
+    TileCallout: tileCallout ? { show: true, atPx: tileCallout.px, dy: -42, dx: 6 } : { show: false },
+    // the boxes are drawn flat: each part pops and breathes around the plate's centre
+    Label_TileName: { text: tileCallout?.code ?? "", className: "ng-callout" },
+    Label_ProductSet: { className: "ng-callout" },
+    Sprite_TileCodePlate: { className: "ng-callout" },
     Dialog_ThreatEventInfo: { show: info !== null && canInfo },
     "Dialog_ThreatEventInfo/Dialog_ThreatEventInfo": {},
     Label_ThreatEventInfo: { html: info !== null ? say(view.threatInfo.filter((t) => t.threshold <= max)[info]?.info) : "" },
@@ -85,7 +93,7 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
               rising from it and drifting back along the fill */}
           {frac > 0 && art.threatFire && (
             <span key={view.threat} className="ng-fire" style={{ left: `${100 * frac}%` }}>
-              <b className="glow" />
+              <b className="glow">{[0, 0.55, 1.1].map((d, i) => <s key={i} style={{ animationDelay: `${-d}s`, animationDirection: i % 2 ? "reverse" : "normal" }} />)}</b>
               {FIRE.map((p, i) => (
                 <i key={i} style={{ backgroundImage: url(art.threatFire), top: `${p.y}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`,
                   ["--dx" as any]: `${p.dx}px`, ["--dy" as any]: `${p.dy}px`, ["--s" as any]: p.s, ["--r" as any]: `${p.r}deg` }} />

@@ -236,7 +236,16 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   const screenW = size[0] / scale;
   const screenH = size[1] / scale;
   const include = useMemo(() => new Set(show.map((n) => n.id)), [show]);
-  const boxes = solve(layout.root, binds, screenW, measured, include, all, screenH);
+  const placed = useMemo(() => {
+    let out: Binds | null = null;
+    for (const [k, b] of Object.entries(binds)) {
+      if (!b.atPx) continue;
+      out ??= { ...binds };
+      out[k] = { ...b, at: [b.atPx[0] / scale - screenW / 2, screenH / 2 - b.atPx[1] / scale] };
+    }
+    return out ?? binds;
+  }, [binds, scale, screenW, screenH]);
+  const boxes = solve(layout.root, placed, screenW, measured, include, all, screenH);
 
   // labels that size themselves: measure, then lay out again
   const labelRefs = useRef(new Map<string, HTMLDivElement>());

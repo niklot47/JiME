@@ -31,6 +31,9 @@ interface Props {
   marker?: [number, number] | null;
   /** a new game: even the first tiles drop in one by one (the view opens on the fog) */
   intro?: boolean;
+  /** tile (hash id) whose code callout is shown: its right edge on screen (CSS px in the board) is reported */
+  callout?: number | null;
+  onCallout?: (p: [number, number] | null) => void;
 }
 
 /** Animation step; returns false when finished */
@@ -68,7 +71,9 @@ function sepiaMaterial(map: THREE.Texture | null): THREE.MeshStandardMaterial {
       `#include <map_fragment>
        float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
        vec3 sep = vec3(lum * 1.08, lum * 0.93, lum * 0.72);
-       diffuseColor.rgb = mix(diffuseColor.rgb, sep * 0.78, uSepia);`);
+       diffuseColor.rgb = mix(diffuseColor.rgb, sep * 0.78, uSepia);
+       // the original's tiles are brighter
+       diffuseColor.rgb *= 1.22;`);
   };
   return mat;
 }
@@ -420,11 +425,14 @@ function markerGroup(fx: Record<string, string>): THREE.Group {
   return g;
 }
 
-export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table, tableMap, marker = null, intro = false }: Props) {
+export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table, tableMap, marker = null, intro = false, callout = null, onCallout }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<State | null>(null);
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
+  const calloutRef = useRef<{ id: number | null; cb?: (p: [number, number] | null) => void; last: string }>({ id: null, last: "" });
+  calloutRef.current.id = callout;
+  calloutRef.current.cb = onCallout;
   const lastFit = useRef<string | undefined>(undefined);
   const tileCache = useRef(new Map<number, { group: THREE.Group; top: THREE.Mesh }>());
 
@@ -499,6 +507,26 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         (p.material as THREE.MeshBasicMaterial).opacity = 0.55 + 0.35 * Math.sin(time / 260);
       }
       renderer.render(scene, camera);
+      // UITileCallout: follow the placed tile's right edge on screen (only when it is shown)
+      const co = calloutRef.current;
+      if (co.cb) {
+        const g = co.id !== null ? tileCache.current.get(co.id)?.group : undefined;
+        let p: [number, number] | null = null;
+        if (g && g.visible) {
+          const box = new THREE.Box3().setFromObject(g);
+          const c = box.getCenter(new THREE.Vector3());
+          let best = -Infinity;
+          for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) {
+            const v = new THREE.Vector3(x, box.max.y, z).project(camera);
+            if (v.x > best) { best = v.x; }
+          }
+          const cv = c.setY(box.max.y).project(camera);
+          const r = el.getBoundingClientRect();
+          p = [((best * 0.85 + cv.x * 0.15) + 1) / 2 * r.width, (1 - cv.y) / 2 * r.height];
+        }
+        const key = p ? `${p[0].toFixed(0)},${p[1].toFixed(0)}` : "";
+        if (key !== co.last) { co.last = key; co.cb(p); }
+      }
       if (moving || anim) frames = Math.max(frames, 30);
       // active tokens pulse: keep a slow loop while there are any
       // one chain only: controls.update() above may already have scheduled the next frame through invalidate()
@@ -569,9 +597,9 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         t.repeat.set(24, 24);
         mat.map = t;
         // the original's leather is redder
-        mat.color.set(0xffd2c0);
+        mat.color.set(0xffb8a0);
         // the leather is a semi-transparent layer over the map (lit a little by itself, like the original's)
-        mat.emissive.set(0x40241c);
+        mat.emissive.set(0x4c2016);
         mat.emissiveMap = t;
         mat.transparent = !!tableMap;
         mat.opacity = tableMap ? 0.93 : 1;
@@ -743,7 +771,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     if (tiles.length) s.ready = true;
     pump(s, tileCache.current, fx, tiles);
     s.invalidate();
-  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table, tableMap, marker]);
+    s.invalidate();
+  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table, tableMap, marker, callout]);
 
   return <div ref={host} className="board" />;
 }
