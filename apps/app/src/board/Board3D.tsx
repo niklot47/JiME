@@ -25,6 +25,8 @@ interface Props {
   fx?: Record<string, string>;
   /** Table texture (pack path, tiled), e.g. the theme's leather; default: procedural cloth */
   table?: string;
+  /** Location highlight (board coordinates): the turning yellow arrows where enemies are to be placed */
+  marker?: [number, number] | null;
 }
 
 /** Animation step; returns false when finished */
@@ -315,9 +317,91 @@ interface State {
   seen: Set<string>;
   table: THREE.Mesh;
   tablePath: string | undefined;
+  /** the first content is shown at once; later tiles and tokens appear one at a time, the camera flying to each */
+  ready: boolean;
+  queue: Reveal[];
+  busy: boolean;
+  /** current token groups by key (rebuilt on every content update) */
+  tokenGroups: Map<string, THREE.Group>;
+  marker: THREE.Group | null;
+  markerKey: string;
 }
 
-export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table }: Props) {
+type Reveal = { kind: "tile"; id: number } | { kind: "token"; key: string } | { kind: "marker"; x: number; y: number };
+
+/** Camera flight: the view target moves to `to` (the camera keeps its offset), smooth in and out */
+function flyTo(s: State, to: THREE.Vector3, done: () => void): void {
+  const from = s.controls.target.clone();
+  const d = from.distanceTo(to);
+  if (d < 0.4) { done(); return; }
+  const dur = Math.min(0.9, 0.35 + d * 0.03);
+  const off = s.camera.position.clone().sub(from);
+  let t = 0;
+  s.effects.push((dt) => {
+    t += dt;
+    const k = Math.min(1, t / dur);
+    const e = k * k * (3 - 2 * k);
+    s.controls.target.lerpVectors(from, to, e);
+    s.camera.position.copy(s.controls.target).add(off);
+    if (k < 1) return true;
+    done();
+    return false;
+  });
+  s.invalidate();
+}
+
+/** Show the queued tiles / tokens / marker one by one */
+function pump(s: State, tileGroups: Map<number, { group: THREE.Group }>, fx: Record<string, string>, tiles: TileMesh[]): void {
+  if (s.busy) return;
+  const item = s.queue.shift();
+  if (!item) return;
+  const target = item.kind === "tile" ? tileGroups.get(item.id)?.group : item.kind === "token" ? s.tokenGroups.get(item.key) : s.marker;
+  if (!target) { pump(s, tileGroups, fx, tiles); return; }
+  s.board.updateMatrixWorld(true);
+  const pos = item.kind === "tile" ? new THREE.Box3().setFromObject(target, true).getCenter(new THREE.Vector3()) : target.getWorldPosition(new THREE.Vector3());
+  pos.y = 0;
+  // messages sit in the top part of the screen (PopupOptions.PopupCenterOn.Top): look a little past the point so it
+  // shows below them
+  const fwd = s.controls.target.clone().sub(s.camera.position).setY(0).normalize();
+  pos.addScaledVector(fwd, item.kind === "marker" ? 2.6 : 1.2);
+  s.busy = true;
+  flyTo(s, pos, () => {
+    const now = item.kind === "tile" ? tileGroups.get(item.id)?.group : item.kind === "token" ? s.tokenGroups.get(item.key) : s.marker;
+    if (now) {
+      now.visible = true;
+      if (item.kind !== "marker") dropIn(s, now, 0);
+      if (item.kind === "token") s.seen.add(item.key);
+      if (item.kind === "tile" && fx.dust) { const t = tiles.find((x) => x.tile.hashId === item.id); if (t) dustBurst(s, t, fx); }
+    }
+    let w = 0;
+    s.effects.push((dt) => {
+      w += dt;
+      if (w < (item.kind === "tile" ? 0.45 : 0.3)) return true;
+      s.busy = false;
+      pump(s, tileGroups, fx, tiles);
+      return false;
+    });
+    s.invalidate();
+  });
+}
+
+/** GameViewHighlightManager location highlight: the arrows ring (tinted yellow) turning over a glow */
+function markerGroup(fx: Record<string, string>): THREE.Group {
+  const g = new THREE.Group();
+  const mat = (path: string | undefined, color: number, opacity: number) => new THREE.MeshBasicMaterial({
+    map: path ? texture(path) : null, color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending });
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), mat(fx.highlightGlow, 0xffb030, 0.7));
+  glow.rotation.x = -Math.PI / 2;
+  const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), mat(fx.highlight, 0xffc23a, 1));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.005;
+  g.add(glow, ring);
+  g.userData.ring = ring;
+  g.userData.glow = glow;
+  return g;
+}
+
+export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null, sepia = null, onPick, fitKey, fx = {}, table, marker = null }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<State | null>(null);
   const pickRef = useRef(onPick);
@@ -378,7 +462,11 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       last = time;
       const moving = controls.update();
       let anim = false;
-      s.effects = s.effects.filter((f) => f(dt, time / 1000));
+      // effects may start new ones while they run (a flight ending starts the reveal): keep those too
+      const running = s.effects;
+      s.effects = [];
+      const still = running.filter((f) => f(dt, time / 1000));
+      s.effects = still.concat(s.effects);
       if (s.effects.length) anim = true;
       for (const { mat, target } of s.tileMats.values()) {
         const u = mat.userData.sepia as { value: number };
@@ -430,7 +518,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     el.addEventListener("pointerup", onUp);
 
     st.current = { renderer, scene, camera, controls, board, sun, tileMats: new Map(), pulses: [], invalidate,
-      effects: [], fog: null, fogKey: "", seen: new Set(), table: tableMesh, tablePath: undefined };
+      effects: [], fog: null, fogKey: "", seen: new Set(), table: tableMesh, tablePath: undefined,
+      ready: false, queue: [], busy: false, tokenGroups: new Map(), marker: null, markerKey: "" };
     (window as any).__board3d = st.current; // perf checks from devtools / CDP
     resize();
     return () => {
@@ -465,6 +554,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       }
       mat.needsUpdate = true;
     }
+    // a new view (game, adventure): everything shows at once, no flights
+    if (fitKey === undefined || fitKey !== lastFit.current) { s.ready = false; s.queue = []; s.busy = false; }
     // tiles: built once per tile, reused across updates (keeps the sepia fade going)
     const shown = tiles.filter((t) => !shownTiles || shownTiles.has(t.tile.hashId));
     const keep = new Set(shown.map((t) => t.tile.hashId));
@@ -477,6 +568,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         c.top.userData.pick = { kind: "tile", id: t.tile.hashId } satisfies Pick;
         tileCache.current.set(t.tile.hashId, c);
         s.board.add(c.group);
+        if (s.ready) { c.group.visible = false; s.queue.push({ kind: "tile", id: t.tile.hashId }); }
         const mat = c.top.material as THREE.MeshStandardMaterial;
         (mat.userData.sepia as { value: number }).value = target; // new tiles appear in their state
         s.tileMats.set(t.tile.hashId, { mat, target });
@@ -493,6 +585,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
     }
     s.pulses = [];
     const seenNow = new Set<string>();
+    s.tokenGroups = new Map();
+    const queued = new Set(s.queue.flatMap((q) => (q.kind === "token" ? [q.key] : [])));
     for (const tk of tokens) {
       const g = new THREE.Group();
       g.userData.token = true;
@@ -512,10 +606,38 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       g.position.copy(v3(tk.x, tk.y));
       s.board.add(g);
       const key = tk.id ?? `${tk.x.toFixed(2)},${tk.y.toFixed(2)}`;
-      if (!s.seen.has(key)) dropIn(s, g, s.seen.size ? 0 : Math.random() * 0.25);
-      seenNow.add(key);
+      s.tokenGroups.set(key, g);
+      if (s.seen.has(key)) seenNow.add(key);
+      else if (!s.ready) { dropIn(s, g, Math.random() * 0.25); seenNow.add(key); }
+      else {
+        // waits for its turn (and the camera) to drop in
+        g.visible = false;
+        if (!queued.has(key)) { s.queue.push({ kind: "token", key }); queued.add(key); }
+      }
     }
     s.seen = seenNow;
+    // the location highlight, after what appears now
+    const mk = marker ? `${marker[0].toFixed(2)},${marker[1].toFixed(2)}` : "";
+    if (mk !== s.markerKey) {
+      s.markerKey = mk;
+      if (s.marker) { s.board.remove(s.marker); s.marker = null; }
+      s.queue = s.queue.filter((q) => q.kind !== "marker");
+      if (marker) {
+        const m = markerGroup(fx);
+        m.position.copy(v3(marker[0], marker[1], TILE_H + 0.012));
+        m.visible = false;
+        s.board.add(m);
+        s.marker = m;
+        s.queue.push({ kind: "marker", x: marker[0], y: marker[1] });
+        s.effects.push((dt, time) => {
+          if (s.marker !== m) return false;
+          (m.userData.ring as THREE.Mesh).rotation.z -= dt * 1.4;
+          const k = 1 + 0.08 * Math.sin(time * 3);
+          (m.userData.glow as THREE.Mesh).scale.set(k, k, 1);
+          return true;
+        });
+      }
+    }
     // fog over the tiles still to come
     const hidden = shownTiles ? tiles.filter((t) => !shownTiles.has(t.tile.hashId)) : [];
     const fogKey = hidden.map((t) => t.tile.hashId).sort((a, b) => a - b).join(",") + (fx.cloud ? "+" : "");
@@ -536,7 +658,7 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         });
       }
     }
-    // frame the camera on the shown tiles when the view key changes
+    // frame the camera on the shown tiles when the view key changes (the first content shows at once)
     const refit = fitKey === undefined || fitKey !== lastFit.current;
     if (refit && shown.length) {
       lastFit.current = fitKey;
@@ -559,8 +681,10 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       sc.updateProjectionMatrix();
       s.controls.update();
     }
+    if (shown.length) s.ready = true;
+    pump(s, tileCache.current, fx, tiles);
     s.invalidate();
-  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table]);
+  }, [tiles, tokens, showLabels, rotation, shownTiles, sepia, fitKey, fx, table, marker]);
 
   return <div ref={host} className="board" />;
 }

@@ -29,6 +29,11 @@ export interface Bind {
   pv?: number;
   /** label alignment override (NGUIText.Alignment) */
   al?: number;
+  /**
+   * keep the node at its distance from screen sides of the 1280 x 720 reference (UIAnchor-style), e.g. "left bottom"
+   * for the lore gain, "top" for the threat bar when the interface is scaled down (the virtual screen gets taller)
+   */
+  pin?: string;
   /** panel depth override for the subtree (a popup inside a dialog whose saved panel depth is lower than the dialog's) */
   depth?: number;
   /** UIGrid cell size override (e.g. EnemyHealthBar: 350 / max health) */
@@ -71,9 +76,10 @@ type Rect = { l: number; r: number; b: number; t: number };
  * include: ids of the subtrees to draw (the whole tree is still laid out, for positions and anchor targets); the
  * activity of their ancestors is ignored, so a dialog can be drawn while its scene's root is inactive in the file.
  */
-export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map<string, Measured>, include: Set<number>, all = false): Box[] {
+export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map<string, Measured>, include: Set<number>, all = false,
+  screenH = 720): Box[] {
   const rootIsScreen = true;
-  const H = 720;
+  const H = screenH;
   const screen: Rect = { l: -screenW / 2, r: screenW / 2, b: -H / 2, t: H / 2 };
   const rects = new Map<number, Rect>();
   const boxes: Box[] = [];
@@ -99,8 +105,9 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       // animation (title pieces, borders, panels sliding in), the game plays them forward when the screen opens
       const end = restState(n);
       const lx = (b.at?.[0] ?? at?.[0] ?? end.p?.[0] ?? n.p?.[0] ?? 0) + (b.dx ?? 0), ly = (b.at?.[1] ?? at?.[1] ?? end.p?.[1] ?? n.p?.[1] ?? 0) + (b.dy ?? 0);
-      let x = n === root && rootIsScreen ? 0 : px + lx * sx;
-      let y = n === root && rootIsScreen ? 0 : py + ly * sy;
+      const pin = b.pin ?? "";
+      let x = n === root && rootIsScreen ? 0 : px + lx * sx + (pin.includes("left") ? 640 - screenW / 2 : pin.includes("right") ? screenW / 2 - 640 : 0);
+      let y = n === root && rootIsScreen ? 0 : py + ly * sy + (pin.includes("top") ? (H - 720) / 2 : pin.includes("bottom") ? (720 - H) / 2 : 0);
       const nsx = n === root && rootIsScreen ? 1 : sx * (end.s?.[0] ?? n.s?.[0] ?? 1), nsy = n === root && rootIsScreen ? 1 : sy * (end.s?.[1] ?? n.s?.[1] ?? 1);
       const pd = b.depth ?? (n.panel ? n.panel.d : panel);
       const k = `${key}/${n.id}`;

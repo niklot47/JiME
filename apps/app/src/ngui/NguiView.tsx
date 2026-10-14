@@ -16,6 +16,18 @@ let version = 0;
 const subscribe = (f: () => void) => { listeners.add(f); return () => listeners.delete(f); };
 const snapshot = () => version;
 
+// ---------------------------------------------------------------- interface scale (options): UIRoot fits 720 / scale
+const SCALE_KEY = "jime.ui.scale";
+let uiScale = (() => { try { const v = Number(localStorage.getItem(SCALE_KEY)); return v >= 0.4 && v <= 1.5 ? v : 1; } catch { return 1; } })();
+export const getUiScale = () => uiScale;
+export function setUiScale(v: number): void {
+  uiScale = v;
+  try { localStorage.setItem(SCALE_KEY, String(v)); } catch { /* per session only */ }
+  version++;
+  for (const f of listeners) f();
+}
+
+
 /** URL of `src` multiplied by colour c (cached; null while it is being made) */
 function tintUrl(src: string, c: number[]): string | null {
   const key = `${src}|${c.join(",")}`;
@@ -204,10 +216,12 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
     setSize([el.clientWidth || 1280, el.clientHeight || 720]);
     return () => ro.disconnect();
   }, []);
-  const scale = size[1] / 720;
+  // the whole interface at uiScale: a taller (and wider) virtual screen, anchored parts follow its edges
+  const scale = (size[1] / 720) * uiScale;
   const screenW = size[0] / scale;
+  const screenH = size[1] / scale;
   const include = useMemo(() => new Set(show.map((n) => n.id)), [show]);
-  const boxes = solve(layout.root, binds, screenW, measured, include, all);
+  const boxes = solve(layout.root, binds, screenW, measured, include, all, screenH);
 
   // labels that size themselves: measure, then lay out again
   const labelRefs = useRef(new Map<string, HTMLDivElement>());
@@ -241,7 +255,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
 
   return (
     <div ref={host} className={`ngui ${className ?? ""}`}>
-      <div className="ngui-root" style={{ width: screenW, height: 720, transform: `scale(${scale})` }}>
+      <div className="ngui-root" style={{ width: screenW, height: screenH, transform: `scale(${scale})` }}>
         {boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
           const color = b.bind.color ?? b.w.c;

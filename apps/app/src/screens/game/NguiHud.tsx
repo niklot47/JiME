@@ -11,6 +11,11 @@ import { findNode, type UiLayoutFile, type UiNode } from "../../ngui/types.ts";
 import type { Atlas, Say } from "./ui.ts";
 
 const TRACK = 594; // UIThreatMeter.GetXPositionOnTracker
+// fire particles at the fill's edge: start height (% of the track), drift (UI units), size, spin, timing (fixed pseudo-random)
+const FIRE = Array.from({ length: 16 }, (_, i) => {
+  const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233) * 43758.5453) % 1 + 1) % 1;
+  return { y: 15 + 70 * r(1), dx: -10 - 30 * r(2), dy: -4 - 14 * r(3), s: 0.55 + 0.6 * r(4), r: -40 + 80 * r(5), dur: 0.7 + 0.5 * r(6), delay: -r(7) * 1.2 };
+});
 const RED = [191 / 255, 28 / 255, 28 / 255, 1];
 // the fill's span inside the 744-wide meter: Widget_ThreatEvents (-335.4) .. +594
 const FILL_LEFT = (372 - 335.4) / 744, FILL_W = TRACK / 744;
@@ -22,7 +27,8 @@ function hudLayout(layout: UiLayoutFile): UiLayoutFile {
   if (l) return l;
   const mini = findNode(layout.root, "Sprite_TopInfo/EnemyMiniView");
   const copy = (n: UiNode): UiNode => n.n === "Grid_Enemies" && mini
-    ? { ...n, ch: [{ ...structuredClone(mini), p: [0, 0], tw: undefined, on: true }] }
+    // the bar's miniview is smaller than the dialog's (scale 1.302 there)
+    ? { ...n, ch: [{ ...structuredClone(mini), p: [0, 0], s: [1, 1], tw: undefined, on: true }] }
     : n.ch ? { ...n, ch: n.ch.map(copy) } : n;
   l = { ...layout, root: copy(layout.root) };
   withMiniView.set(layout, l);
@@ -56,6 +62,8 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
   const marks = max > 0 ? view.threatEvents.filter((t) => t <= max) : [];
 
   const b: Binds = {
+    // the meter is placed from the screen centre in the layout: kept at the top when the interface is scaled down
+    Panel_Threat: { pin: "top" },
     Dialog_ThreatEventInfo: { show: info !== null && canInfo },
     "Dialog_ThreatEventInfo/Dialog_ThreatEventInfo": {},
     Label_ThreatEventInfo: { html: info !== null ? say(view.threatInfo.filter((t) => t.threshold <= max)[info]?.info) : "" },
@@ -71,8 +79,17 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
             <div className="ramp" style={{ width: frac > 0 ? `${100 / frac}%` : "100%", backgroundImage: url(art.threatGradient) }} />
             {art.threatLiquid && <div className="liquid" style={{ backgroundImage: url(art.threatLiquid) }} />}
           </div>
-          {/* the burning edge of the fill: the flame sprite turned so it licks back along the fill (data/ref/video) */}
-          {frac > 0 && art.threatFire && <span key={view.threat} className="flame" style={{ left: `${100 * frac}%` }}><i style={{ backgroundImage: url(art.threatFire) }} /></span>}
+          {/* the burning edge of the fill (data/ref/video): a glow on the edge and the flame sprite as small particles
+              rising from it and drifting back along the fill */}
+          {frac > 0 && art.threatFire && (
+            <span key={view.threat} className="ng-fire" style={{ left: `${100 * frac}%` }}>
+              <b className="glow" />
+              {FIRE.map((p, i) => (
+                <i key={i} style={{ backgroundImage: url(art.threatFire), top: `${p.y}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`,
+                  ["--dx" as any]: `${p.dx}px`, ["--dy" as any]: `${p.dy}px`, ["--s" as any]: p.s, ["--r" as any]: `${p.r}deg` }} />
+              ))}
+            </span>
+          )}
         </div>
         {art.threatMeter && <img className="ng-threat-img" src={assetUrl(art.threatMeter)} alt="" />}
         </>
@@ -101,7 +118,7 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
     // CoroutineAnimateGained: "+N Lore" rises from Widget_GainStartPos to Widget_GainEndPos (TweenTransform) and fades
     // (TweenAlpha 2.5 s); a loss turns red (TweenColor)
     Label_LoreGain: loreGain
-      ? { show: true, at: [-620, -306], className: `ng-lore-gain g${loreGain.key % 2}`, color: loreGain.amount < 0 ? [1, 0, 0, 1] : undefined,
+      ? { show: true, at: [-620, -306], pin: "left bottom", className: `ng-lore-gain g${loreGain.key % 2}`, color: loreGain.amount < 0 ? [1, 0, 0, 1] : undefined,
           html: say("UI_LORE_GAIN", [loreGain.amount >= 0 ? "+" : "", String(loreGain.amount)]) || `${loreGain.amount >= 0 ? "+" : ""}${loreGain.amount} Сведения` }
       : { show: false },
     z_Darkening: { onClick: onProvoke },

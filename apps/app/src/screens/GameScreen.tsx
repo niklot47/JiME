@@ -1,7 +1,7 @@
 // Game screen (Stage 3.2): board with the HUD and dialogs of the original (screens/game/). The engine (map generation + Session replays)
 // runs in a Web Worker (game/worker.ts); this thread only renders the state it sends back.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { keysOf, tokenFamily, type Answer, type LogEntry, type SaveData, type SessionSetup } from "@jime/engine";
+import { keysOf, tokenFamily, type Answer, type LogEntry, type SaveData, type SpaceRef, type SessionSetup } from "@jime/engine";
 import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
 import type { TextDb } from "@jime/content-tools/text";
 import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
@@ -383,6 +383,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     <div className="game-screen hud">
       <div className="board-wrap">
         <GameBoard game={game} db={db} art={art} tokenArt={tokenArt} tokenMeshes={tokenMeshes} fx={fx} table={uiArt.leather} labels={labels} view3d={view3d}
+          marker={head && !banner ? head[4]?.at ?? null : null}
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         {uiLayout ? (
           <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
@@ -458,8 +459,10 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ---------------------------------------------------------------- board
-function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, view3d, onAnswer }: {
+function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, view3d, marker, onAnswer }: {
   game: Game; db: any; art: TileArtDb | null; tokenArt: Record<string, TokenArt>; tokenMeshes: Record<string, TokenMeshData>; fx: Record<string, string>; table?: string; labels: boolean; view3d: boolean;
+  /** the space a message points at (enemies to place there) */
+  marker?: SpaceRef | null;
   onAnswer: (a: Answer) => void;
 }) {
   const { board, adv, state: { view, pending } } = game;
@@ -515,6 +518,14 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
     return { tokens, shown, colors, sepia };
   }, [view, targets, labels, genTiles, db, adv, tokenArt, tokenMeshes, meshes]);
 
+  // the location highlight: the space's node position on the tile art, else the centre of the space's hexes
+  const markerAt = useMemo((): [number, number] | null => {
+    if (!marker) return null;
+    const gt = genTiles.get(marker.tile);
+    const p = meshes.find((m) => m.tile.hashId === marker.tile)?.nodes[marker.space] ?? (gt && db ? spaceCenter(db, adv, gt, marker.space) : null);
+    return p ? [p[0], p[1]] : null;
+  }, [marker, meshes, genTiles, db, adv]);
+
   function pick(p: Pick) {
     const i = targets.get(p.kind === "token" ? p.id : `t:${p.id}`);
     if (i !== undefined) onAnswer(i);
@@ -522,8 +533,9 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, labels, vi
 
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Решения — в диалогах поверх экрана.</p></div>;
   if (view3d) {
-    return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270}
-      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}:${shown.size}`} fx={fx} table={table} />;
+    // framed once per adventure; new tiles and tokens then appear one by one with the camera flying to them
+    return <Board3D tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} marker={markerAt}
+      shownTiles={shown} sepia={sepia} onPick={pick} fitKey={`${view.adv}`} fx={fx} table={table} />;
   }
   return <BoardView tiles={meshes} tokens={tokens} showLabels={labels} rotation={270} sectionTint={false}
     shownTiles={shown} tileColors={colors} onPick={pick} fitKey={`${view.adv}:${shown.size}`} />;

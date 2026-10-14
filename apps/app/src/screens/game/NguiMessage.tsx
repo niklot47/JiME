@@ -33,7 +33,8 @@ export function NguiMessage({ layout, atlas, say, content, party = [] }: {
   if (!popup) return null;
 
   const b: Binds = {
-    MessagePopup: { at: TOP },
+    MessagePopup: { at: TOP, pin: "top" },
+    MessagePopup_EnemyActivation: { at: TOP, pin: "top" },
     // InitializePlacement: pivot Top at y = 0, width 750, centred (label.height > minHeight always holds)
     Label_Message: { pv: 1, at: [0, 0], w: 750, al: 2 },
     // InitializePopup: the extra icon (elite banner) only with PopupOptions.ExtraSpriteId > 0

@@ -5,11 +5,12 @@
 // rest of the original's options (font size, voice-over, camera speeds, zoom bar, graphics) are shown disabled.
 import { useEffect, useState, type ReactNode } from "react";
 import { sound } from "../../audio/sound.ts";
-import { NguiView, type Bind, type Binds } from "../../ngui/NguiView.tsx";
+import { NguiView, getUiScale, setUiScale, type Bind, type Binds } from "../../ngui/NguiView.tsx";
 import type { UiLayoutFile, UiNode } from "../../ngui/types.ts";
 import type { Atlas, Say } from "./ui.ts";
 
 const top = (layout: UiLayoutFile, name: string): UiNode | null => (layout.root.ch ?? []).find((c) => c.n === name) ?? null;
+const SCALES = [1, 0.9, 0.8, 0.7, 0.6];
 const LANG_NAMES: Record<string, string> = { en: "English", ru: "Русский", it: "Italiano", de: "Deutsch", fr: "Français", es: "Español", pl: "Polski" };
 
 export interface MenuExtra { label: string; onClick: () => void; disabled?: boolean }
@@ -65,8 +66,10 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
     Button_GraphicSettings: { disabled: true, title: "Настройки графики — позже" },
     Label_CurLanguage: { text: LANG_NAMES[lang] ?? lang },
     LanguageSelect: { onClick: () => onLang(langs[(langs.indexOf(lang) + 1) % langs.length] ?? lang), title: "Сменить язык" },
-    FontSize: { disabled: true },
-    Label_CurSize: { text: "—" },
+    // the font size row sets this app's interface scale instead (smaller for desktop screens)
+    Label_Title_FontSize: { html: "Масштаб интерфейса" },
+    FontSize: { onClick: () => { const i = SCALES.indexOf(getUiScale()); setUiScale(SCALES[(i + 1) % SCALES.length]!); setS({ ...sound.settings }); }, title: "Сменить масштаб" },
+    Label_CurSize: { text: `${Math.round(getUiScale() * 100)}%` },
     Toggle_Debug: { onClick: () => onLabels(!labels), title: "Названия жетонов на доске" },
     "Toggle_Debug/Sprite_State": { show: labels },
     "Toggle_Debug/Label_Title_DebugInfo": { html: "Названия жетонов", color: [0.94, 0.88, 0.72, 1] },
