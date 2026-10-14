@@ -1,7 +1,7 @@
 # Export tile art for the board view: texture per tile + per-hex mesh (2D vertices in tile space, UVs, triangles).
 # Hex order = Tile.Hexes (same as tiles.json geometry), so the app can map each hex to its global cube coords.
 # Output (local only, FFG content): <JIME_WORK>/packs/core-ffg/images/tiles/<code>.jpg and scenario/tileart.json
-import os, json, re
+import os, json, re, math
 import numpy as np
 from jload import *
 from prefab import CONT, RA, walk
@@ -52,7 +52,7 @@ def tile_art(f, tile_obj, tm):
         center = (W @ np.array([0, 0, 0, 1.0]))[:2]
         hexes.append({"center": np.round(center, 4).tolist(), "verts": np.round(Vw[:, :2], 4).tolist(),
                       "uvs": np.round(np.array(uvs), 5).tolist(), "tris": [list(x) for x in F]})
-    return hexes, explore_pos(f, t, inv), space_nodes(f, t, inv)
+    return hexes, explore_pos(f, t, inv), space_nodes(f, t, inv), callout_pos(f, t, inv)
 
 def space_nodes(f, t, inv):
     """TileSpace.NodePosition of each space (Tile.Spaces order = tile geometry order): where encounter tokens lie"""
@@ -72,16 +72,30 @@ def space_nodes(f, t, inv):
     return out
 
 def explore_pos(f, t, inv):
-    """Tile.ExploreNode position in the same tile space as the hexes (where the explore token lies: the printed mark)"""
+    """Tile.ExploreNode position in the same tile space as the hexes (where the explore token lies: the printed mark)
+    and the mark's turn in that space (degrees), [x, y, angle]"""
     ref = t.get("ExploreNode") or {}
     if not ref.get("m_PathID"): return None
     try:
         node = f.objects[ref["m_PathID"]]
         go = f.objects[read_mb(node)[1]["m_GameObject"]["m_PathID"]].read()
-        p = inv @ world_matrix(f, comp(f, go, "Transform")) @ np.array([0, 0, 0, 1.0])
-        return np.round(p[:2], 4).tolist()
+        M = inv @ world_matrix(f, comp(f, go, "Transform"))
+        p = M @ np.array([0, 0, 0, 1.0])
+        ang = math.degrees(math.atan2(M[1, 0], M[0, 0]))
+        return np.round(p[:2], 4).tolist() + [round(ang, 2)]
     except Exception as e:
         print("no explore node position:", e)
+        return None
+
+def callout_pos(f, t, inv):
+    """Tile.CalloutPosition (where the tile's code is printed: the code callout points there), tile space"""
+    ref = t.get("CalloutPosition") or {}
+    if not ref.get("m_PathID"): return None
+    try:
+        p = inv @ world_matrix(f, f.objects[ref["m_PathID"]]) @ np.array([0, 0, 0, 1.0])
+        return np.round(p[:2], 4).tolist()
+    except Exception as e:
+        print("no callout position:", e)
         return None
 
 def save_texture(code, img_path):
@@ -116,8 +130,8 @@ if __name__ == "__main__":
         _, t = read_mb(to)
         code = ch.read().m_Name
         tm = tms.get(code, {})
-        hexes, explore, nodes = tile_art(l4, to, tm)
-        art["standard"][code] = {"texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore, "nodes": nodes}
+        hexes, explore, nodes, callout = tile_art(l4, to, tm)
+        art["standard"][code] = {"texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore, "nodes": nodes, "callout": callout}
     print("standard", len(art["standard"]))
     db = json.load(open(os.path.join(ROOT, "export", "db.json"), encoding="utf-8"))
     for aid, a in db["models"]["AdventureModel"].items():
@@ -131,8 +145,8 @@ if __name__ == "__main__":
                     mo = deref(RA, t["Model"]["m_FileID"], t["Model"]["m_PathID"])
                     code = read_mb(mo)[1].get("_id") if mo else name
                     tm = tms.get(code, {})
-                    hexes, explore, nodes = tile_art(RA, co, tm)
-                    art["custom"].setdefault(aid, {})[str(pid)] = {"code": code, "texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore, "nodes": nodes}
+                    hexes, explore, nodes, callout = tile_art(RA, co, tm)
+                    art["custom"].setdefault(aid, {})[str(pid)] = {"code": code, "texture": save_texture(code, tm.get("Image", {}).get("Path")), "hexes": hexes, "explore": explore, "nodes": nodes, "callout": callout}
     print("custom", sum(len(v) for v in art["custom"].values()))
     json.dump(art, open(os.path.join(PACK, "scenario", "tileart.json"), "w"))
     print("->", PACK)

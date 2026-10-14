@@ -318,6 +318,50 @@ function dropIn(s: State, g: THREE.Group, delay: number): void {
   });
 }
 
+/**
+ * A token dropped onto the table: falls from high up, then bounces twice, lower each time, landing a little tilted a
+ * different way on each bounce before it settles flat.
+ */
+function dropToken(s: State, g: THREE.Group, delay: number): void {
+  const y0 = g.position.y;
+  const H = 3.4;
+  const fall = 0.5;
+  const hops = [{ h: 0.26, d: 0.26 }, { h: 0.08, d: 0.15 }];
+  const tilts = hops.map(() => ({ x: (Math.random() - 0.5) * 0.5, z: (Math.random() - 0.5) * 0.5 }));
+  let t = -delay;
+  g.position.y = y0 + H;
+  s.effects.push((dt) => {
+    t += dt;
+    if (t < 0) return true;
+    let y = 0, rx = 0, rz = 0, k = t;
+    if (k < fall) {
+      const u = k / fall;
+      y = H * (1 - u * u); // accelerating
+    } else {
+      k -= fall;
+      let done = true;
+      for (let i = 0; i < hops.length; i++) {
+        const hop = hops[i]!;
+        if (k < hop.d) {
+          const u = k / hop.d;
+          y = hop.h * 4 * u * (1 - u);
+          const tilt = Math.sin(Math.PI * u);
+          rx = tilts[i]!.x * tilt;
+          rz = tilts[i]!.z * tilt;
+          done = false;
+          break;
+        }
+        k -= hop.d;
+      }
+      if (done) { g.position.y = y0; g.rotation.x = 0; g.rotation.z = 0; return false; }
+    }
+    g.position.y = y0 + y;
+    g.rotation.x = rx;
+    g.rotation.z = rz;
+    return true;
+  });
+}
+
 interface State {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -392,7 +436,8 @@ function pump(s: State, tileGroups: Map<number, { group: THREE.Group }>, fx: Rec
     const now = item.kind === "tile" ? tileGroups.get(item.id)?.group : item.kind === "token" ? s.tokenGroups.get(item.key) : s.marker;
     if (now) {
       now.visible = true;
-      if (item.kind !== "marker") dropIn(s, now, 0);
+      if (item.kind === "token") dropToken(s, now, 0);
+      else if (item.kind === "tile") dropIn(s, now, 0);
       if (item.kind === "token") s.seen.add(item.key);
       if (item.kind === "tile") { const tm = s.tileMats.get(item.id); if (tm) tm.hold = false; }
       if (item.kind === "tile" && fx.dust) { const t = tiles.find((x) => x.tile.hashId === item.id); if (t) dustBurst(s, t, fx); }
@@ -400,7 +445,7 @@ function pump(s: State, tileGroups: Map<number, { group: THREE.Group }>, fx: Rec
     let w = 0;
     s.effects.push((dt) => {
       w += dt;
-      if (w < (item.kind === "tile" ? 0.45 : 0.3)) return true;
+      if (w < (item.kind === "tile" ? 0.45 : 0.95)) return true;
       s.busy = false;
       pump(s, tileGroups, fx, tiles);
       return false;
@@ -433,6 +478,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
   const calloutRef = useRef<{ id: number | null; cb?: (p: [number, number] | null) => void; last: string }>({ id: null, last: "" });
   calloutRef.current.id = callout;
   calloutRef.current.cb = onCallout;
+  const tilesRef = useRef(tiles);
+  tilesRef.current = tiles;
   const lastFit = useRef<string | undefined>(undefined);
   const tileCache = useRef(new Map<number, { group: THREE.Group; top: THREE.Mesh }>());
 
@@ -512,17 +559,13 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       if (co.cb) {
         const g = co.id !== null ? tileCache.current.get(co.id)?.group : undefined;
         let p: [number, number] | null = null;
-        if (g && g.visible) {
-          const box = new THREE.Box3().setFromObject(g);
-          const c = box.getCenter(new THREE.Vector3());
-          let best = -Infinity;
-          for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) {
-            const v = new THREE.Vector3(x, box.max.y, z).project(camera);
-            if (v.x > best) { best = v.x; }
-          }
-          const cv = c.setY(box.max.y).project(camera);
+        const tm = co.id !== null ? tilesRef.current.find((t) => t.tile.hashId === co.id) : undefined;
+        if (g && g.visible && tm) {
+          // Tile.GetCalloutPosition: where the code is printed (else the explore mark, else the tile's centre)
+          const at = tm.callout ?? tm.explore ?? tm.hexCenters[0]!;
+          const w = v3(at[0], at[1], g.position.y + TILE_H).applyMatrix4(board.matrixWorld).project(camera);
           const r = el.getBoundingClientRect();
-          p = [((best * 0.85 + cv.x * 0.15) + 1) / 2 * r.width, (1 - cv.y) / 2 * r.height];
+          p = [(w.x + 1) / 2 * r.width, (1 - w.y) / 2 * r.height];
         }
         const key = p ? `${p[0].toFixed(0)},${p[1].toFixed(0)}` : "";
         if (key !== co.last) { co.last = key; co.cb(p); }

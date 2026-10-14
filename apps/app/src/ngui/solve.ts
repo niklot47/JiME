@@ -34,6 +34,8 @@ export interface Bind {
    * for the lore gain, "top" for the threat bar when the interface is scaled down (the virtual screen gets taller)
    */
   pin?: string;
+  /** CSS transform origin at the parent node's position (parts of one thing animated together) */
+  originParent?: boolean;
   /** keep the saved height above the anchored bottom (the original's enemy bar shows at its saved 47, not the 61 its
    *  anchors give) */
   keepH?: boolean;
@@ -69,6 +71,9 @@ export interface Box {
   /** label sized by its text (resize height / freely): measured box drives the layout */
   autoH: boolean;
   autoW: boolean;
+  /** the parent's position (same space as left / top) */
+  px: number;
+  py: number;
 }
 
 export interface Measured { w: number; h: number }
@@ -155,7 +160,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         if (n.tr) rects.set(n.tr, rc);
         if (collect && inc && on && !w.off) {
           boxes.push({ key: k, node: n, w, bind: b, left: rc.l + screenW / 2, top: H / 2 - rc.t, width: rc.r - rc.l, height: rc.t - rc.b,
-            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW });
+            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py });
         }
       } else {
         // a panel without clipping covers the screen, a clipping one its clip region (moved by the clip offset, e.g. a

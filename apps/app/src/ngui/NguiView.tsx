@@ -280,6 +280,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   pendingImages = 0;
   const items = boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
+          if (b.bind.originParent) st.transformOrigin = `${b.px - b.left}px ${b.py - b.top}px`;
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;

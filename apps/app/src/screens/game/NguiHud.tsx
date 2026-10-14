@@ -69,11 +69,11 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
     Panel_Threat: { pin: "top" },
     Sprite_EnemyBar: { keepH: true },
     // the plate's centre at the point: the callout's children sit 51 / 35..50 up-right of its bottom-left pivot
-    TileCallout: tileCallout ? { show: true, atPx: tileCallout.px, dy: -42, dx: 6 } : { show: false },
-    // the boxes are drawn flat: each part pops and breathes around the plate's centre
-    Label_TileName: { text: tileCallout?.code ?? "", className: "ng-callout" },
-    Label_ProductSet: { className: "ng-callout" },
-    Sprite_TileCodePlate: { className: "ng-callout" },
+    // UITileCallout.OverlayPosition: its pivot on the printed code; the parts pop and breathe together around it
+    TileCallout: tileCallout ? { show: true, atPx: tileCallout.px } : { show: false },
+    Label_TileName: { text: tileCallout?.code ?? "", className: "ng-callout", originParent: true },
+    Label_ProductSet: { className: "ng-callout", originParent: true },
+    Sprite_TileCodePlate: { className: "ng-callout", originParent: true },
     Dialog_ThreatEventInfo: { show: info !== null && canInfo },
     "Dialog_ThreatEventInfo/Dialog_ThreatEventInfo": {},
     Label_ThreatEventInfo: { html: info !== null ? say(view.threatInfo.filter((t) => t.threshold <= max)[info]?.info) : "" },

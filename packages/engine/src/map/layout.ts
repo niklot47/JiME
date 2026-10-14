@@ -16,8 +16,11 @@ export interface TileArt {
   /** Pack-relative texture path */
   texture: string | null;
   hexes: HexArt[];
-  /** Tile.ExploreNode position in tile space: where the (square) explore token lies, on the printed mark */
-  explore?: [number, number] | null;
+  /** Tile.ExploreNode position in tile space: where the (square) explore token lies, on the printed mark; [2] = the
+   *  mark's turn in tile space (degrees) */
+  explore?: [number, number] | [number, number, number] | null;
+  /** Tile.CalloutPosition in tile space: where the tile's code is printed */
+  callout?: [number, number] | null;
   /** TileSpace.NodePosition per space (tile geometry order): where encounter tokens lie */
   nodes?: ([number, number] | null)[];
 }
@@ -44,8 +47,12 @@ export interface TileMesh {
   explore: [number, number] | null;
   /** World position of each space's node (encounter tokens), null where the art has none */
   nodes: ([number, number] | null)[];
-  /** Tile rotation in radians (board space), e.g. to align the square explore token with the printed mark */
+  /** Tile rotation in radians (board space) */
   angle: number;
+  /** Board-space turn of the printed explore mark (radians): the square token lies on it */
+  exploreAngle: number;
+  /** World position of the printed tile code (the code callout points there), null if the art has none */
+  callout: [number, number] | null;
 }
 
 /**
@@ -75,7 +82,9 @@ export function layoutTile(t: GeneratedTile, art: TileArt): TileMesh {
     for (const tri of h.tris) for (const k of tri) indices.push(base + k);
   }
   const ex = art.explore ? rot(art.explore[0], art.explore[1]) : null;
+  const co = art.callout ? rot(art.callout[0], art.callout[1]) : null;
   return { tile: t, texture: art.texture, positions, uvs, indices, hexCenters, explore: ex ? [ex[0] + tx, ex[1] + ty] : null, angle: a,
+    exploreAngle: a + ((art.explore?.[2] ?? 0) * Math.PI) / 180, callout: co ? [co[0] + tx, co[1] + ty] : null,
     nodes: (art.nodes ?? []).map((p) => { if (!p) return null; const [x, y] = rot(p[0], p[1]); return [x + tx, y + ty]; }) };
 }
 

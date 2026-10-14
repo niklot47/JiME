@@ -101,6 +101,9 @@ function spaceCenter(db: any, adv: any, t: GenTile, si: number): [number, number
   return [x, y];
 }
 
+/** A fixed small turn per tile (±5°): explore tokens lie on their printed mark, not machine-perfect */
+const jitter = (id: number) => ((((id * 9301 + 49297) % 233280) / 233280) * 10 - 5) * (Math.PI / 180);
+
 /** The party: the picked heroes, then the first others in id order, one per player */
 function partyOf(pick: number[], players: number, heroes: Record<string, HeroArt>): number[] | undefined {
   const all = Object.keys(heroes).map(Number).sort((a, b) => a - b);
@@ -516,7 +519,7 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, tableMap, 
         const mesh = meshById.get(t.id);
         const [x, y] = mesh?.explore ?? tileCenter(gt);
         const id = `t:${t.id}`;
-        tokens.push({ x, y, id, label: labels ? t.code : "", ...look(1), angle: mesh?.angle ?? 0, active: targets.has(id) });
+        tokens.push({ x, y, id, label: labels ? t.code : "", ...look(1), angle: (mesh?.exploreAngle ?? 0) + jitter(t.id), active: targets.has(id) });
       }
     }
     for (const n of view.nodes) {
