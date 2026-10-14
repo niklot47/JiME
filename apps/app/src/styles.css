@@ -428,6 +428,14 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui .ng-item { width: 46%; padding: 14px 10px; font-family: var(--font-title, serif); font-size: 20px; color: #f3e2bd; background: rgba(30, 20, 10, 0.75); border: 2px solid #8a6a3a; border-radius: 6px; }
 .ngui .ng-none { font-family: var(--font-title, serif); font-size: 22px; color: #efe2c4; text-align: center; width: 100%; }
 /* UI_Game.AnimateLoreGain: +N Lore rises 176 UI units above the party button and fades out in 2.5 s */
+/* FX_LoreGain: a short yellow flash behind the party button and a soft shockwave ring */
+.ngui .ng-lore-flash { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; mix-blend-mode: screen; }
+.ngui .ng-lore-flash::before, .ngui .ng-lore-flash i { content: ""; position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; opacity: 0; }
+.ngui .ng-lore-flash::before { background: radial-gradient(circle, rgba(255, 240, 120, 0) 38%, rgba(255, 225, 60, 0.85) 48%, rgba(255, 190, 30, 0.35) 60%, rgba(255, 170, 0, 0) 72%);
+  animation: ng-lore-flash 1.1s ease-out forwards; }
+.ngui .ng-lore-flash i { box-shadow: 0 0 10px 3px rgba(255, 220, 90, 0.7), inset 0 0 8px 2px rgba(255, 220, 90, 0.5); animation: ng-lore-ring 0.8s ease-out forwards; }
+@keyframes ng-lore-flash { 0% { transform: scale(0.75); opacity: 0; } 15% { opacity: 1; } 100% { transform: scale(1.1); opacity: 0; } }
+@keyframes ng-lore-ring { 0% { transform: scale(0.5); opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } }
 .ngui .ng-lore-gain.g0 { animation: ng-lore-gain-a 2.5s ease-out forwards; }
 .ngui .ng-lore-gain.g1 { animation: ng-lore-gain-b 2.5s ease-out forwards; }
 @keyframes ng-lore-gain-a { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-176px); opacity: 0; } }

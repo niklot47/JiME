@@ -284,6 +284,9 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;
+          // UIButton.disabledColor multiplies the sprite (a plain darkening, the hue is kept)
+          const dis = b.bind.disabled && b.node.btn?.disabled;
+          if (dis) st.filter = `brightness(${(((dis[0] ?? 1) + (dis[1] ?? 1) + (dis[2] ?? 1)) / 3).toFixed(3)})`;
           const cls = `ng ng-${b.w.k}${click ? " ng-click" : ""}${b.bind.disabled ? " ng-disabled" : ""}${b.node.btn ? " ng-btn" : ""} ${b.bind.className ?? ""}`;
           if (b.w.k === "label") {
             // label text: binding, its localization component, a bare key typed into the label (set by code), the saved text

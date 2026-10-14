@@ -120,7 +120,9 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
       })),
     },
     Sprite_Options: { onClick: onSettings, title: "Меню" },
-    Button_HeroMenu: { onClick: onParty, title: "Отряд: статус, хроника, снаряжение" },
+    // UI_Game.CoroutineAnimateGained turns on FX_LoreGain (a fire explosion with a shockwave) around the button
+    Button_HeroMenu: { onClick: onParty, title: "Отряд: статус, хроника, снаряжение",
+      content: loreGain ? <span key={loreGain.key} className="ng-lore-flash"><i /></span> : undefined },
     Button_EndRound: { onClick: onEndRound, disabled: !canEndRound, title: endTitle, className: canEndRound ? "ng-ready" : "" },
     // UI_Game.OnProvokeButtonClicked toggles provoke mode: instructions, glowing button, red vignette
     Button_Provoke: { disabled: !canProvoke && !provoking, title: say("UI_PROVOKE") || "Провокация", onClick: onProvoke },
