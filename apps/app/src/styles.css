@@ -427,3 +427,4 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ng-phase.short { animation-duration: 1.6s; }
 .ng-phase .ngui { transform-origin: 50% 28%; }
 @keyframes ng-phase { 0% { opacity: 0; transform: scale(0.8); } 17% { opacity: 1; transform: scale(1); } 83% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+.ngui .ng-range { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; pointer-events: auto; }

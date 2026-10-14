@@ -19,6 +19,7 @@ import type { UiLayoutFile } from "../ngui/types.ts";
 import { NguiEnemy } from "./game/NguiEnemy.tsx";
 import { NguiParty } from "./game/NguiParty.tsx";
 import { NguiPhase } from "./game/NguiPhase.tsx";
+import { NguiMenu } from "./game/NguiMenu.tsx";
 import { DecisionDialog, EnemyInfoDialog, GameOverDialog, GreenButton, MessageDialog, PartyDialog, SettingsDialog } from "./game/Dialogs.tsx";
 
 /** written to the chronicle only (Adventure.LogMessage), not shown as a popup */
@@ -426,7 +427,16 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
         )}
         {modal === "party" && !uiLayout && <PartyDialog view={view} atlas={atlas} say={say} log={state.log} items={items}
           lastStands={talking || busy ? new Map() : lastStands} onLastStand={(i) => { setModal(null); answer(i); }} onClose={() => setModal(null)} />}
-        {modal === "settings" && (
+        {modal === "settings" && uiLayout && (
+          <NguiMenu layout={uiLayout} atlas={atlas} say={say} langs={langs} lang={lang} labels={labels} onLang={setLang} onLabels={setLabels}
+            extras={[
+              { label: "↶ Отменить ход", disabled: !state.answers || busy, onClick: () => { setModal(null); update({ type: "undo" }); } },
+              { label: "Сохранить в файл", onClick: () => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save) },
+              { label: view3d ? "Доска: 2D" : "Доска: 3D", onClick: () => toggleView(!view3d) },
+            ]}
+            onSurrender={() => { setModal(null); setGame(null); }} onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
+        )}
+        {modal === "settings" && !uiLayout && (
           <SettingsDialog atlas={atlas} say={say} view3d={view3d} labels={labels} canUndo={!!state.answers && !busy}
             onView3d={toggleView} onLabels={setLabels} onUndo={() => { setModal(null); update({ type: "undo" }); }}
             onSave={() => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save)}
