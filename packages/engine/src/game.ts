@@ -1166,8 +1166,7 @@ export class Game {
   }
 
   explore(t: Tile, skipAdjacent: any = false): void {
-    // the tokens found here come with the explore message just written
-    const at = this.log.length - 1;
+    // the tokens found here come with their own messages (REVEALED), after the explore message is confirmed
     t.visible = true;
     t.explored = true;
     t.exploreToken = false;
@@ -1175,9 +1174,7 @@ export class Game {
       const nd = sp.node;
       if (nd === null) continue;
       for (const fs of nd.obj.fsms) if (fs.usesEvent("PRE_REVEAL")) fs.send("PRE_REVEAL");
-      const was = nd.visible;
       nd.visible = true;
-      if (!was && at >= 0) nd.shownAt = Math.min(nd.shownAt, at);
       for (const fs of nd.obj.fsms) if (fs.usesEvent("REVEALED")) fs.send("REVEALED");
     }
     if (!truthy(skipAdjacent) && t.adjacentSections.size && this.advFsm && this.advFsm.usesEvent("ADJACENT_TILE_EXPLORED")) {

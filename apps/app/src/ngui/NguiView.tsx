@@ -28,7 +28,11 @@ export function setUiScale(v: number): void {
 }
 
 
-/** URL of `src` multiplied by colour c (cached; null while it is being made) */
+// images still being made for the view now drawing: the view stays hidden until they are all there, so a dialog
+// appears complete instead of flashing through its unfinished parts (plain sprites, then tinted / sliced ones)
+let pendingImages = 0;
+
+/** URL of `src` multiplied by colour c (cached; null while it is being made, "" if it failed) */
 function tintUrl(src: string, c: number[]): string | null {
   const key = `${src}|${c.join(",")}`;
   if (tinted.has(key)) return tinted.get(key)!;
@@ -45,8 +49,9 @@ function tintUrl(src: string, c: number[]): string | null {
       d.data[i] = d.data[i]! * c[0]!; d.data[i + 1] = d.data[i + 1]! * c[1]!; d.data[i + 2] = d.data[i + 2]! * c[2]!;
     }
     g.putImageData(d, 0, 0);
-    cv.toBlob((b) => { if (b) { tinted.set(key, URL.createObjectURL(b)); version++; for (const f of listeners) f(); } });
+    cv.toBlob((b) => { tinted.set(key, b ? URL.createObjectURL(b) : ""); version++; for (const f of listeners) f(); });
   };
+  img.onerror = () => { tinted.set(key, ""); version++; for (const f of listeners) f(); };
   img.src = src;
   return null;
 }
@@ -94,8 +99,8 @@ function slicedUrl(src: string, border: [number, number, number, number], w: num
         if (sw > 0 && sh > 0 && ow > 0 && oh > 0) g.drawImage(img, sx[i]!, sy[j]!, sw, sh, dx[i]!, dy[j]!, ow, oh);
       }
     }
-    cv.toBlob((bl) => { if (bl) { sliced.set(key, URL.createObjectURL(bl)); version++; for (const f of listeners) f(); } });
-  }).catch(() => undefined);
+    cv.toBlob((bl) => { sliced.set(key, bl ? URL.createObjectURL(bl) : ""); version++; for (const f of listeners) f(); });
+  }).catch(() => { sliced.set(key, ""); version++; for (const f of listeners) f(); });
   return null;
 }
 
@@ -126,10 +131,17 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
     if (!t) return null;
     url = /^(https?:|blob:|data:|\/)/.test(t) ? t : assetUrl(t);
   } else return null;
-  if (!isWhite(color)) url = tintUrl(url, color!) ?? url;
+  let waiting = false;
+  if (!isWhite(color)) {
+    const t = tintUrl(url, color!);
+    if (t === null) waiting = true;
+    url = t || url;
+  }
   const st: CSSProperties = {};
   const [l, r, t, b] = border;
   const ready = w.t === 1 && (l || r || t || b) ? slicedUrl(url, border, box.width, box.height) : null;
+  if (ready === null && w.t === 1 && (l || r || t || b)) waiting = true;
+  if (waiting) pendingImages++;
   if (ready) {
     st.backgroundImage = `url("${ready}")`;
     st.backgroundSize = "100% 100%";
@@ -154,6 +166,8 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
       st.maskImage = m; (st as any).WebkitMaskImage = m;
     }
   }
+  // not drawn until its tinted / sliced image is made (no flash of the plain sprite)
+  if (waiting) st.visibility = "hidden";
   if (w.flip === 1 || w.flip === 3) st.transform = "scaleX(-1)";
   if (w.flip === 2 || w.flip === 3) st.transform = `${st.transform ?? ""} scaleY(-1)`;
   return st;
@@ -207,6 +221,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   const [size, setSize] = useState<[number, number]>([1280, 720]);
   const [measured, setMeasured] = useState(() => new Map<string, Measured>());
   // UILabel.Overflow.ShrinkContent: font factor per label until its text fits (reset when the text changes)
+  const shownOnce = useRef(false);
   const [shrink, setShrink] = useState(() => new Map<string, { html: string; f: number }>());
   useSyncExternalStore(subscribe, snapshot);
   useLayoutEffect(() => {
@@ -253,10 +268,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
     if (shrunk) setShrink(sh);
   });
 
-  return (
-    <div ref={host} className={`ngui ${className ?? ""}`}>
-      <div className="ngui-root" style={{ width: screenW, height: screenH, transform: `scale(${scale})` }}>
-        {boxes.map((b) => {
+  pendingImages = 0;
+  const items = boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
@@ -278,7 +291,14 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           const img = imageStyle(b, atlas);
           if (!img && !click && !b.bind.content) return null;
           return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img }} title={b.bind.title} onClick={click}>{b.bind.content}</div>;
-        })}
+        });
+  // hidden only until it has been complete once (a later new image must not blank a view that is already up)
+  const complete = pendingImages === 0;
+  if (complete) shownOnce.current = true;
+  return (
+    <div ref={host} className={`ngui ${className ?? ""}`}>
+      <div className="ngui-root" style={{ width: screenW, height: screenH, transform: `scale(${scale})`, visibility: complete || shownOnce.current ? undefined : "hidden" }}>
+        {items}
       </div>
     </div>
   );

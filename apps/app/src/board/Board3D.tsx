@@ -315,7 +315,7 @@ interface State {
   board: THREE.Group;
   sun: THREE.DirectionalLight;
   /** sepia per tile, animated towards its target */
-  tileMats: Map<number, { mat: THREE.MeshStandardMaterial; target: number }>;
+  tileMats: Map<number, { mat: THREE.MeshStandardMaterial; target: number; hold?: boolean }>;
   pulses: THREE.Mesh[];
   invalidate: () => void;
   effects: Effect[];
@@ -380,6 +380,7 @@ function pump(s: State, tileGroups: Map<number, { group: THREE.Group }>, fx: Rec
       now.visible = true;
       if (item.kind !== "marker") dropIn(s, now, 0);
       if (item.kind === "token") s.seen.add(item.key);
+      if (item.kind === "tile") { const tm = s.tileMats.get(item.id); if (tm) tm.hold = false; }
       if (item.kind === "tile" && fx.dust) { const t = tiles.find((x) => x.tile.hashId === item.id); if (t) dustBurst(s, t, fx); }
     }
     let w = 0;
@@ -477,7 +478,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
       const still = running.filter((f) => f(dt, time / 1000));
       s.effects = still.concat(s.effects);
       if (s.effects.length) anim = true;
-      for (const { mat, target } of s.tileMats.values()) {
+      for (const { mat, target, hold } of s.tileMats.values()) {
+        if (hold) continue;
         const u = mat.userData.sepia as { value: number };
         // gradual, like the original (a placed tile darkens over about a second)
         if (Math.abs(u.value - target) > 0.005) { u.value += (target - u.value) * Math.min(1, dt * 2.2); anim = true; } else u.value = target;
@@ -585,7 +587,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         const mat = c.top.material as THREE.MeshStandardMaterial;
         // the first view appears in its state; a tile placed later comes in colour and darkens
         (mat.userData.sepia as { value: number }).value = s.ready ? 0 : target;
-        s.tileMats.set(t.tile.hashId, { mat, target });
+        // a tile waiting for its turn keeps its colour; it darkens from the moment it drops in
+        s.tileMats.set(t.tile.hashId, { mat, target, hold: s.ready });
       } else {
         const tm = s.tileMats.get(t.tile.hashId)!;
         if (tm.target === 1 && target === 0 && fx.dust) dustBurst(s, t, fx);

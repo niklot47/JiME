@@ -95,8 +95,9 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   toggle("Toggle_ShowZoomBar", false);
   toggle("Toggle_BB_Classic", false);
 
-  let view: ReactNode = <NguiView layout={layout} atlas={atlas} show={[menu]} binds={b} say={say} className="ngui-menu" />;
-  if (page === "options") view = <NguiView layout={layout} atlas={atlas} show={[options]} binds={o} say={say} className="ngui-menu" />;
+  // keyed: each page is its own view (hidden until its images are ready, no flash of untinted parts)
+  let view: ReactNode = <NguiView key="menu" layout={layout} atlas={atlas} show={[menu]} binds={b} say={say} className="ngui-menu" />;
+  if (page === "options") view = <NguiView key="options" layout={layout} atlas={atlas} show={[options]} binds={o} say={say} className="ngui-menu" />;
   return <div className="ngui-modal">{view}</div>;
 }
 

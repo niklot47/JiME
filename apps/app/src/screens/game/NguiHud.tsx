@@ -14,7 +14,8 @@ const TRACK = 594; // UIThreatMeter.GetXPositionOnTracker
 // fire particles at the fill's edge: start height (% of the track), drift (UI units), size, spin, timing (fixed pseudo-random)
 const FIRE = Array.from({ length: 16 }, (_, i) => {
   const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233) * 43758.5453) % 1 + 1) % 1;
-  return { y: 15 + 70 * r(1), dx: -10 - 30 * r(2), dy: -4 - 14 * r(3), s: 0.55 + 0.6 * r(4), r: -40 + 80 * r(5), dur: 0.7 + 0.5 * r(6), delay: -r(7) * 1.2 };
+  // strictly back along the fill (no rise), short flames that burn out quickly
+  return { y: 18 + 64 * r(1), dx: -8 - 16 * r(2), dy: 0, s: 0.45 + 0.45 * r(4), r: -15 + 30 * r(5), dur: 0.35 + 0.25 * r(6), delay: -r(7) * 0.6 };
 });
 const RED = [191 / 255, 28 / 255, 28 / 255, 1];
 // the fill's span inside the 744-wide meter: Widget_ThreatEvents (-335.4) .. +594

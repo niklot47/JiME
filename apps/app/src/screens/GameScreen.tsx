@@ -10,7 +10,6 @@ import { GameClient } from "../game/client.ts";
 import type { GameState } from "../game/protocol.ts";
 import { installFonts, loadAdventure, loadDb, loadText, loadTileArt, loadTokenArt, loadTokenMeshes, type TokenArt, type TokenMeshData, loadFx, loadEnemyArt, loadUiArt, loadUiAtlas, loadUiLayout, loadHeroArt, assetUrl, type HeroArt, type AtlasSprite, themeChoice, loadPackSet, packConfig } from "../data/pack.ts";
 import { setHeroNames, textHtml } from "../text/markup.ts";
-import { toggleFullscreen } from "../data/fullscreen.ts";
 import { sound } from "../audio/sound.ts";
 import { PHASE_KEYS, gameSounds } from "../audio/gameFx.ts";
 import { BottomBar, GearButton, PhaseBanner, ThreatBar } from "./game/Hud.tsx";
@@ -436,7 +435,6 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
               { label: "↶ Отменить ход", disabled: !state.answers || busy, onClick: () => { setModal(null); update({ type: "undo" }); } },
               { label: "Сохранить в файл", onClick: () => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save) },
               { label: view3d ? "Доска: 2D" : "Доска: 3D", onClick: () => toggleView(!view3d) },
-              { label: "Полный экран (F11)", onClick: () => void toggleFullscreen() },
             ]}
             onSurrender={() => { setModal(null); setGame(null); }} onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
         )}

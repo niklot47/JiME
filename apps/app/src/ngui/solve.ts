@@ -121,6 +121,8 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         const autoW = w.k === "label" && w.lb?.ov === 2;
         let ww = (b.w ?? (autoW && m ? m.w : end.w ?? w.w)) * Math.abs(nsx);
         let hh = (b.h ?? (autoH && m ? m.h : end.h ?? w.h)) * Math.abs(nsy);
+        // full-screen darkenings / input blockers (saved at about 1280 x 720) cover the whole, possibly larger, screen
+        if (w.k !== "label" && !w.an && w.w >= 1270 && w.h >= 715) { ww = Math.max(ww, screenW + 20); hh = Math.max(hh, H + 20); }
         const [fx, fy] = PIVOT[b.pv ?? w.pv] ?? [0.5, 0.5];
         let rc: Rect = { l: x - fx * ww, r: x - fx * ww + ww, b: y - fy * hh, t: y - fy * hh + hh };
         // NGUI anchors: each anchored side follows its target's rect; the transform follows the rect
