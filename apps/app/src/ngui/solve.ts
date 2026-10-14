@@ -2,7 +2,7 @@
 // bindings (show/hide, size, offsets, clones) applied. Output: a flat list of boxes in screen space, sorted like NGUI
 // draws them (panel depth, then widget depth).
 import type { ReactNode } from "react";
-import type { UiNode, UiWidget } from "./types.ts";
+import type { Anchor, UiNode, UiWidget } from "./types.ts";
 
 /** What the app changes on a node (matched by node name) */
 export interface Bind {
@@ -128,6 +128,12 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
           }
           ww = rc.r - rc.l; hh = rc.t - rc.b;
           x = rc.l + fx * ww; y = rc.b + fy * hh;
+          // UIWidget.OnAnchor: the position comes from the anchored sides, then the size keeps its aspect ratio
+          if (w.ka && w.ka[1]) {
+            if (w.ka[0] === 2) ww = hh * w.ka[1];
+            else hh = ww / w.ka[1];
+            rc = { l: x - fx * ww, r: x - fx * ww + ww, b: y - fy * hh, t: y - fy * hh + hh };
+          }
         }
         rects.set(n.id, rc);
         if (n.tr) rects.set(n.tr, rc);
@@ -142,6 +148,17 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         const r0 = n.panel && !c ? screen
           : c ? { l: x + (co[0] + c[0] - c[2] / 2) * sx, r: x + (co[0] + c[0] + c[2] / 2) * sx, b: y + (co[1] + c[1] - c[3] / 2) * sy, t: y + (co[1] + c[1] + c[3] / 2) * sy }
           : { l: x, r: x, b: y, t: y };
+        // UIPanel.OnAnchor: an anchored clipping panel's region is its anchored sides
+        if (c && n.panel?.an) {
+          const side = (a: Anchor, lo: "l" | "b", hi: "r" | "t") => {
+            if (!a || !a[0]) return null;
+            const tr = a[0] === root.id || a[0] === root.tr ? screen : rects.get(a[0]) ?? null;
+            return tr ? tr[lo] + a[1] * (tr[hi] - tr[lo]) + a[2] : null;
+          };
+          const [la, ra, ba, ta] = n.panel.an;
+          r0.l = side(la!, "l", "r") ?? r0.l; r0.r = side(ra!, "l", "r") ?? r0.r;
+          r0.b = side(ba!, "b", "t") ?? r0.b; r0.t = side(ta!, "b", "t") ?? r0.t;
+        }
         rects.set(n.id, r0);
         if (n.tr) rects.set(n.tr, r0);
       }

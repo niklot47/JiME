@@ -31,6 +31,8 @@ export interface UiWidget {
   /** _Color of the widget's custom material (UITexture.mMat) */
   mc?: number[];
   an?: Anchor[];
+  /** UIWidget.keepAspectRatio (1 based on width, 2 based on height) and aspectRatio */
+  ka?: [number, number];
   /** sprite type: 0 simple, 1 sliced, 2 tiled, 3 filled */
   t?: number;
   fa?: number;
@@ -67,7 +69,7 @@ export interface UiNode {
   s?: [number, number];
   r?: number;
   w?: UiWidget;
-  panel?: { d: number; clip: [number, number, number, number] | null; off?: [number, number] };
+  panel?: { d: number; clip: [number, number, number, number] | null; off?: [number, number]; an?: Anchor[] };
   btn?: { hover: number[] | null; pressed: number[] | null; disabled: number[] | null; dur: number; target?: number };
   tw?: UiTween[];
   loc?: string;

@@ -87,6 +87,8 @@ def widget(cls, d, af):
     w = {"k": cls, "w": d.get("mWidth", 0), "h": d.get("mHeight", 0), "pv": d.get("mPivot", 4), "d": d.get("mDepth", 0)}
     c = col(d.get("mColor"))
     if c: w["c"] = c
+    if d.get("keepAspectRatio"):  # UIWidget.AspectRatioSource: 1 based on width, 2 based on height
+        w["ka"] = [d["keepAspectRatio"], r3(d.get("aspectRatio", 1))]
     an = [anchor(d.get(k)) for k in ("leftAnchor", "rightAnchor", "bottomAnchor", "topAnchor")]
     if any(a and a[0] for a in an): w["an"] = an
     if cls in ("sprite", "texture", "sprite2d"):
@@ -148,6 +150,8 @@ def node(gid):
             n["panel"] = {"d": d.get("mDepth", 0), "clip": [r3(cr.get("x", 0)), r3(cr.get("y", 0)), r3(cr.get("z", 0)), r3(cr.get("w", 0))] if clip else None}
             off = d.get("mClipOffset") or {}
             if clip and (off.get("x") or off.get("y")): n["panel"]["off"] = [r3(off.get("x", 0)), r3(off.get("y", 0))]
+            an = [anchor(d.get(k)) for k in ("leftAnchor", "rightAnchor", "bottomAnchor", "topAnchor")]
+            if clip and any(a and a[0] for a in an): n["panel"]["an"] = an  # UIPanel.OnAnchor: the clip region follows them
         elif cls in ("UIButton", "UIButtonColor"):
             n["btn"] = {"hover": col(d.get("hover")), "pressed": col(d.get("pressed")), "disabled": col(d.get("disabledColor")), "dur": r3(d.get("duration", 0.2)),
                         "target": (d.get("tweenTarget") or {}).get("m_PathID")}
