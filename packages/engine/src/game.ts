@@ -22,7 +22,9 @@ export type Difficulty = "normal" | "hard" | "adventure";
  * enemy: uid of the group activating / attacking when it was written (the original shows those in its enemy popup);
  * log: chronicle only (MasterMessageCache.AddMessage / Adventure.LogMessage), the players saw it as a question already
  */
-export interface LogMeta { enemy?: number; log?: true }
+export interface LogMeta { enemy?: number; log?: true; at?: SpaceRef }
+/** A tile space on the board (the location highlight where enemies are to be placed) */
+export interface SpaceRef { tile: number; space: number }
 export type LogEntry = [advIndex: number, round: number, key: string, inserts: string[], meta?: LogMeta];
 
 const KEY_RE = /^«([^\n]+)»\n?$/;
@@ -568,11 +570,33 @@ export class Game {
     this.write(key, inserts, true);
   }
 
+  /** the location of the next written entry (SpawnEnemyGroup / SpawnRandomEnemyGroups highlight) */
+  private nextAt: SpaceRef | null = null;
+
   private write(key: any, inserts: unknown[], logOnly: boolean): void {
     if (key === null || key === undefined) return;
     const e: LogEntry = [this.advIndex, this.round, key, inserts.map(pyStr)];
-    if (this.activating || logOnly) e.push({ ...(this.activating ? { enemy: this.activating.uid } : {}), ...(logOnly ? { log: true as const } : {}) });
+    const at = logOnly ? null : this.nextAt;
+    if (!logOnly) this.nextAt = null;
+    if (this.activating || logOnly || at) {
+      e.push({ ...(this.activating ? { enemy: this.activating.uid } : {}), ...(logOnly ? { log: true as const } : {}), ...(at ? { at } : {}) });
+    }
     this.log.push(e);
+  }
+
+  /** The next shown message points at this space */
+  pointAt(at: SpaceRef | null): void { this.nextAt = at; }
+
+  /**
+   * Where a spawned group goes: the space of the SpawnPosition object (a node on a tile), else a space of an explored
+   * visible tile (the original picks one at random with Unity's RNG: here a fixed pick that leaves the game's RNG alone)
+   */
+  spawnSpot(o: Obj | null): SpaceRef | null {
+    const n = o ? [...this.nodes, ...this.advNodes].find((x) => x.obj === o) : undefined;
+    if (n?.tile) return { tile: n.tile.id, space: n.space };
+    const spaces: SpaceRef[] = [];
+    for (const t of this.tiles.values()) if (t.visible && t.explored) t.spaces.forEach((_, i) => spaces.push({ tile: t.id, space: i }));
+    return spaces.length ? spaces[(this.log.length * 7919 + this.enemies.length * 31) % spaces.length]! : null;
   }
 
   enemyModel(ref: any): any {
@@ -1153,10 +1177,14 @@ export class Game {
     return best;
   }
 
-  spawnGroup(m: any, size: number, logic: Obj | null = null): EnemyGroup {
+  /** announce: show "Place N enemies as indicated" at a space (false: the action's own message said it, chronicle only) */
+  spawnGroup(m: any, size: number, logic: Obj | null = null, announce = true): EnemyGroup {
     const g = new EnemyGroup(this.nextId(), m, size, logic);
     this.enemies.push(g);
-    this.emit("UI_SPAWN_GROUP_FORMAT", size, this.enemyName(m, size));
+    if (announce) {
+      this.pointAt(this.spawnSpot(null));
+      this.emit("UI_SPAWN_GROUP_FORMAT", size, this.enemyName(m, size));
+    } else this.note("UI_SPAWN_GROUP_FORMAT", size, this.enemyName(m, size));
     if (logic !== null) logic.enemyGroup = g;
     return g;
   }
@@ -1321,6 +1349,7 @@ export class Game {
   /** EnemyInfoDialog.CoroutineDisplayDamage + Adventure.CoroutinePerformPlayerAttackFinish */
   playerAttack(g: EnemyGroup): void {
     const a = this.player.attackDamage(this, g);
+    if (this.flow === "legacy") return this.legacyAttack(g, attackHits(a));
     const ab = attackAbilities(a);
     const on = (k: AttackAbility) => (ab & ATTACK_ABILITIES[k]) !== 0;
     const before = g.size;
@@ -1342,6 +1371,16 @@ export class Game {
         g.health <= 0 ? "UI_ENEMY_DEFEATED_INSPIRATION_REMINDER" : "");
     }
     if (counter) this.enemyCounterAttack(g);
+    if (g.health <= 0) this.defeatGroup(g);
+  }
+
+  /** legacy flow (engine-py parity): the hits go to the units' health in order, no armor, no counter-attack */
+  private legacyAttack(g: EnemyGroup, hits: number): void {
+    for (let i = 0; i < g.hp.length && hits > 0; i++) {
+      const h = Math.min(hits, g.hp[i]!);
+      g.hp[i]! -= h;
+      hits -= h;
+    }
     if (g.health <= 0) this.defeatGroup(g);
   }
 

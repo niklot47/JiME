@@ -1,5 +1,6 @@
 # Export board effect textures (local only, FFG content) to <JIME_WORK>/packs/core-ffg/images/fx/ and fx.json:
-# clouds / smoke for the fog around the explored map, dust for the explore burst.
+# clouds / smoke for the fog around the explored map, dust for the explore burst, the location highlight (yellow arrows
+# turning around where enemies are to be placed, GameViewHighlightManager.PoolLocationHighlights) and its glow.
 import os, json
 from jload import *
 
@@ -7,7 +8,8 @@ PACK = os.path.join(ROOT, "packs", "core-ffg")
 OUT = os.path.join(PACK, "images", "fx")
 SIZE = int(os.environ.get("JIME_FX_TEX", "256"))
 # role -> texture name in the game assets
-WANTED = {"cloud": "cloud_type_a", "smoke": "smoketex", "dust": "part_dust", "ember": "ThreatFire"}
+WANTED = {"cloud": "cloud_type_a", "smoke": "smoketex", "dust": "part_dust", "ember": "ThreatFire",
+          "highlight": "ArrowCircle4", "highlightGlow": "TargetReticle_Glow"}
 
 def name_of(o):
     try:
@@ -21,13 +23,13 @@ def main():
     found = {}
     for f in FILES.values():
         for o in f.objects.values():
-            if o.type.name != "Texture2D":
+            if o.type.name not in ("Texture2D", "Sprite"):
                 continue
             n = name_of(o)
             role = by_name.get(n)
             if not role or role in found:
                 continue
-            img = o.read().image.convert("RGBA")
+            img = (sprite_image(o.read()) if o.type.name == "Sprite" else o.read().image).convert("RGBA")
             img.thumbnail((SIZE, SIZE))
             img.save(os.path.join(OUT, f"{role}.png"))
             found[role] = f"images/fx/{role}.png"

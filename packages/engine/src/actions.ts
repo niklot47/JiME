@@ -362,8 +362,12 @@ export const ACTIONS: Record<string, ActionHandler> = {
     const size = truthy(gd(p, "SpecifySize"))
       ? Math.max(1, g.num(f, gd(p, "GroupSize"), 1))
       : g.groupSize(m, g.num(f, gd(p, "AdditionalPoints")));
+    // SpawnEnemyGroup.OnEnter: the message at the spawn position (highlighted); without a message nothing is shown
+    const hasMsg = !!g.quietly(() => g.msgKey(f, gd(p, "Message"))[0]);
+    if (hasMsg) g.pointAt(g.spawnSpot(g.objRef(f.owner.src, gd(p, "SpawnPosition"))));
     g.show(f, gd(p, "Message"));
-    g.spawnGroup(m, size, g.objRef(f.owner.src, gd(p, "Logic")));
+    g.pointAt(null);
+    g.spawnGroup(m, size, g.objRef(f.owner.src, gd(p, "Logic")), false);
     return gd(p, "Succeeded");
   },
   SpawnRandomEnemyGroups: (g, f, p) => {
