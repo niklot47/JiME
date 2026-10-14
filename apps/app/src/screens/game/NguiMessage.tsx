@@ -12,12 +12,17 @@ import type { Atlas, Say } from "./ui.ts";
 const TOP: [number, number] = [0, 216];
 const MAX_CHOICES = 5; // ButtonMultipleChoice0..4 (+ the cancel button) in the layout
 
+/** MessageAdditionalInfo of an enemy attack: physical damage, fear, extra effect key */
+export interface AttackInfo { physical: number; fear: number; effect: string | null }
+
 export type PopupContent =
-  | { kind: "message"; entry: LogEntry; left: number; onNext: () => void; onSkipAll: () => void }
+  | { kind: "message"; entry: LogEntry; left: number; info?: AttackInfo; onNext: () => void; onSkipAll: () => void }
   | { kind: "decision"; d: Decision; onAnswer: (a: Answer) => void };
 
 export function NguiMessage({ layout, atlas, say, content }: { layout: UiLayoutFile; atlas: Atlas; say: Say; content: PopupContent }) {
-  const popup = findNode(layout.root, "UI_Game/MessagePopup");
+  // UI_Game.MessageDialogEnemyActivation for what an activating enemy does (log entries / decisions tagged with it)
+  const enemy = content.kind === "message" ? content.entry[4] !== undefined : content.d.kind === "choice" && content.d.enemy !== undefined;
+  const popup = findNode(layout.root, enemy ? "UI_Game/MessagePopup_EnemyActivation" : "UI_Game/MessagePopup");
   const [value, setValue] = useState(0);
   const dKey = content.kind === "decision" ? content.d : null;
   useEffect(() => setValue(0), [dKey]);
@@ -37,7 +42,19 @@ export function NguiMessage({ layout, atlas, say, content }: { layout: UiLayoutF
 
   if (content.kind === "message") {
     b.Label_Message!.html = say(content.entry[2], content.entry[3]);
-    btn("Button_Continue", content.onNext);
+    const info = content.info;
+    if (info) {
+      // MessageButtonController.InitializeAdditionalInfo: damage / fear icons with their values, the extra effect,
+      // the background down to Widget_AnchorBottom (+37), the confirm button
+      b.AdditionalInfo = { show: true };
+      b.Sprite_Damage = { show: info.physical > 0 };
+      b.Label_Damage_Value = { text: String(info.physical) };
+      b.Sprite_Fear = { show: info.fear > 0 };
+      b.Label_Fear_Value = { text: String(info.fear) };
+      b.Label_Attack_AdditionalEffect = info.effect ? { show: true, html: say(info.effect) } : { show: false };
+      b.Sprite_AdditionalInfo_Background = { h: (info.effect ? 139 : 111) + 37 };
+      btn("Button_ConfirmAdditionalInfo", content.onNext, { node: "Label_Confirm", html: say("UI_CONFIRM") || "Подтвердить" });
+    } else btn("Button_Continue", content.onNext);
   } else {
     const d = content.d;
     const prompt = "inserts" in d && d.key ? say(d.key, d.inserts) : "";

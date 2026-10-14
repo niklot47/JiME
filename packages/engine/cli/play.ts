@@ -85,6 +85,7 @@ function describe(d: Decision): { prompt: string; parse: (s: string) => Answer |
         const label = o.type === "node" ? `Жетон: ${o.name.replace(/^\d+_/, "")}${o.tile ? ` (тайл ${o.tile})` : ""}`
           : o.type === "explore" ? `Исследовать тайл ${o.tile}`
           : o.type === "lastStand" ? `Последний рубеж: герой ${o.hero + 1}`
+          : o.type === "provoke" ? `Провокация: группа #${o.uid}`
           : `Атаковать: ${say(o.enemy)} ×${o.size} (урон ${o.damage}/${o.unitHp})`;
         console.log(`  ${i + 1}) ${label}`);
       });

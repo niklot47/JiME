@@ -19,6 +19,9 @@ import type { UiLayoutFile } from "../ngui/types.ts";
 import { NguiEnemy } from "./game/NguiEnemy.tsx";
 import { DecisionDialog, EnemyInfoDialog, GameOverDialog, GreenButton, MessageDialog, PartyDialog, SettingsDialog } from "./game/Dialogs.tsx";
 
+/** written to the chronicle only (Adventure.LogMessage), not shown as a popup */
+const LOG_ONLY = new Set(["UI_DAMAGE_LOG_FORMATTED", "UI_DAMAGE_LOG_WITH_EFFECT_FORMATTED"]);
+
 const AUTOSAVE = "jime.autosave";
 const VIEW_KEY = "jime.board.view";
 
@@ -205,6 +208,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [unread, setUnread] = useState<LogEntry[]>([]);
   const [modal, setModal] = useState<null | "party" | "settings">(null);
   const [enemyInfo, setEnemyInfo] = useState<number | null>(null);
+  // Adventure.IsProvokeMode: the next medallion click makes that group attack
+  const [provoking, setProvoking] = useState(false);
   // the NGUI combat card resolves the hits itself: the attack action is answered, then its damage question
   const attackHits = useRef<{ uid: number; answer: number } | null>(null);
   useEffect(() => {
@@ -287,26 +292,36 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const action = pending?.kind === "action" ? pending : null;
   (window as any).__jimeGame = { state, answer }; // dev checks over CDP (tools/dev)
   // queue head: a phase banner or a message (entries without text are skipped)
-  const queue = unread.filter(([, , k, ins]) => PHASE_KEYS.has(k) || !!say(k, ins));
+  // damage logs only go to the chronicle: the attack popup shows them as icons (MessageAdditionalInfo)
+  const queue = unread.filter(([, , k, ins]) => !LOG_ONLY.has(k) && (PHASE_KEYS.has(k) || !!say(k, ins)));
   const head = queue[0];
   const banner = head && PHASE_KEYS.has(head[2]) ? head : null;
   const messages = queue.filter(([, , k]) => !PHASE_KEYS.has(k));
   const talking = queue.length > 0;
+  const headAt = head ? unread.indexOf(head) : -1;
+  const dmg = headAt >= 0 ? unread[headAt + 1] : undefined;
+  const attackInfo = dmg && LOG_ONLY.has(dmg[2])
+    ? { physical: Number(dmg[3][0]) || 0, fear: Number(dmg[3][1]) || 0, effect: dmg[3][2] ?? null } : undefined;
+  // the group shown highlighted in the bar while it activates (Adventure._activatingEnemy)
+  const activating = head ? head[4] : pending && (pending.kind === "choice" || pending.kind === "confirm") ? pending.enemy : undefined;
   const drop = (e: LogEntry) => setUnread((u) => u.slice(u.indexOf(e) + 1));
   // hero actions: tokens and tiles are picked on the board, enemies in the tracker; the rest gets small buttons
   const attackable = new Map<number, number>();
   const others: { i: number; label: ReactNode }[] = [];
   const lastStands = new Map<number, number>(); // hero -> option index
+  const provokable = new Map<number, number>(); // group uid -> option index
   action?.options.forEach((o, i) => {
     if (o.type === "attack") attackable.set(o.uid, i);
+    else if (o.type === "provoke") provokable.set(o.uid, i);
     else if (o.type === "node") {
       const n = view.nodes.find((x) => x.uid === o.uid);
       if (!n || n.tileId === null || !n.visible || !game.board)
         others.push({ i, label: `${tokenName(o.token)}${o.tile ? ` · тайл ${o.tile}` : ""}${labels ? ` (${shortName(o.name)})` : ""}` });
     } else if (o.type === "explore") {
       if (!game.board) others.push({ i, label: `Исследовать тайл ${o.tile}` });
-    } else lastStands.set(o.hero, i);
+    } else if (o.type === "lastStand") lastStands.set(o.hero, i);
   });
+  const canProvoke = provokable.size > 0 && !talking && !busy;
   const items = (view.campaign.items as any[]).map((id) => {
     const m = db?.models?.ItemModel?.[String(id)];
     return { id: Number(id), key: m?.NameKey ?? null, name: m ? shortName(m.m_Name) : `#${id}` };
@@ -317,7 +332,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     && !(d.kind === "choice" && d.choices.length > 5);
   const dialog = banner || attackHits.current ? null
     : uiLayout && talking ? <NguiMessage layout={uiLayout} atlas={atlas} say={say}
-        content={{ kind: "message", entry: head!, left: messages.length, onNext: () => drop(head!), onSkipAll: () => setUnread([]) }} />
+        content={{ kind: "message", entry: head!, left: messages.length, info: attackInfo, onNext: () => drop(head!), onSkipAll: () => setUnread([]) }} />
     : uiLayout && !talking && nguiOk(pending) ? <NguiMessage key={state.answers} layout={uiLayout} atlas={atlas} say={say}
         content={{ kind: "decision", d: pending!, onAnswer: answer }} />
     : talking ? <MessageDialog atlas={atlas} say={say} entry={head!} left={messages.length} onNext={() => drop(head!)} onSkipAll={() => setUnread([])} />
@@ -330,7 +345,12 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         {uiLayout ? (
           <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
-            attackable={new Set(attackable.keys())} onEnemy={(uid) => setEnemyInfo(uid)}
+            attackable={new Set(attackable.keys())} activating={activating} canProvoke={canProvoke} provoking={provoking && canProvoke}
+            onProvoke={() => setProvoking((p) => !p)}
+            onEnemy={(uid) => {
+              if (provoking && canProvoke) { if (provokable.has(uid)) { setProvoking(false); answer(provokable.get(uid)!); } }
+              else setEnemyInfo(uid);
+            }}
             endTitle={action && action.hero >= 0 ? "Закончить ход героя" : "Завершить раунд"}
             onParty={() => setModal("party")} onSettings={() => setModal("settings")} onEndRound={() => answer(null)} />
         ) : (

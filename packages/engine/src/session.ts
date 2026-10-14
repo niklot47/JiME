@@ -15,13 +15,15 @@ export type ActionOption =
   | { type: "node"; uid: number; name: string; kind: string; token: number; encounter: number | null; tile: string | null; tileId: number | null; space: number }
   | { type: "explore"; tile: string; tileId: number }
   | { type: "attack"; uid: number; enemy: string; size: number; damage: number; unitHp: number }
+  | { type: "provoke"; uid: number }
   | { type: "lastStand"; hero: number };
 
 export type Decision =
   | { kind: "test"; key: string | null; inserts: string[]; top: number }
   /** yes / no: button label keys (DisplayMessageCancelConfirm.ConfirmLabel / CancelLabel) */
-  | { kind: "confirm"; key: string | null; inserts: string[]; yes: string; no: string }
-  | { kind: "choice"; key: string | null; inserts: string[]; choices: { key: string | null; inserts: string[] }[]; canCancel: boolean }
+  | { kind: "confirm"; key: string | null; inserts: string[]; yes: string; no: string; enemy?: number }
+  /** enemy: uid of the activating group (the enemy activation popup) */
+  | { kind: "choice"; key: string | null; inserts: string[]; choices: { key: string | null; inserts: string[] }[]; canCancel: boolean; enemy?: number }
   | { kind: "hero"; key: string | null; inserts: string[]; players: number; canSkip: boolean }
   | { kind: "lastStand"; hero: number; physical: boolean; key: string | null; inserts: string[] }
   /** FFG flow: last stand against physical damage (true) or fear (false) */
@@ -54,6 +56,7 @@ const describeOption = (g: Game, [kind, x]: Option): ActionOption => {
   };
   if (kind === "explore") return { type: "explore", tile: x.code, tileId: x.id };
   if (kind === "lastStand") return { type: "lastStand", hero: x };
+  if (kind === "provoke") return { type: "provoke", uid: x.uid };
   return { type: "attack", uid: x.uid, enemy: String(g.enemyName(x.model, x.size)), size: x.size, damage: x.damage, unitHp: x.unitHp };
 };
 
@@ -110,13 +113,13 @@ export class ScriptedPlayer implements Player {
   }
 
   confirm(g: Game, key: any, yes?: string | null, no?: string | null): boolean {
-    return this.next({ kind: "confirm", key, inserts: g.promptInserts(), yes: yes || "UI_CONFIRM", no: no || "UI_CANCEL" });
+    return this.next({ kind: "confirm", key, inserts: g.promptInserts(), yes: yes || "UI_CONFIRM", no: no || "UI_CANCEL", ...(g.activating ? { enemy: g.activating.uid } : {}) });
   }
 
   choose(g: Game, key: any, choices: any[], canCancel: boolean): any {
     if (!choices.length) return null; // nothing to choose (all options gated): no question, like the bot
     const a = this.next({
-      kind: "choice", key, inserts: g.promptInserts(), canCancel,
+      kind: "choice", key, inserts: g.promptInserts(), canCancel, ...(g.activating ? { enemy: g.activating.uid } : {}),
       choices: choices.map((c) => ({ key: keyOf(gd(c, "Localization")), inserts: g.promptInserts(gd(c, "Localization")) })),
     });
     return a === null ? null : choices[a];

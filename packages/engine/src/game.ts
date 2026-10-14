@@ -18,7 +18,8 @@ export interface ContentSource {
 }
 
 export type Difficulty = "normal" | "hard" | "adventure";
-export type LogEntry = [advIndex: number, round: number, key: string, inserts: string[]];
+/** enemy: uid of the group activating / attacking when it was written (the original shows those in its enemy popup) */
+export type LogEntry = [advIndex: number, round: number, key: string, inserts: string[], enemy?: number];
 
 const KEY_RE = /^«([^\n]+)»\n?$/;
 
@@ -454,6 +455,8 @@ export class Game {
   objectiveInserts: string[] = [];
   /** The dialog a Player is being asked about (set by dialog actions just before the call; UI only) */
   prompt: { fsm: Fsm; msg: any } | { key?: string; inserts: string[] } | null = null;
+  /** Adventure._activatingEnemy: the group whose activation / attack is being resolved */
+  activating: EnemyGroup | null = null;
   /**
    * Heroes. damage/fear are the bot's simulation only (the real app does not track them: players use cards);
    * lastStand = next last stand difficulty (FFG Hero.LastStandDifficulty, starts at 1)
@@ -554,7 +557,9 @@ export class Game {
 
   emit(key: any, ...inserts: unknown[]): void {
     if (key === null || key === undefined) return;
-    this.log.push([this.advIndex, this.round, key, inserts.map(pyStr)]);
+    const e: LogEntry = [this.advIndex, this.round, key, inserts.map(pyStr)];
+    if (this.activating) e.push(this.activating.uid);
+    this.log.push(e);
   }
 
   enemyModel(ref: any): any {
@@ -1286,7 +1291,17 @@ export class Game {
       this.emit("UI_EXPLORE_TILE_WITH_INTRO_FORMATTED", flav,
         this.difficulty !== "hard" ? "UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION" : "UI_DISCARD_EXPLORE_TOKEN");
       this.explore(x as Tile);
-    } else this.playerAttack(x as EnemyGroup);
+    } else if (kind === "provoke") this.provoke(x as EnemyGroup);
+    else this.playerAttack(x as EnemyGroup);
+  }
+
+  /** EnemyMenu provoke click: CoroutinePerformEnemyAttack(group, requirePrompt: false, performAttackReduction: false); stays ready */
+  provoke(g: EnemyGroup): void {
+    if (g.exhausted) return;
+    const a = this.randomActivation(g);
+    if (!a) return;
+    this.activating = g;
+    try { this.enemyAttack(g, a, false); } finally { this.activating = null; }
   }
 
   /** EnemyInfoDialog.CoroutineDisplayDamage + Adventure.CoroutinePerformPlayerAttackFinish */
@@ -1320,10 +1335,13 @@ export class Game {
   enemyCounterAttack(g: EnemyGroup): void {
     const a = this.randomActivation(g);
     if (!a) return;
-    if (this.player.confirm(this, "UI_PROMPT_CAN_ATTACK", "UI_YES", "UI_NO")) {
-      this.enemyAttack(g, a, false);
-      g.exhausted = true;
-    }
+    this.activating = g;
+    try {
+      if (this.player.confirm(this, "UI_PROMPT_CAN_ATTACK", "UI_YES", "UI_NO")) {
+        this.enemyAttack(g, a, false);
+        g.exhausted = true;
+      }
+    } finally { this.activating = null; }
   }
 
   // ------------------------------------------------------------ FFG round flow (GameController.CoroutineEndRound, Adventure)
@@ -1335,6 +1353,8 @@ export class Game {
         ...this.explorableTiles().map((t): Option => ["explore", t]),
         ...this.enemies.map((g): Option => ["attack", g]),
         ...this.heroes.flatMap((h, i): Option[] => (h.defeated ? [] : [["lastStand", i]])),
+        // UI_Game provoke mode: a group that is not exhausted attacks (a hero's provoke ability)
+        ...this.enemies.filter((g) => !g.exhausted).map((g): Option => ["provoke", g]),
       ];
       const pick = this.player.pickAction(this, -1, opts);
       if (pick === null) return;
@@ -1358,6 +1378,11 @@ export class Game {
 
   /** Adventure.CoroutinePerformEnemyActivation + CoroutineDisplayActivationChoice */
   activateFfg(g: EnemyGroup): void {
+    this.activating = g;
+    try { this.activationFfg(g); } finally { this.activating = null; }
+  }
+
+  private activationFfg(g: EnemyGroup): void {
     let a: any = null;
     if (truthy(g.activationOverride)) a = gd(this.D.models.EnemyActivationModel, pyStr(g.activationOverride), null);
     if (!truthy(a)) a = this.randomActivation(g);
@@ -1531,7 +1556,7 @@ export class Game {
   }
 }
 
-export type Option = ["node", GameNode] | ["explore", Tile] | ["attack", EnemyGroup] | ["lastStand", number];
+export type Option = ["node", GameNode] | ["explore", Tile] | ["attack", EnemyGroup] | ["provoke", EnemyGroup] | ["lastStand", number];
 
 /**
  * Everything the players decide. Called synchronously from deep inside the interpreter;
@@ -1596,12 +1621,12 @@ export class Bot implements Player {
   }
 
   pickAction(g: Game, hero: number, opts: Option[]): Option | null {
-    const W = { node: 5, explore: 3, attack: 4, lastStand: 0 } as const;
+    const W = { node: 5, explore: 3, attack: 4, provoke: 0, lastStand: 0 } as const;
     if (hero >= 0) return this.rng.choices(opts, opts.map(([k]) => W[k]));
     // FFG free hero phase: a hero "out of cards" takes a last stand; 2 actions per hero, then end the round
     const ls = opts.find(([k, x]) => k === "lastStand" && g.heroes[x as number]!.damage + g.heroes[x as number]!.fear >= 10);
     if (ls) return ls;
-    const pool = opts.filter(([k]) => k !== "lastStand");
+    const pool = opts.filter(([k]) => k !== "lastStand" && k !== "provoke");
     if (g.actionsTaken >= 2 * g.players || !pool.length) return null;
     return this.rng.choices(pool, pool.map(([k]) => W[k]));
   }

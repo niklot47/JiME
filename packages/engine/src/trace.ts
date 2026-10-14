@@ -21,7 +21,7 @@ export interface Trace {
 export function traceOf(g: Game): Trace {
   const c = g.campaign;
   return {
-    adv: g.advId, seed: g.seed, log: g.log, ended: g.ended, result: g.result, round: g.round,
+    adv: g.advId, seed: g.seed, log: g.log.map((e) => [e[0], e[1], e[2], e[3]] as [number, number, string, string[]]), ended: g.ended, result: g.result, round: g.round,
     threat: g.globals.Threat, threat_max: g.threatMax,
     warnings: g.warnings.toObject(), unimpl: g.unimpl.toObject(), coverage: g.coverage.toObject(),
     campaign: { next_adventure: c.next_adventure, lore: c.lore, xp: c.xp, items: c.items, titles: c.titles, result: c.result },

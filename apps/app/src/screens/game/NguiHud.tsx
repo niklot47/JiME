@@ -28,16 +28,18 @@ function hudLayout(layout: UiLayoutFile): UiLayoutFile {
   return l;
 }
 
-export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, onParty, onSettings, onEndRound, onEnemy }: {
+export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, onParty, onSettings, onEndRound, onEnemy }: {
   layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; enemyArt: Record<string, string>; say: Say; view: GameView;
-  canEndRound: boolean; endTitle: string; attackable: Set<number>;
+  canEndRound: boolean; endTitle: string; attackable: Set<number>; activating?: number;
+  /** provoke: the button is enabled / provoke mode is on (Dialog_Provoke shown) */
+  canProvoke: boolean; provoking: boolean; onProvoke: () => void;
   onParty: () => void; onSettings: () => void; onEndRound: () => void; onEnemy: (uid: number) => void;
 }) {
   const layout = hudLayout(base);
   const game = findNode(layout.root, "UI_Game");
   if (!game) return null;
   const pick = (name: string) => (game.ch ?? []).find((c) => c.n === name) ?? findNode(game, name);
-  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke"]
+  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke", "Dialog_Provoke"]
     .map(pick).filter((n): n is UiNode => !!n);
 
   const max = view.threatMax;
@@ -80,14 +82,17 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
     Sprite_Options: { onClick: onSettings, title: "Меню" },
     Button_HeroMenu: { onClick: onParty, title: "Отряд: статус, хроника, снаряжение" },
     Button_EndRound: { onClick: onEndRound, disabled: !canEndRound, title: endTitle, className: canEndRound ? "ng-ready" : "" },
-    Button_Provoke: { disabled: true, title: "Провокация (пока не реализована)" },
+    // UI_Game.OnProvokeButtonClicked toggles provoke mode: instructions, glowing button, red vignette
+    Button_Provoke: { disabled: !canProvoke && !provoking, title: say("UI_PROVOKE") || "Провокация", onClick: onProvoke },
+    Dialog_Provoke: { show: provoking },
+    z_Darkening: { onClick: onProvoke },
     // EnemyMiniView per group: portrait (grey when exhausted), elite frame, ranged mark, highlight while attackable
     EnemyMiniView: {
       show: view.enemies.length > 0, step: [105, 0],
       clones: view.enemies.map((e) => ({
         EnemyMiniView: { onClick: () => onEnemy(e.uid), title: `${say(e.name) || e.name}${e.size > 1 ? ` ×${e.size}` : ""}` },
         SpriteEnemy: { tex: enemyArt[String(e.model)], color: e.exhausted ? [0.5, 0.5, 0.5, 1] : undefined },
-        SpriteHighlight: { show: attackable.has(e.uid) },
+        SpriteHighlight: { show: activating !== undefined ? activating === e.uid : provoking ? !e.exhausted : attackable.has(e.uid) },
         Sprite_UniqueId_Background: { show: false },
         Sprite_EliteFrame: { show: e.named },
         Sprite_Ranged: { show: e.ranged },
