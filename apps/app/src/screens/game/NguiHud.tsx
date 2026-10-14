@@ -3,6 +3,7 @@
 // Widget_ThreatEvents (yellow until reached, then red), darkness token, objective; party, settings, end-round and
 // provoke buttons; the enemy bar with one EnemyMiniView per group (UI_Game.EnemyMenu: the miniview prefab is not in
 // the scene, the enemy dialog's one is reused in Grid_Enemies). The threat fill itself is a 3D mesh in the game: drawn here inside the meter.
+import { useState } from "react";
 import type { GameView } from "@jime/engine";
 import { assetUrl } from "../../data/pack.ts";
 import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
@@ -28,18 +29,24 @@ function hudLayout(layout: UiLayoutFile): UiLayoutFile {
   return l;
 }
 
-export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, onParty, onSettings, onEndRound, onEnemy }: {
+export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, loreGain, canInfo, onParty, onSettings, onEndRound, onEnemy }: {
   layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; enemyArt: Record<string, string>; say: Say; view: GameView;
   canEndRound: boolean; endTitle: string; attackable: Set<number>; activating?: number;
   /** provoke: the button is enabled / provoke mode is on (Dialog_Provoke shown) */
   canProvoke: boolean; provoking: boolean; onProvoke: () => void;
+  /** UI_Game.AnimateLoreGain: the last change of lore (key restarts the animation) */
+  loreGain?: { key: number; amount: number } | null;
+  /** threat markers can be clicked for their info (not while a message is up) */
+  canInfo: boolean;
   onParty: () => void; onSettings: () => void; onEndRound: () => void; onEnemy: (uid: number) => void;
 }) {
   const layout = hudLayout(base);
+  // UIThreatMeter.OnThreatEventClicked: info dialog of the clicked event, paged through all of them
+  const [info, setInfo] = useState<number | null>(null);
   const game = findNode(layout.root, "UI_Game");
   if (!game) return null;
   const pick = (name: string) => (game.ch ?? []).find((c) => c.n === name) ?? findNode(game, name);
-  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke", "Dialog_Provoke"]
+  const show = ["Panel_Threat", "Sprite_Options", "Button_HeroMenu", "Button_EndRound", "Sprite_EnemyBar", "Button_Provoke", "Dialog_Provoke", "Panel_GainAnimation"]
     .map(pick).filter((n): n is UiNode => !!n);
 
   const max = view.threatMax;
@@ -49,7 +56,12 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
   const marks = max > 0 ? view.threatEvents.filter((t) => t <= max) : [];
 
   const b: Binds = {
-    Dialog_ThreatEventInfo: { show: false },
+    Dialog_ThreatEventInfo: { show: info !== null && canInfo },
+    "Dialog_ThreatEventInfo/Dialog_ThreatEventInfo": {},
+    Label_ThreatEventInfo: { html: info !== null ? say(view.threatInfo.filter((t) => t.threshold <= max)[info]?.info) : "" },
+    Button_PageLeft: { show: marks.length > 1, onClick: () => setInfo((i) => ((i ?? 0) + marks.length - 1) % marks.length) },
+    Button_PageRight: { show: marks.length > 1, onClick: () => setInfo((i) => ((i ?? 0) + 1) % marks.length) },
+    "Dialog_ThreatEventInfo/z_Darkening": { onClick: () => setInfo(null) },
     Sprite_ThreatMeterBackground: {
       title: `Угроза ${view.threat}${max > 0 ? ` из ${max}` : ""}`,
       content: (
@@ -70,12 +82,13 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
     Label_Objective: { html: view.objective ? say(view.objective, view.objectiveInserts) : say("UI_DEFAULT_OBJECTIVE") },
     Table_AdventureRules: { show: false },
     Sprite_Darkness: { show: view.darkness, title: "Тьма" },
-    Widget_ThreatEventSelected: { show: false },
+    Widget_ThreatEventSelected: info !== null && marks[info] !== undefined ? { show: true, at: [TRACK * (marks[info]! / max), 4.9] } : { show: false },
     // one marker per threat event (the layout has 10; clones of the first keep it simple)
     Widget_ThreatMarker: {
       show: marks.length > 0,
-      clones: marks.map((t) => ({
-        Widget_ThreatMarker: { at: [TRACK * (t / max), 4.9], ...(view.threat >= t ? { color: RED } : {}), title: `Событие угрозы на ${t}` },
+      clones: marks.map((t, i) => ({
+        Widget_ThreatMarker: { at: [TRACK * (t / max), 4.9], ...(view.threat >= t ? { color: RED } : {}), title: `Событие угрозы на ${t}`,
+          onClick: canInfo ? () => setInfo(i) : undefined },
         "Widget_ThreatMarker/Label_ThreatValue": { text: String(t) },
       })),
     },
@@ -85,6 +98,12 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
     // UI_Game.OnProvokeButtonClicked toggles provoke mode: instructions, glowing button, red vignette
     Button_Provoke: { disabled: !canProvoke && !provoking, title: say("UI_PROVOKE") || "Провокация", onClick: onProvoke },
     Dialog_Provoke: { show: provoking },
+    // CoroutineAnimateGained: "+N Lore" rises from Widget_GainStartPos to Widget_GainEndPos (TweenTransform) and fades
+    // (TweenAlpha 2.5 s); a loss turns red (TweenColor)
+    Label_LoreGain: loreGain
+      ? { show: true, at: [-620, -306], className: `ng-lore-gain g${loreGain.key % 2}`, color: loreGain.amount < 0 ? [1, 0, 0, 1] : undefined,
+          html: say("UI_LORE_GAIN", [loreGain.amount >= 0 ? "+" : "", String(loreGain.amount)]) || `${loreGain.amount >= 0 ? "+" : ""}${loreGain.amount} Сведения` }
+      : { show: false },
     z_Darkening: { onClick: onProvoke },
     // EnemyMiniView per group: portrait (grey when exhausted), elite frame, ranged mark, highlight while attackable
     EnemyMiniView: {

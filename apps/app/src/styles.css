@@ -417,3 +417,13 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui .ng-items { flex-flow: row wrap; align-content: flex-start; }
 .ngui .ng-item { width: 46%; padding: 14px 10px; font-family: var(--font-title, serif); font-size: 20px; color: #f3e2bd; background: rgba(30, 20, 10, 0.75); border: 2px solid #8a6a3a; border-radius: 6px; }
 .ngui .ng-none { font-family: var(--font-title, serif); font-size: 22px; color: #efe2c4; text-align: center; width: 100%; }
+/* UI_Game.AnimateLoreGain: +N Lore rises 176 UI units above the party button and fades out in 2.5 s */
+.ngui .ng-lore-gain.g0 { animation: ng-lore-gain-a 2.5s ease-out forwards; }
+.ngui .ng-lore-gain.g1 { animation: ng-lore-gain-b 2.5s ease-out forwards; }
+@keyframes ng-lore-gain-a { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-176px); opacity: 0; } }
+@keyframes ng-lore-gain-b { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-176px); opacity: 0; } }
+/* NewPhase banner: 0.5 s in (alpha 0 -> 1, scale 0.8 -> 1), 2 s shown, 0.5 s out */
+.ng-phase { position: absolute; inset: 0; z-index: 25; pointer-events: none; animation: ng-phase 3s ease-out forwards; }
+.ng-phase.short { animation-duration: 1.6s; }
+.ng-phase .ngui { transform-origin: 50% 28%; }
+@keyframes ng-phase { 0% { opacity: 0; transform: scale(0.8); } 17% { opacity: 1; transform: scale(1); } 83% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }

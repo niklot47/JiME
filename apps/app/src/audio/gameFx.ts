@@ -12,6 +12,7 @@ export function gameSounds(prev: GameView, next: GameView, newLog: readonly LogE
   const explored = (v: GameView) => v.tiles.filter((t) => t.explored).length;
   const shown = (v: GameView) => v.nodes.filter((n) => n.visible).length;
   if (explored(next) > explored(prev)) void sound.sfx("TileReveal02", 0.9);
+  if (next.campaign.lore > prev.campaign.lore) void sound.sfx("GainLore05", 0.9); // AudioController.PlayGainLore
   else if (shown(next) > shown(prev)) sound.any(REVEALS, 0.5);
   if (next.threat > prev.threat) void sound.sfx("Threat02", 0.8);
   const before = new Map(prev.enemies.map((e) => [e.uid, e]));

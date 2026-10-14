@@ -257,6 +257,8 @@ export interface GameView {
   threatMax: number;
   /** Thresholds of the threat events still waiting on the threat bar (ascending) */
   threatEvents: number[];
+  /** The same events with ThreatEvent.InfoKey (what happens; the threat meter's info dialog) */
+  threatInfo: { threshold: number; info: string | null }[];
   /** Darkness in effect now (FFG shows the darkness token next to the threat bar) */
   darkness: boolean;
   objective: string | null;
@@ -287,6 +289,9 @@ export function viewOf(g: Game): GameView {
   return {
     adv: g.advId, round: g.round, threat: g.globals.Threat, threatMax: g.threatMax,
     threatEvents: g.activeThreatEvents.map((o) => Number(o.threatThreshold ?? o.components.ThreatEvent?.Threshold ?? 0)).sort((a, b) => a - b),
+    threatInfo: g.activeThreatEvents
+      .map((o) => ({ threshold: Number(o.threatThreshold ?? o.components.ThreatEvent?.Threshold ?? 0), info: (keyOf(o.components.ThreatEvent?.InfoKey) ?? o.components.ThreatEvent?.InfoKey ?? null) as string | null }))
+      .sort((a, b) => a.threshold - b.threshold),
     darkness: g.isDarknessNow(), objective: g.objective,
     objectiveInserts: [...g.objectiveInserts],
     ended: g.ended, result: g.result,

@@ -18,6 +18,7 @@ import { NguiHud } from "./game/NguiHud.tsx";
 import type { UiLayoutFile } from "../ngui/types.ts";
 import { NguiEnemy } from "./game/NguiEnemy.tsx";
 import { NguiParty } from "./game/NguiParty.tsx";
+import { NguiPhase } from "./game/NguiPhase.tsx";
 import { DecisionDialog, EnemyInfoDialog, GameOverDialog, GreenButton, MessageDialog, PartyDialog, SettingsDialog } from "./game/Dialogs.tsx";
 
 /** written to the chronicle only (Adventure.LogMessage), not shown as a popup */
@@ -223,6 +224,12 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [enemyInfo, setEnemyInfo] = useState<number | null>(null);
   // Adventure.IsProvokeMode: the next medallion click makes that group attack
   const [provoking, setProvoking] = useState(false);
+  const [loreGain, setLoreGain] = useState<{ key: number; amount: number } | null>(null);
+  useEffect(() => {
+    if (!loreGain) return;
+    const t = setTimeout(() => setLoreGain(null), 2600);
+    return () => clearTimeout(t);
+  }, [loreGain]);
   // the NGUI combat card resolves the hits itself: the attack action is answered, then its damage question
   const attackHits = useRef<{ uid: number; answer: number } | null>(null);
   useEffect(() => {
@@ -244,6 +251,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     }
     const added = next.log.slice(prev.log.length);
     setUnread((u) => [...u, ...added]);
+    const lore = next.view.campaign.lore - prev.view.campaign.lore;
+    if (lore) setLoreGain((g) => ({ key: (g?.key ?? 0) + 1, amount: lore }));
     gameSounds(prev.view, next.view, added);
   }, [game?.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -376,7 +385,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
           onAnswer={(a) => { if (!talking && !busy) answer(a); }} />
         {uiLayout ? (
           <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={view} canEndRound={!!action && !talking && !busy}
-            attackable={new Set(attackable.keys())} activating={activating} canProvoke={canProvoke} provoking={provoking && canProvoke}
+            attackable={new Set(attackable.keys())} activating={activating} loreGain={loreGain} canInfo={!talking} canProvoke={canProvoke} provoking={provoking && canProvoke}
             onProvoke={() => setProvoking((p) => !p)}
             onEnemy={(uid) => {
               if (provoking && canProvoke) { if (provokable.has(uid)) { setProvoking(false); answer(provokable.get(uid)!); } }
@@ -390,7 +399,11 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
             <GearButton atlas={atlas} onClick={() => setModal("settings")} />
           </>
         )}
-        {banner && (
+        {banner && uiLayout && (
+          <NguiPhase key={unread.indexOf(banner) + ":" + unread.length} layout={uiLayout} atlas={atlas} say={say} phaseKey={banner[2]}
+            short={queue.length > 1} onDone={() => drop(banner)} />
+        )}
+        {banner && !uiLayout && (
           <PhaseBanner key={unread.indexOf(banner) + ":" + unread.length} text={say(banner[2])}
             round={banner[2] === "UI_PHASE_HERO" ? banner[1] : null} atlas={atlas}
             short={queue.length > 1} onDone={() => drop(banner)} />
