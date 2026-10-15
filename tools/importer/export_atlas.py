@@ -37,6 +37,10 @@ def main():
             crop.save(os.path.join(OUT, fn))
             found[name] = {"file": f"images/ui/atlas/{fn}", "w": s["width"], "h": s["height"],
                            "border": [s["borderLeft"], s["borderRight"], s["borderTop"], s["borderBottom"]]}
+            # UISpriteData padding: transparent margins trimmed from the atlas (the widget draws the sprite inside them)
+            pad = [s.get("paddingLeft", 0), s.get("paddingRight", 0), s.get("paddingTop", 0), s.get("paddingBottom", 0)]
+            if any(pad):
+                found[name]["pad"] = pad
     with open(os.path.join(OUT, "atlas.json"), "w", encoding="utf-8") as fp:
         json.dump(found, fp, indent=1, ensure_ascii=False)
     print(f"ui atlas: {len(found)} sprites -> {OUT}")

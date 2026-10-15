@@ -11,6 +11,7 @@ import numpy as np
 from UnityPy.helpers.MeshHelper import MeshHandler
 from jload import *
 from glb import Glb, trs, trs_matrix
+from particles import particle_params
 
 PACK = os.path.join(ROOT, "packs", "core-ffg")
 OUT = os.path.join(PACK, "battleboard")
@@ -101,7 +102,9 @@ class Exporter:
         if "Blended" in shader or "Multiply" in shader or "AlphaWShadow" in shader or "VerteValueAlpha" in shader \
                 or (mode is not None and mode >= 2 and shader.startswith("Standard")):
             mat["alphaMode"] = "BLEND"
-        elif "Alpha" in shader or "EdgeGrass" in shader or "Cutout" in shader or (mode is not None and mode >= 1 and shader.startswith("Standard")):
+        elif "Alpha" in shader or "EdgeGrass" in shader or "Cutout" in shader or (mode is not None and mode >= 1 and shader.startswith("Standard")) \
+                or (alpha and not shader.startswith(("Standard", "Mobile/Unlit"))):
+            # (Shader Forge and custom shaders with a transparent texture clip it: foliage cards, webs)
             mat["alphaMode"] = "MASK"
             mat["alphaCutoff"] = float(fl.get("_Cutoff", 0.5))
             mat["doubleSided"] = True
@@ -191,7 +194,7 @@ class Exporter:
         ex = dict(extra or {})
         if not go.m_IsActive:
             ex["active"] = False
-        mbs, mf, mr = [], None, None
+        mbs, mf, mr, psys, psmesh = [], None, None, None, None
         for c in comps:
             tn = c.type.name
             if tn == "MonoBehaviour":
@@ -199,6 +202,23 @@ class Exporter:
                 if si:
                     cls = si[1].split(".")[-1]
                     mbs.append(cls)
+                    if cls == "WeatherEffectsController":
+                        # the rain systems per board (SetWeatherEffect)
+                        _, d = read_mb(c)
+                        wx = {}
+                        for k in ("LightRain_B1", "HeavyRain_B1", "LightRain_B2", "HeavyRain_B2"):
+                            pp = d.get(k) or {}
+                            go2 = deref(af, pp.get("m_FileID", 0), pp.get("m_PathID", 0)) if pp.get("m_PathID") else None
+                            if go2 is not None:
+                                g2 = go2.read()
+                                # the full path, names repeat
+                                path = [g2.m_Name]
+                                tr2 = deref(go2.assets_file, g2.m_Component[0].component.m_FileID, g2.m_Component[0].component.m_PathID).read()
+                                while tr2.m_Father.m_PathID:
+                                    tr2 = deref(go2.assets_file, tr2.m_Father.m_FileID, tr2.m_Father.m_PathID).read()
+                                    path.append(tr2.m_GameObject.read().m_Name)
+                                wx[k] = "/".join(reversed(path))
+                        ex["weather"] = wx
                     if cls == "BBEdgeCorner":
                         # BBEdgeCorner: the straight river pieces towards the neighbour corners
                         _, d = read_mb(c)
@@ -212,6 +232,7 @@ class Exporter:
                 mr = c.read()
             elif tn == "ParticleSystem":
                 ex["particles"] = True
+                psys = c
             elif tn == "Light":
                 L = c.read()
                 ex["light"] = {"type": int(L.m_Type), "color": [L.m_Color.r, L.m_Color.g, L.m_Color.b],
@@ -219,10 +240,40 @@ class Exporter:
                                "spot": float(getattr(L, "m_SpotAngle", 30.0)), "shadows": int(L.m_Shadows.m_Type)}
         if mbs:
             ex["mb"] = mbs
+        psmat = None
+        if psys is not None:
+            try:
+                rco = next((c for c in comps if c.type.name == "ParticleSystemRenderer"), None)
+                rt = rco.read_typetree() if rco is not None else None
+                ex["ps"] = particle_params(psys.read_typetree(), rt)
+                if rt and rt.get("m_Materials") and rt["m_Materials"][0]["m_PathID"] and rt.get("m_Enabled", 1):
+                    from types import SimpleNamespace as NS
+                    mm = rt["m_Materials"][0]
+                    psmat = self.material(af, NS(m_FileID=mm["m_FileID"], m_PathID=mm["m_PathID"]))
+                    # mesh particles: the renderer's mesh
+                    msh = rt.get("m_Mesh") or {}
+                    if rt.get("m_RenderMode") == 4 and msh.get("m_PathID"):
+                        md = self.mesh(af, NS(m_FileID=msh["m_FileID"], m_PathID=msh["m_PathID"]))
+                        if md is not None:
+                            psmesh = (md, psmat)
+            except Exception as e:
+                print("  particles failed", go.m_Name, e)
         if ex:
             n["extras"] = ex
         w = world @ trs_matrix(t)
         idx = self.g.node(n, parent)
+        if psmat is not None:
+            # the particles' material: a hidden degenerate triangle carrying it (the app takes it from there)
+            if not hasattr(self, "_tri"):
+                self._tri = {"POSITION": self.g.accessor(np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], np.float32), "VEC3", minmax=True),
+                             "TEXCOORD_0": self.g.accessor(np.array([[0, 0], [1, 0], [0, 1]], np.float32), "VEC2")}
+            self.g.j["meshes"].append({"name": "psmat", "primitives": [{"attributes": self._tri, "material": psmat}]})
+            self.g.node({"name": go.m_Name + ":psmat", "mesh": len(self.g.j["meshes"]) - 1, "extras": {"psmat": True}}, idx)
+        if psmesh is not None:
+            (name, attrs, subs), mi = psmesh
+            prims = [{"attributes": attrs, "indices": a, "material": mi} for a in subs if a is not None]
+            self.g.j["meshes"].append({"name": name, "primitives": prims})
+            self.g.node({"name": go.m_Name + ":psmesh", "mesh": len(self.g.j["meshes"]) - 1, "extras": {"psmesh": True}}, idx)
         if mf is not None and mr is not None and mr.m_Enabled:
             mi, batched = self.renderer_mesh(af, mf, mr)
             if mi is not None:

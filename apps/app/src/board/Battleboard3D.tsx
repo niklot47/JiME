@@ -8,6 +8,7 @@ import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { assetUrl } from "../data/pack.ts";
 import { markerGroup } from "./Board3D.tsx";
+import { attachEmitters, type Emitter } from "./particles.ts";
 
 /** BattleboardSkins: Grass, Quarry, Town -> the environment scene */
 export const SKIN_SCENES = ["forest", "rock", "town"] as const;
@@ -199,6 +200,8 @@ export interface BBToken {
   active?: boolean;
   /** drawn invisible but still pickable (a river token in full 3D: the board's rivers show it) */
   ghost?: boolean;
+  /** GameNode.IsUnique: the piece's UniqueFX glow */
+  unique?: boolean;
 }
 
 interface TokenMeshData { pos: [number, number, number][]; uv: [number, number][]; faces: [number, number, number][]; scale?: [number, number, number] }
@@ -235,7 +238,7 @@ function tokenGeo(name: string, d: TokenMeshData): THREE.BufferGeometry {
 const toScene = (x: number, y: number, h = 0) => new THREE.Vector3(-x, h, y);
 
 /** One piece on the board: a wrapper in scene space (it drops along +y), the board-frame content inside */
-interface Placed { wrap: THREE.Group; frame: THREE.Group; token: THREE.Object3D | null; piece: THREE.Object3D | null; pieceName: string | null; ring: THREE.Mesh | null; key: string }
+interface Placed { wrap: THREE.Group; frame: THREE.Group; token: THREE.Object3D | null; piece: THREE.Object3D | null; pieceName: string | null; key: string }
 
 type Fx = (dt: number) => boolean;
 
@@ -268,9 +271,10 @@ async function pieceObject(name: string): Promise<THREE.Object3D> {
   root.traverse((o) => {
     const n = nameOf(o);
     // particle-only objects and camera-facing glows are not drawn (yet)
-    if (/^(Glow|UniqueFX)/.test(n)) o.visible = false;
+    if (/^Glow/.test(n)) o.visible = false;
+    if (/^UniqueFX/.test(n)) { o.visible = false; o.userData.uniqueFx = true; }
     const m = o as THREE.Mesh;
-    if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; }
+    if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; smoothCutout(m); }
     const L = o.userData?.light;
     if (L && L.type === 2) lights.push(o);
   });
@@ -282,11 +286,19 @@ async function pieceObject(name: string): Promise<THREE.Object3D> {
   // spawned with Euler(-90, 0, 0) under the node (the prefab root's own rotation and position are replaced)
   root.children.forEach(() => undefined);
   const holder = new THREE.Group();
+  holder.userData.emitters = attachEmitters(root);
   const top = root.children.length === 1 ? root.children[0]! : root;
   top.position.set(0, 0, 0);
   top.quaternion.copy(unityEuler(-90, 0, 0));
   holder.add(top);
   return holder;
+}
+
+/** Cutout foliage: alpha to coverage softens the clipped edges (with the renderer's multisampling) */
+function smoothCutout(m: THREE.Mesh): void {
+  for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+    if (mat.alphaTest > 0) { mat.alphaToCoverage = true; mat.alphaTest = 0.35; }
+  }
 }
 
 /** TokenSwitchDust: a soft puff where a token turns into its piece */
@@ -385,11 +397,27 @@ interface Props {
   onPick?: (id: string) => void;
   /** location highlight (Unity world x, y): where enemies are to be placed */
   marker?: [number, number] | null;
+  /** WeatherEffect per board: 0 none, 1 light rain, 2 heavy rain */
+  weather?: number[];
 }
 
-export function Battleboard3D({ boards, visible = [true, true], rivers = true, pits = [], tokens = [], fx = {}, onPick, marker = null }: Props) {
+/** WeatherEffectsController's rain objects (the forest scene has none: its own rain systems by name) */
+function rainNodes(main: THREE.Object3D): THREE.Object3D[][] {
+  let map: Record<string, string> | null = null;
+  main.traverse((o) => { if (!map && o.userData?.weather) map = o.userData.weather; });
+  const byPath = (path: string) => {
+    let o: THREE.Object3D | null = main;
+    for (const part of path.split("/").slice(1)) o = o?.children.find((c) => nameOf(c) === part) ?? null;
+    return o;
+  };
+  const m = map as Record<string, string> | null;
+  if (m) return [[byPath(m.LightRain_B1 ?? ""), byPath(m.HeavyRain_B1 ?? "")], [byPath(m.LightRain_B2 ?? ""), byPath(m.HeavyRain_B2 ?? "")]].map((l) => l.filter((x): x is THREE.Object3D => !!x));
+  return [[find(main, "LightRain"), find(main, "HeavyRain")], [find(main, "LightRain (1)"), find(main, "HeavyRain")]].map((l) => l.filter((x): x is THREE.Object3D => !!x));
+}
+
+export function Battleboard3D({ boards, visible = [true, true], rivers = true, pits = [], tokens = [], fx = {}, onPick, marker = null, weather = [0, 0] }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const st = useRef<{ scene: THREE.Scene; env: THREE.Group | null; layer: THREE.Group; placed: Map<string, Placed>; fxs: Fx[]; ready: boolean; marker: THREE.Group | null; markerKey: string } | null>(null);
+  const st = useRef<{ scene: THREE.Scene; env: THREE.Group | null; layer: THREE.Group; placed: Map<string, Placed>; fxs: Fx[]; ready: boolean; marker: THREE.Group | null; markerKey: string; emitters: Emitter[]; flown: boolean; controls: MapControls } | null>(null);
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
   const [, setTick] = useState(0);
@@ -438,7 +466,7 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
     scene.add(sun, sun.target);
     const layer = new THREE.Group();
     scene.add(layer);
-    const s = { scene, env: null as THREE.Group | null, layer, placed: new Map<string, Placed>(), fxs: [] as Fx[], ready: false, marker: null as THREE.Group | null, markerKey: "" };
+    const s = { scene, env: null as THREE.Group | null, layer, placed: new Map<string, Placed>(), fxs: [] as Fx[], ready: false, marker: null as THREE.Group | null, markerKey: "", emitters: [] as Emitter[], flown: false, controls };
     st.current = s;
     let alive = true;
     void buildEnvironment(boards).then((env) => {
@@ -448,9 +476,12 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
         if (!m.isMesh) return;
         m.castShadow = true;
         m.receiveShadow = true;
+        smoothCutout(m);
       });
       scene.add(env);
       s.env = env;
+      // the scene's particle systems (light shafts, pollen, rain, fog), played while their objects are shown
+      s.emitters.push(...attachEmitters(env));
       s.ready = true;
       setTick((n) => n + 1);
     });
@@ -485,9 +516,15 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
       const now = performance.now();
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      s.fxs = s.fxs.filter((f) => f(dt)).concat(s.fxs.length ? [] : []);
+      s.fxs = s.fxs.filter((f) => f(dt));
+      s.emitters = s.emitters.filter((e) => {
+        if (!e.parent) return false;
+        let shown = true;
+        for (let o: THREE.Object3D | null = e; o; o = o.parent) if (!o.visible) { shown = false; break; }
+        if (shown) e.step(dt, camera);
+        return !e.done;
+      });
       const pulse = 0.55 + 0.45 * Math.sin(now / 260);
-      for (const p of s.placed.values()) if (p.ring) (p.ring.material as THREE.MeshBasicMaterial).opacity = pulse;
       if (s.marker) {
         const ring = s.marker.userData.ring as THREE.Mesh;
         ring.rotation.z -= dt * 1.6;
@@ -535,6 +572,11 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
       if (g && i < boards.length) g.visible = visible[i] !== false;
     }
     for (const grid of (env.userData.rivers ?? []) as (THREE.Object3D | null)[]) if (grid) grid.visible = rivers;
+    // SetWeatherEffect: light (1) or heavy (2) rain per board
+    const rain = rainNodes(main);
+    const on = new Set<THREE.Object3D>();
+    rain.forEach((l, b) => { const w = weather[b] ?? 0; if (w > 0 && l[w - 1]) on.add(l[w - 1]!); });
+    for (const o of rain.flat()) o.visible = on.has(o);
     // BBBoard.SetPitVisibility: the flat square swapped for the chasm
     boards.forEach((_, bi) => {
       const g = bi === 0 ? boardGroup(main, false) : (env.children.find((c) => nameOf(c).endsWith(" (1)") && c !== main) ?? boardGroup(main, true));
@@ -556,6 +598,7 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
     if (!s?.ready) return;
     const seen = new Set<string>();
     let delay = 0;
+    const fresh: THREE.Vector3[] = [];
     for (const t of tokens) {
       seen.add(t.id);
       const key = `${t.meshName}|${t.texture}`;
@@ -569,10 +612,10 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
         if (token) frame.children[0]!.add(token);
         wrap.userData.pick = t.id;
         s.layer.add(wrap);
-        p = { wrap, frame, token, piece: null, pieceName: null, ring: null, key };
+        p = { wrap, frame, token, piece: null, pieceName: null, key };
         s.placed.set(t.id, p);
         wrap.position.copy(toScene(t.pos[0], t.pos[1], 0.02));
-        if (!t.piece) { drop(wrap, s.fxs, delay); delay += 0.25; }
+        if (!t.piece) { drop(wrap, s.fxs, delay + (s.flown ? 0.45 : 0)); delay += 0.25; fresh.push(wrap.position.clone()); }
       }
       // MoveNode: the node moves to its new square
       const to = toScene(t.pos[0], t.pos[1], 0.02);
@@ -589,6 +632,7 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
         m.opacity = t.ghost ? 0 : 1;
         m.depthWrite = !t.ghost;
       }
+      if (p.piece) p.piece.traverse((o) => { if (o.userData.uniqueFx) o.visible = !!t.unique; });
       // full 3D piece
       const want = t.piece ?? null;
       if (want !== p.pieceName) {
@@ -600,22 +644,32 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
             if (pp.pieceName !== want) return;
             pp.piece = obj;
             pp.frame.children[0]!.add(obj);
-            dustPuff(s.layer, pp.wrap.position.clone(), s.fxs, fx.smoke);
+            const ems = (obj.userData.emitters ?? []) as Emitter[];
+            s.emitters.push(...ems);
+            // the prefab's own TokenSwitchDust puff, else a soft one of ours
+            if (!ems.some((e) => /TokenSwitchDust/.test(String(e.parent?.userData?.name ?? "")))) dustPuff(s.layer, pp.wrap.position.clone(), s.fxs, fx.smoke);
             grow(obj, pp.token, s.fxs);
           });
         } else if (pp.token) { pp.token.visible = true; pp.token.scale.setScalar(1); }
       }
       // target ring
-      // (a piece carries no ring: the original highlights only tokens)
-      if (t.active && !t.piece && !p.ring) {
-        const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.15, 40), new THREE.MeshBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
-        ring.rotation.x = -Math.PI / 2;
-        ring.position.y = 0.08;
-        p.wrap.add(ring);
-        p.ring = ring;
-      } else if ((!t.active || t.piece) && p.ring) { p.wrap.remove(p.ring); p.ring = null; }
     }
     for (const [id, p] of s.placed) if (!seen.has(id)) { s.layer.remove(p.wrap); s.placed.delete(id); }
+    // later tokens: the camera glides to where they fall (the first ones are framed by the opening view)
+    if (fresh.length && s.flown && s.controls) {
+      const to = fresh.reduce((a, v) => a.add(v), new THREE.Vector3()).multiplyScalar(1 / fresh.length);
+      const c = s.controls, cam = c.object;
+      const from = c.target.clone(), off = cam.position.clone().sub(from);
+      let k = 0;
+      s.fxs.push((dt) => {
+        k = Math.min(1, k + dt / 0.55);
+        const e = k * k * (3 - 2 * k);
+        c.target.lerpVectors(from, new THREE.Vector3(to.x, 0, to.z), e);
+        cam.position.copy(c.target).add(off);
+        return k < 1;
+      });
+    }
+    if (tokens.length) s.flown = true;
   });
 
   return <div ref={host} style={{ position: "absolute", inset: 0 }} />;

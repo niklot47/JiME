@@ -5,6 +5,7 @@
 // rest of the original's options (font size, voice-over, camera speeds, zoom bar, graphics) are shown disabled.
 import { useEffect, useState, type ReactNode } from "react";
 import { sound } from "../../audio/sound.ts";
+import { setBbClassic, useBbClassic } from "../../data/bbClassic.ts";
 import { NguiView, getUiScale, setUiScale, type Bind, type Binds } from "../../ngui/NguiView.tsx";
 import type { UiLayoutFile, UiNode } from "../../ngui/types.ts";
 import type { Atlas, Say } from "./ui.ts";
@@ -20,6 +21,7 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   langs: string[]; lang: string; labels: boolean; onLang: (l: string) => void; onLabels: (v: boolean) => void;
   onSurrender: () => void; onQuit: () => void; onClose: () => void;
 }) {
+  const classic = useBbClassic();
   const [page, setPage] = useState<"menu" | "options" | "camera" | "surrender">("menu");
   const [s, setS] = useState(sound.settings);
   useEffect(() => sound.onChange(() => setS(sound.settings)), []);
@@ -93,7 +95,7 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   toggle("LocalizedVoiceOverToggle", false);
   for (const n of ["Slider_PanSpeed", "Slider_ZoomSpeed", "Slider_OrbitSpeed"]) slider(n, 0.5);
   toggle("Toggle_ShowZoomBar", false);
-  toggle("Toggle_BB_Classic", false);
+  toggle("Toggle_BB_Classic", classic, () => setBbClassic(!classic));
 
   // keyed: each page is its own view (hidden until its images are ready, no flash of untinted parts)
   let view: ReactNode = <NguiView key="menu" layout={layout} atlas={atlas} show={[menu]} binds={b} say={say} className="ngui-menu" />;

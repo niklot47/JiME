@@ -20,6 +20,7 @@ export const boardsOf = (model: any): BoardSetup[] =>
 export function BattleboardPreviewScreen({ onBack }: { onBack: () => void }) {
   const [advs, setAdvs] = useState<any[]>([]);
   const [adv, setAdv] = useState<number | null>(null);
+  const [rain, setRain] = useState(0);
   useEffect(() => {
     void loadDb().then((db: any) => {
       const list = Object.values(db.models.AdventureModel).filter((a: any) => Number(a.Type) === 1)
@@ -31,13 +32,16 @@ export function BattleboardPreviewScreen({ onBack }: { onBack: () => void }) {
   const model = advs.find((a) => a._id === adv);
   return (
     <div style={{ position: "fixed", inset: 0, background: "#111" }}>
-      {model && <Battleboard3D boards={boardsOf(model)} />}
+      {model && <Battleboard3D boards={boardsOf(model)} weather={[rain, rain]} />}
       <div style={{ position: "absolute", left: 8, top: 8, display: "flex", gap: 8, zIndex: 2 }}>
         <button onClick={onBack}>← Назад</button>
         <select value={adv ?? ""} onChange={(e) => setAdv(Number(e.target.value))}>
           {advs.map((a) => (
             <option key={a._id} value={a._id}>{a.m_Name} — {boardsOf(a).map((b) => ["лес", "карьер", "город"][b.skin]).join(" + ")}</option>
           ))}
+        </select>
+        <select value={rain} onChange={(e) => setRain(Number(e.target.value))}>
+          <option value={0}>без дождя</option><option value={1}>лёгкий дождь</option><option value={2}>сильный дождь</option>
         </select>
       </div>
     </div>

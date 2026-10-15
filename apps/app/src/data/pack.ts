@@ -271,7 +271,7 @@ export const loadUiArt = () => once("ui", async () => {
 });
 
 /** One sprite of the game's NGUI atlas (images/ui/atlas/atlas.json from tools/importer/export_atlas.py) */
-export interface AtlasSprite { file: string; w: number; h: number; border: [number, number, number, number] }
+export interface AtlasSprite { file: string; w: number; h: number; border: [number, number, number, number]; pad?: [number, number, number, number] }
 /** UI atlas sprites by name ("Enemy_Frame_Normal", "Threat_Event2" ...); {} if absent */
 export const loadUiAtlas = () => once("atlas", async () => {
   try {

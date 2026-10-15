@@ -118,6 +118,8 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
   }
   let url: string | undefined;
   let border: [number, number, number, number] = [0, 0, 0, 0];
+  let pad: [number, number, number, number] | null = null;
+  let size: [number, number] = [1, 1];
   if (w.k === "sprite" && bind.tex) {
     url = /^(https?:|blob:|data:|\/)/.test(bind.tex) ? bind.tex : assetUrl(bind.tex);
   } else if (w.k === "sprite") {
@@ -126,6 +128,8 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
     if (!s) return null;
     url = assetUrl(s.file);
     border = s.border;
+    pad = (s as { pad?: [number, number, number, number] }).pad ?? null;
+    size = [s.w, s.h];
   } else if (w.k === "texture" || w.k === "sprite2d") {
     const t = bind.tex ?? w.tex;
     if (!t) return null;
@@ -153,6 +157,14 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
   } else {
     st.backgroundImage = `url("${url}")`;
     st.backgroundSize = "100% 100%";
+    if (pad) {
+      // UISprite.drawingDimensions: the trimmed sprite inside its padding, scaled with the widget
+      const [pl, pr, pt, pb] = pad;
+      const fw = size[0] + pl + pr, fh = size[1] + pt + pb;
+      st.backgroundSize = `${(size[0] / fw) * 100}% ${(size[1] / fh) * 100}%`;
+      st.backgroundPosition = `${pl + pr ? (pl / (pl + pr)) * 100 : 0}% ${pt + pb ? (pt / (pt + pb)) * 100 : 0}%`;
+      st.backgroundRepeat = "no-repeat";
+    }
   }
   // filled sprites: horizontal / vertical crop, radial with a conic mask
   const fa = bind.fill ?? w.fa;
