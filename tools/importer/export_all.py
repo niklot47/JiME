@@ -83,8 +83,21 @@ def export_prefab(path):
         parent = stack[-1][1] if stack else None
         stack.append((depth, pid))
         entry = {"name": name, "parent": parent, "components": {}}
+        go = RA.objects[pid].read()
+        if not go.m_IsActive:
+            entry["on"] = 0
         for c in comps:
             cn = comp_name(c)
+            if cn == "Transform":
+                # Unity local transform: position, rotation (quaternion x y z w), scale (identity parts omitted)
+                t = c.read()
+                p, q, sc = t.m_LocalPosition, t.m_LocalRotation, t.m_LocalScale
+                tr = {}
+                if (p.x, p.y, p.z) != (0, 0, 0): tr["p"] = [round(p.x, 5), round(p.y, 5), round(p.z, 5)]
+                if (q.x, q.y, q.z, q.w) != (0, 0, 0, 1): tr["r"] = [round(q.x, 6), round(q.y, 6), round(q.z, 6), round(q.w, 6)]
+                if (sc.x, sc.y, sc.z) != (1, 1, 1): tr["s"] = [round(sc.x, 5), round(sc.y, 5), round(sc.z, 5)]
+                if tr: entry["tr"] = tr
+                continue
             if cn in ("Transform", "MeshFilter", "MeshRenderer", "BoxCollider", "Animation", "MeshCollider",
                       "HexUVMapping", "Edge", "ParticleSystem", "ParticleSystemRenderer", "FsmSerializer",
                       "IYieldableComponent", "RectTransform", "CanvasRenderer"):

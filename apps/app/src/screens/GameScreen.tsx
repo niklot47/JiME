@@ -1,6 +1,8 @@
 // Game screen (Stage 3.2): board with the HUD and dialogs of the original (screens/game/). The engine (map generation + Session replays)
 // runs in a Web Worker (game/worker.ts); this thread only renders the state it sends back.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Battleboard3D, PIECES, type BBToken } from "../board/Battleboard3D.tsx";
+import { boardsOf } from "./BattleboardPreviewScreen.tsx";
 import { keysOf, tokenFamily, type Answer, type LogEntry, type SaveData, type SpaceRef, type SessionSetup } from "@jime/engine";
 import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
 import type { TextDb } from "@jime/content-tools/text";
@@ -564,6 +566,23 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, tableMap, 
     if (i !== undefined) onAnswer(i);
   }
 
+  if (view.battleboard && adv?.model) {
+    // battleboard: the tokens at their positions; after the terrain message (SetTerrainTokenMode) the terrain tokens
+    // turn into their 3D pieces, the rivers appear and pits open
+    const done = (n: (typeof view.nodes)[number]) => (n.pieceAt ?? -1) >= 0 && n.pieceAt! < cut;
+    const nodes = view.nodes.filter((n) => n.visible && n.pos && n.shownAt <= cut);
+    const bbTokens: BBToken[] = nodes.map((n) => {
+      const a = tokenArt[String(n.token)];
+      const id = `n:${n.uid}`;
+      return {
+        id, pos: n.pos!, angle: n.angle ?? 0, mesh: a?.mesh ? tokenMeshes[a.mesh] : undefined, meshName: a?.mesh, texture: a?.raw,
+        piece: done(n) ? PIECES[n.token] ?? null : null, ghost: done(n) && n.token === 200, active: targets.has(id),
+      };
+    });
+    return <Battleboard3D boards={boardsOf(adv.model)} visible={view.battleboard.visible} rivers={nodes.some(done)}
+      pits={nodes.filter((n) => done(n) && n.pit).map((n) => n.pit!)} tokens={bbTokens} fx={fx}
+      onPick={(id) => pick({ kind: "token", id })} marker={marker?.pos ?? null} />;
+  }
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Решения — в диалогах поверх экрана.</p></div>;
   if (view3d) {
     // framed once per adventure; new tiles and tokens then appear one by one with the camera flying to them

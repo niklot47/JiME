@@ -2,7 +2,7 @@
 // A handler returns an event name to fire on the current state, or nothing.
 import type { Fsm, Game } from "./game.ts";
 import { EndGame, EnemyGroup, GameNode, NODE_KINDS, bonusCost, keyOf } from "./game.ts";
-import { gd, or, pyFloat, removeFirst, truthy } from "./py.ts";
+import { gd, or, pyFloat, removeFirst, toInt, truthy } from "./py.ts";
 
 export type ActionHandler = (g: Game, f: Fsm, p: any) => any;
 
@@ -63,8 +63,8 @@ const showKey = (p: any, g?: Game, f?: Fsm) => {
 
 const COSMETIC = [
   "FocusCameraOnObjects", "FocusCameraOnWorldPositions", "HighlightLocations", "ClearLocationHighlights", "HighlightTileSpace",
-  "Translate", "SetPosition", "GetPosition", "SetVector3XYZ", "TransformPoint", "SetGameObject", "SetTerrainIsUnique",
-  "SetWeatherEffect", "SetBoardVisibility", "SetTokenType", "SaveGame", "SetNextCutsceneId", "SetTileSepiaValue",
+  "Translate", "SetPosition", "GetPosition", "SetVector3XYZ", "TransformPoint", "SetGameObject",
+  "SetTokenType", "SaveGame", "SetNextCutsceneId", "SetTileSepiaValue",
   "ClearHeroHighlights", "SetHeroHighlights", "ShowTutorialArrow", "HideTutorialArrows", "SetLockedUI", "SetForcedUI", "ClearForcedUI",
 ];
 
@@ -422,15 +422,37 @@ export const ACTIONS: Record<string, ActionHandler> = {
     const vis = !!o && (o.node ? o.node.visible : o.visible);
     return vis ? gd(p, "TrueEvent") : gd(p, "FalseEvent");
   },
-  MoveNode: noop,
+  // MoveNode: the node to the world position of the Position object (battleboards)
+  MoveNode: (g, f, p) => {
+    const o = nodeTarget(g, f, p);
+    const to = g.objRef(f.owner.src, gd(p, "Position"));
+    if (o?.node && to) { const w = to.world(); o.node.pos = [w.p[0], w.p[1]]; }
+  },
+  SetTerrainIsUnique: (g, f, p) => {
+    const o = nodeTarget(g, f, p);
+    if (o?.node) o.node.unique = truthy(gd(p, "IsUnique"));
+  },
+  SetBoardVisibility: (g, f, p) => {
+    const i = g.num(f, gd(p, "BoardIndex"), 0);
+    if (i === 0 || i === 1) g.boardVisible[i] = g.boolean(f, gd(p, "Visible"));
+  },
+  SetWeatherEffect: (g, f, p) => {
+    const e = toInt(or(gd(p, "Effect"), 0));
+    if (g.boolean(f, gd(p, "ApplyOnBoard1"))) g.weather[0] = e;
+    if (g.boolean(f, gd(p, "ApplyOnBoard2"))) g.weather[1] = e;
+  },
   SetGameNodeType: (g, f, p) => {
     const o = nodeTarget(g, f, p);
     if (o && o.node) o.node.kind = NODE_KINDS[gd(p, "Type", 0)]!;
   },
   MoveGameObjectToRandomSpace: noop,
-  RevealTerrainNodes: (g, _f, p) => {
-    const n = or(gd(p, "TerrainNodes"), []).length;
-    if (n) g.emit("UI_REVEAL_TERRAIN", n);
+  RevealTerrainNodes: (g, f, p) => {
+    if (!g.battleboard) {
+      const n = or(gd(p, "TerrainNodes"), []).length;
+      if (n) g.emit("UI_REVEAL_TERRAIN", n);
+      return;
+    }
+    g.revealTerrains(or(gd(p, "TerrainNodes"), []).map((r: any) => g.objRef(f.owner.src, r)?.node).filter((n: any) => !!n));
   },
   RevealRandomEncounters: (g) => g.warn("RevealRandomEncounters simplified"),
 

@@ -249,6 +249,9 @@ export interface NodeView {
   visible: boolean;
   /** log index of the message that placed it (see Tile.shownAt) */
   shownAt: number;
+  /** battleboard: position (Unity world x, y) and rotation about z (deg); terrain model id; unique glow;
+   *  log index after whose message the terrain token turns into its 3D piece (-1 = stays a token) */
+  pos?: [number, number] | null; angle?: number; terrain?: number; unique?: boolean; pieceAt?: number; pit?: [number, number] | null;
 }
 
 /** Plain snapshot of the visible game state for UI */
@@ -275,6 +278,8 @@ export interface GameView {
   /** All game nodes; a node is shown when visible and (no tile or its tile is visible) */
   nodes: NodeView[];
   startTile: number;
+  /** battleboard adventures: BBVisuals board visibility and weather per board */
+  battleboard: { visible: boolean[]; weather: number[] } | null;
   /** model = EnemyModel id (icon), armor = EnemyModel.Armor */
   enemies: {
     uid: number; model: number; name: string; size: number; damage: number; unitHp: number; armor: number; exhausted: boolean;
@@ -309,8 +314,12 @@ export function viewOf(g: Game): GameView {
     nodes: [...g.nodes, ...g.advNodes].sort((a, b) => a.uid - b.uid).map((n) => ({
       uid: n.uid, name: n.obj.name, kind: n.kind, token: n.token, encounter: n.encId,
       tileId: n.tile ? n.tile.id : null, space: n.space, visible: n.visible && (n.tile === null || n.tile.visible), shownAt: n.shownAt,
+      ...(g.battleboard ? { pos: n.pos, angle: n.angle, terrain: n.terrain, unique: n.unique, pieceAt: n.pieceAt, token: n.tokenType,
+        // a pit / pond (TerrainNodeModel.IsPit): its board square (GameNode.PitInfo) shows the chasm
+        pit: n.terrain === 4 || n.terrain === 19 ? [Number(n.obj.components.GameNode?.PitInfo?.BoardIndex ?? 0), Number(n.obj.components.GameNode?.PitInfo?.PitIndex ?? 0)] as [number, number] : null } : {}),
     })),
     startTile: g.startTileId,
+    battleboard: g.battleboard ? { visible: [...g.boardVisible], weather: [...g.weather] } : null,
     enemies: g.enemies.map((e) => ({
       uid: e.uid, model: Number(e.model?._id ?? -1), name: String(g.enemyName(e.model, e.size)), size: e.size,
       damage: e.damage, unitHp: e.unitHp, armor: e.maxArmor, exhausted: e.exhausted,

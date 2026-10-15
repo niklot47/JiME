@@ -25,7 +25,7 @@ export type Difficulty = "normal" | "hard" | "adventure";
 /** banner: PopupOptions.ExtraSpriteId (Banner{n:D2}) of a spawned group's message */
 export interface LogMeta { enemy?: number; log?: true; at?: SpaceRef; banner?: number }
 /** A tile space on the board (the location highlight where enemies are to be placed) */
-export interface SpaceRef { tile: number; space: number }
+export interface SpaceRef { tile: number; space: number; pos?: [number, number] }
 export type LogEntry = [advIndex: number, round: number, key: string, inserts: string[], meta?: LogMeta];
 
 const KEY_RE = /^«([^\n]+)»\n?$/;
@@ -192,6 +192,34 @@ export class Obj {
     this.name = go.name;
     this.components = go.components;
   }
+
+  /** World position (Unity) and rotation about z (deg) from the prefab's local transforms ("tr") up to its root */
+  world(): { p: [number, number, number]; angle: number } {
+    let p: [number, number, number] = [0, 0, 0];
+    let q: [number, number, number, number] = [0, 0, 0, 1];
+    const chain: any[] = [];
+    for (let go = this.go, guard = 0; go && guard < 64; go = this.prefab.gameObjects[String(go.parent)], guard++) chain.push(go);
+    for (const go of chain.reverse()) {
+      const t = go.tr ?? {};
+      const lp: number[] = t.p ?? [0, 0, 0], lq: number[] = t.r ?? [0, 0, 0, 1], ls: number[] = t.s ?? [1, 1, 1];
+      const r = rotate(q, [lp[0]! * 1, lp[1]! * 1, lp[2]! * 1]);
+      p = [p[0] + r[0], p[1] + r[1], p[2] + r[2]];
+      q = qmul(q, lq as [number, number, number, number]);
+      void ls; // nested scales are not used by the node layouts
+    }
+    const angle = (Math.atan2(2 * (q[3] * q[2] + q[0] * q[1]), 1 - 2 * (q[1] * q[1] + q[2] * q[2])) * 180) / Math.PI;
+    return { p, angle };
+  }
+}
+
+function qmul(a: [number, number, number, number], b: [number, number, number, number]): [number, number, number, number] {
+  const [ax, ay, az, aw] = a, [bx, by, bz, bw] = b;
+  return [aw * bx + ax * bw + ay * bz - az * by, aw * by - ax * bz + ay * bw + az * bx, aw * bz + ax * by - ay * bx + az * bw, aw * bw - ax * bx - ay * by - az * bz];
+}
+function rotate(q: [number, number, number, number], v: [number, number, number]): [number, number, number] {
+  const [x, y, z, w] = q;
+  const r = qmul(qmul(q, [v[0], v[1], v[2], 0]), [-x, -y, -z, w]);
+  return [r[0], r[1], r[2]];
 }
 
 export interface Space {
@@ -258,6 +286,17 @@ export class GameNode {
   readonly space: number;
   kind: string;
   readonly encId: number | null;
+  /** battleboard: position on the boards (Unity world x, y; boards 10 wide from x = -5) and rotation about z (deg) */
+  pos: [number, number] | null = null;
+  angle = 0;
+  /** terrain node: TerrainNodeModel id (random terrain: chosen when revealed), -1 = none */
+  terrain = -1;
+  /** token type: the GameNode's Token3DType, a random terrain's model's TokenType once chosen */
+  tokenType = 0;
+  /** GameNode.IsUnique (SetTerrainIsUnique): the unique terrain glow */
+  unique = false;
+  /** log index of the message after which the terrain token turns into its 3D piece (SetTerrainTokenMode) */
+  pieceAt = -1;
 
   constructor(game: Game, obj: Obj, tile: Tile | null = null, space = 0, kind = "Encounter", encId: number | null = null) {
     this.game = game;
@@ -269,7 +308,11 @@ export class GameNode {
     this.uid = game.nodeSeq++;
     const gn = obj.components.GameNode;
     this.token = gn && typeof gn.Token3DType === "number" ? gn.Token3DType : 0;
+    this.tokenType = this.token;
+    this.terrain = gn?.TerrainModel ? Number(gn.TerrainModel.id ?? -1) : -1;
+    this.unique = !!gn?.IsUnique;
     obj.node = this;
+    if (game.battleboard) { const w = obj.world(); this.pos = [w.p[0], w.p[1]]; this.angle = w.angle; }
   }
 }
 
@@ -528,6 +571,11 @@ export class Game {
   pendingEnemies: EnemyGroup[] = [];
   /** FFG language name (EnemyBonusModel.UnsupportedLanguage) */
   readonly language: string;
+  /** AdventureModel.Type = Battleboard: one or two 3 x 3 boards instead of tiles */
+  readonly battleboard: boolean;
+  /** battleboard: BBVisuals.SetBoardVisibility per board, WeatherEffect per board (0 none, 1 light rain, 2 heavy rain) */
+  boardVisible = [true, true];
+  weather = [0, 0];
   ended: string | null = null;
   result: "victory" | "defeat" | null = null;
   objective: any = null;
@@ -588,6 +636,8 @@ export class Game {
     this.opts = opts;
     this.mapMode = opts.mapMode ?? (this.D.tiles ? "ffg" : "legacy");
     this.flow = opts.flow ?? this.mapMode;
+    // (the legacy flow keeps engine-py's behaviour for the parity checks)
+    this.battleboard = toInt(or(gd(this.model, "Type"), 0)) === 1 && this.flow === "ffg";
     this.language = LANG[opts.language ?? "English"] ?? opts.language ?? "English";
     this.campaign = opts.campaign ?? newCampaign();
     for (const k of keysOf(this.D.globals)) this.globals[k] = structuredClone(this.D.globals[k].value);
@@ -677,6 +727,15 @@ export class Game {
    * visible tile (the original picks one at random with Unity's RNG: here a fixed pick that leaves the game's RNG alone)
    */
   spawnSpot(o: Obj | null): SpaceRef | null {
+    if (this.battleboard) {
+      // battleboards: the position object, else a square of a shown board (a fixed pick, the game's RNG left alone)
+      if (o) { const w = o.node?.pos ?? o.world().p; return { tile: -1, space: 0, pos: [w[0]!, w[1]!] }; }
+      const boards = toInt(or(gd(this.model, "BoardSettings"), [{}]).length) || 1;
+      const k = (this.log.length * 7919 + this.enemies.length * 31) % (9 * boards);
+      const b = Math.floor(k / 9), sq = k % 9;
+      if (!this.boardVisible[b]) return { tile: -1, space: 0, pos: [((sq % 3) - 1) * (10 / 3), (1 - Math.floor(sq / 3)) * (10 / 3)] };
+      return { tile: -1 - b, space: sq, pos: [b * 10 + ((sq % 3) - 1) * (10 / 3), (1 - Math.floor(sq / 3)) * (10 / 3)] };
+    }
     const n = o ? [...this.nodes, ...this.advNodes].find((x) => x.obj === o) : undefined;
     if (n?.tile) return { tile: n.tile.id, space: n.space };
     const spaces: SpaceRef[] = [];
@@ -1337,6 +1396,52 @@ export class Game {
       if (c >= 0 && c <= pts && !g.bonuses.includes(b) && !g.hasBonusTraits(toInt(or(gd(b, "Traits"), 0)))) out.push(b);
     }
     return out;
+  }
+
+  // ------------------------------------------------------------ battleboard terrain (Adventure.CoroutineRevealTerrains)
+  /** TerrainNodeCounts: revealed terrain nodes by TerrainNodeModel id */
+  terrainCount(id: number): number {
+    return [...this.nodes, ...this.advNodes].filter((n) => n.visible && n.terrain === id).length;
+  }
+
+  /** GameNode.GetRandomTerrainType: an eligible model with fewer than MaxCountInPlay of it and its other side in play */
+  randomTerrain(): any {
+    const TM = this.D.models.TerrainNodeModel ?? {};
+    const ok = valuesOf(TM).filter((m: any) => truthy(gd(m, "RandomEligible"))
+      && this.terrainCount(m._id) + (gd(m, "OtherSideId") != null ? this.terrainCount(toInt(m.OtherSideId)) : 0) < toInt(or(gd(m, "MaxCountInPlay"), 0)));
+    return ok.length ? this.rng.choice(ok) : null;
+  }
+
+  /**
+   * RevealTerrainNodes: random terrains get their model, the tokens drop, the message lists them by kind; after it the
+   * tokens turn into their 3D pieces (SetTerrainTokenMode)
+   */
+  revealTerrains(nodes: GameNode[]): void {
+    const TM = this.D.models.TerrainNodeModel ?? {};
+    const counts = new Map<number, number>();
+    for (const n of nodes) {
+      if (truthy(gd(n.obj.components.GameNode, "IsRandomTerrain")) && n.terrain < 0) {
+        const m = this.randomTerrain();
+        if (!m) { this.warn("no eligible random terrain"); continue; }
+        n.terrain = toInt(m._id);
+        n.tokenType = toInt(or(gd(m, "TokenType"), 0));
+      }
+      if (n.terrain < 0) continue;
+      counts.set(n.terrain, (counts.get(n.terrain) ?? 0) + 1);
+      n.obj.visible = true;
+      n.visible = true;
+    }
+    if (!counts.size) return;
+    const lines: string[] = [];
+    for (const [id, c] of counts) {
+      const m = gd(TM, String(id), {});
+      const key = c > 1 ? gd(m, "NameKeyPlural") : gd(m, "NameKey");
+      this.note("UI_REVEAL_TERRAIN_LOG_FORMATTED", c, key);
+      lines.push(`${c}|${key}`);
+    }
+    this.emit("UI_TERRAIN_NODES_REVEAL_FORMATTED", `@lines:${lines.join(";")}`);
+    const at = this.log.length - 1;
+    for (const n of nodes) if (n.visible && n.terrain >= 0) n.pieceAt = at;
   }
 
   /** MaxNumberOfElitesInPlay */

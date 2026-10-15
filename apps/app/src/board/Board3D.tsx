@@ -455,7 +455,7 @@ function pump(s: State, tileGroups: Map<number, { group: THREE.Group }>, fx: Rec
 }
 
 /** GameViewHighlightManager location highlight: the arrows ring (tinted yellow) turning over a glow */
-function markerGroup(fx: Record<string, string>): THREE.Group {
+export function markerGroup(fx: Record<string, string>): THREE.Group {
   const g = new THREE.Group();
   const mat = (path: string | undefined, color: number, opacity: number) => new THREE.MeshBasicMaterial({
     map: path ? texture(path) : null, color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending });

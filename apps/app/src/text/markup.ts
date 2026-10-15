@@ -22,7 +22,10 @@ export function heroInsert(i: string): string | null {
 export function textHtml(text: TextDb, key: string, inserts: readonly string[] = [], fallback?: TextDb | null): string {
   const markup = (tag: "i" | "b", open: boolean) => (open ? OPEN : CLOSE) + tag;
   const db = !text.has(key) && fallback?.has(key) ? fallback : text;
-  const ins = inserts.map((i) => heroInsert(i) ?? (fallback && !text.has(i) && fallback.has(i) ? fallback.format(i, [], { markup }) : i));
+  const one = (k: string) => (text.has(k) ? text.format(k, [], { markup }) : fallback?.has(k) ? fallback.format(k, [], { markup }) : k);
+  // "@lines:<n>|<key>;...": a list of counted names, one per line (RevealTerrainNodes: "\t{n} {name}\n")
+  const lines = (i: string) => (i.startsWith("@lines:") ? i.slice(7).split(";").filter(Boolean).map((x) => { const [n, k] = x.split("|"); return `${n} ${one(k ?? "")}`; }).join("\n") : null);
+  const ins = inserts.map((i) => heroInsert(i) ?? lines(i) ?? (fallback && !text.has(i) && fallback.has(i) ? fallback.format(i, [], { markup }) : i));
   const s = db.format(key, ins, { markup });
   return esc(s)
     .replace(/\u0001([ib])/g, "<$1>")
