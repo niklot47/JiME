@@ -63,7 +63,7 @@ const showKey = (p: any, g?: Game, f?: Fsm) => {
 
 const COSMETIC = [
   "FocusCameraOnObjects", "FocusCameraOnWorldPositions", "HighlightLocations", "ClearLocationHighlights", "HighlightTileSpace",
-  "Translate", "SetPosition", "GetPosition", "SetVector3XYZ", "TransformPoint", "SetGameObject",
+  "SetPosition", "GetPosition", "SetVector3XYZ", "TransformPoint", "SetGameObject",
   "SetTokenType", "SaveGame", "SetNextCutsceneId", "SetTileSepiaValue",
   "ClearHeroHighlights", "SetHeroHighlights", "ShowTutorialArrow", "HideTutorialArrows", "SetLockedUI", "SetForcedUI", "ClearForcedUI",
 ];
@@ -421,6 +421,20 @@ export const ACTIONS: Record<string, ActionHandler> = {
     const o = nodeTarget(g, f, p);
     const vis = !!o && (o.node ? o.node.visible : o.visible);
     return vis ? gd(p, "TrueEvent") : gd(p, "FalseEvent");
+  },
+  // Translate (battleboards: nodes shifted to the other board); a game node moves with its object
+  Translate: (g, f, p) => {
+    const o = g.ownerTarget(f, gd(p, "gameObject"));
+    if (!o) return;
+    const v = [g.num(f, gd(p, "x"), 0), g.num(f, gd(p, "y"), 0), g.num(f, gd(p, "z"), 0)] as const;
+    o.moved = [o.moved[0] + v[0], o.moved[1] + v[1], o.moved[2] + v[2]];
+    // the object's node and the nodes under it move by the same amount (MoveNode positions stay relative)
+    for (const c of g.objs.values()) {
+      if (c.src !== o.src || !c.node?.pos) continue;
+      let under = false;
+      for (let go = c.go, guard = 0; go && guard < 64; go = c.prefab.gameObjects[String(go.parent)], guard++) if (go === o.go) { under = true; break; }
+      if (under) c.node.pos = [c.node.pos[0] + v[0], c.node.pos[1] + v[1]];
+    }
   },
   // MoveNode: the node to the world position of the Position object (battleboards)
   MoveNode: (g, f, p) => {

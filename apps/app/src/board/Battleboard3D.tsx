@@ -8,7 +8,7 @@ import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { assetUrl } from "../data/pack.ts";
 import { markerGroup } from "./Board3D.tsx";
-import { attachEmitters, type Emitter } from "./particles.ts";
+import { attachEmitters, distortion, DISTORT_LAYER, type Emitter } from "./particles.ts";
 
 /** BattleboardSkins: Grass, Quarry, Town -> the environment scene */
 export const SKIN_SCENES = ["forest", "rock", "town"] as const;
@@ -144,6 +144,16 @@ export async function buildEnvironment(boards: BoardSetup[]): Promise<THREE.Grou
       ob2.matrix.copy(m);
       ob2.matrix.decompose(ob2.position, ob2.quaternion, ob2.scale);
       root.add(ob2);
+      // InitializeBattleboardEnvironment: the second scene's effects (BBVisuals.FxParent) come along with its board
+      const ofx = other.children[0]?.children.find((c) => nameOf(c) === "FX");
+      if (ofx) {
+        ofx.parent?.updateMatrixWorld(true);
+        const mf = ofx.matrixWorld.clone();
+        ofx.removeFromParent();
+        mf.decompose(ofx.position, ofx.quaternion, ofx.scale);
+        ob2.add(ofx);
+        ofx.applyMatrix4(ob2.matrix.clone().invert());
+      }
     }
   }
   // BBManager.SetBoardSkin: the skin's material on every square (flat and chasm) of each board
@@ -521,6 +531,7 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
         if (!e.parent) return false;
         let shown = true;
         for (let o: THREE.Object3D | null = e; o; o = o.parent) if (!o.visible) { shown = false; break; }
+        e.visibleNow = shown;
         if (shown) e.step(dt, camera);
         return !e.done;
       });
@@ -531,8 +542,30 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
         ((s.marker.userData.glow as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.45 + 0.3 * pulse;
       }
       controls.update();
-      renderer.render(scene, camera);
+      // heat haze: the frame without it, copied, then the haze particles sampling the copy
+      const haze = s.emitters.some((e) => e.distort && e.visibleNow);
+      if (haze) {
+        renderer.getDrawingBufferSize(distortion.res);
+        if (!grab || grab.image.width !== distortion.res.x || grab.image.height !== distortion.res.y) {
+          grab?.dispose();
+          grab = new THREE.FramebufferTexture(distortion.res.x, distortion.res.y);
+        }
+        camera.layers.set(0);
+        renderer.render(scene, camera);
+        renderer.copyFramebufferToTexture(grab, new THREE.Vector2(0, 0));
+        distortion.scene = grab;
+        distortion.time = now / 1000;
+        camera.layers.set(DISTORT_LAYER);
+        const bgSave = scene.background;
+        scene.background = null;
+        renderer.autoClear = false;
+        renderer.render(scene, camera);
+        renderer.autoClear = true;
+        scene.background = bgSave;
+        camera.layers.set(0);
+      } else renderer.render(scene, camera);
     };
+    let grab: THREE.FramebufferTexture | null = null;
     tick();
     (window as any).__battleboard = { scene, camera, controls, state: s };
     return () => {

@@ -64,7 +64,10 @@ def decode_actions(ad):
         out.append({"action": an.split(".")[-1], "enabled": bool(ad["actionEnabled"][i]), "params": params})
     return out
 def fsm_to_dict(obj):
-    d = read_fsm(obj)["fsm"]
+    return fsm_data_to_dict(read_fsm(obj)["fsm"])
+
+def fsm_data_to_dict(d):
+    """An Fsm (as decoded from a PlayMakerFSM or an FsmTemplate) to the exported form"""
     states = []
     for s in d["states"]:
         states.append({"name": s["name"], "transitions": {t["fsmEvent"]["name"]: t["toState"] for t in s["transitions"]},

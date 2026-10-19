@@ -159,6 +159,19 @@ def export_globals():
 
 if __name__ == "__main__":
     db = {"models": export_models()}
+    # TerrainNodeModel.Template: the FSM a random terrain node gets once its terrain is drawn (FsmTemplate assets)
+    from fsmdump import fsm_data_to_dict
+    for tid, tm in db["models"].get("TerrainNodeModel", {}).items():
+        tp = (tm.get("Template") or {}).get("Path", "")
+        key = tp.replace("Assets/Resources/", "").replace(".asset", "").lower()
+        if key not in CONT: continue
+        _, d = read_mb(RA.objects[CONT[key]["m_PathID"]])
+        fd = fsm_data_to_dict(d["fsm"])
+        for st in fd["states"]:
+            for a in st["actions"]:
+                a["params"] = compact_resolved(a["params"], RA)
+        fd["variables"] = resolve(fd["variables"], RA)
+        tm["TemplateFsm"] = fd
     db["standardTiles"] = export_standard_tiles()
     db["globals"] = export_globals()
     json.dump(db, open(os.path.join(OUT, "db.json"), "w", encoding="utf-8"), ensure_ascii=False, default=str)

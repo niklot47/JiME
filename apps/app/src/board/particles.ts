@@ -115,6 +115,26 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
+// heat haze (the fire's "Distortion" system, a grab-pass shader in the game): the frame rendered so far, shifted by
+// a moving noise inside each particle; drawn on its own layer after a copy of the frame
+const FRAG_DISTORT = /* glsl */ `
+uniform sampler2D uScene; uniform vec2 uRes; uniform float uTime; uniform float uStrength;
+varying vec2 vUv; varying vec4 vColor;
+float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+void main() {
+  vec2 c = vUv - 0.5;
+  float fall = smoothstep(0.5, 0.15, length(c)) * vColor.a;
+  vec2 q = vUv * 5.0 + vec2(0.0, -uTime * 1.6);
+  vec2 off = vec2(n(q) - 0.5, n(q + 17.3) - 0.5) * uStrength * fall;
+  gl_FragColor = texture2D(uScene, gl_FragCoord.xy / uRes + off);
+  if (fall < 0.01) discard;
+}`;
+export const DISTORT_LAYER = 3;
+/** the frame copy the heat haze samples (filled by the view each frame) */
+export const distortion = { scene: null as THREE.Texture | null, res: new THREE.Vector2(1, 1), time: 0 };
+
 interface Particle { pos: THREE.Vector3; vel: THREE.Vector3; age: number; life: number; size: number; rot: number; spin: number; r: number[]; frame0: number; q?: THREE.Quaternion }
 
 export class Emitter extends THREE.Object3D {
@@ -135,9 +155,15 @@ export class Emitter extends THREE.Object3D {
   private sizeScale: number;
   /** finished (one-shot systems): the owner may remove it */
   done = false;
+  /** shown this frame (all its parents visible), set by the view */
+  visibleNow = false;
 
-  constructor(ps: PS, material: THREE.Material | null, geometry: THREE.BufferGeometry | null, nodeScale = 1) {
+  /** a heat haze system (drawn on DISTORT_LAYER) */
+  readonly distort: boolean;
+
+  constructor(ps: PS, material: THREE.Material | null, geometry: THREE.BufferGeometry | null, nodeScale = 1, distort = false) {
     super();
+    this.distort = distort;
     this.ps = ps;
     this.delay = mm(ps.delay, 0, Math.random());
     const src = material as THREE.MeshStandardMaterial | null;
@@ -173,7 +199,13 @@ export class Emitter extends THREE.Object3D {
       g.setAttribute("iMisc", this.iMisc);
       g.instanceCount = 0;
       const map = src?.map ?? null;
-      const mat = new THREE.ShaderMaterial({
+      const mat = distort ? new THREE.ShaderMaterial({
+        vertexShader: VERT, fragmentShader: FRAG_DISTORT, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+        uniforms: {
+          uScene: { value: null }, uRes: { value: distortion.res }, uTime: { value: 0 }, uStrength: { value: 0.012 },
+          uStretch: { value: 0 }, uLen: { value: 2 }, uVelScale: { value: 0 }, uSheet: { value: new THREE.Vector2(1, 1) },
+        },
+      }) : new THREE.ShaderMaterial({
         vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide,
         blending: this.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
         uniforms: {
@@ -187,6 +219,14 @@ export class Emitter extends THREE.Object3D {
     }
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 10;
+    if (distort) {
+      this.mesh.layers.set(DISTORT_LAYER);
+      this.mesh.onBeforeRender = () => {
+        const u = (this.mesh.material as THREE.ShaderMaterial).uniforms;
+        u.uScene!.value = distortion.scene;
+        u.uTime!.value = distortion.time;
+      };
+    }
     this.add(this.mesh);
     if (ps.prewarm && ps.loop) for (let t = 0; t < ps.dur; t += 1 / 20) this.step(1 / 20, null);
   }
@@ -357,10 +397,10 @@ export function attachEmitters(root: THREE.Object3D, filter: (name: string, ps: 
         c.traverse((x) => { if ((x as THREE.Mesh).isMesh && !geo) geo = (x as THREE.Mesh).geometry; });
       }
     }
-    if (mat && /Distortion/i.test(String((mat.userData as any)?.shader ?? ""))) continue;
+    const distort = /Distortion/i.test(name) || /Distortion/i.test(String((mat?.userData as any)?.shader ?? ""));
     const s = new THREE.Vector3();
     o.getWorldScale(s);
-    const e = new Emitter(ps, mat, geo, ps.scaling === 0 ? (s.x + s.y + s.z) / 3 : (o.scale.x + o.scale.y + o.scale.z) / 3);
+    const e = new Emitter(ps, distort ? null : mat, geo, ps.scaling === 0 ? (s.x + s.y + s.z) / 3 : (o.scale.x + o.scale.y + o.scale.z) / 3, distort);
     o.add(e);
     out.push(e);
   }

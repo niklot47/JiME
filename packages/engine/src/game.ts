@@ -193,6 +193,9 @@ export class Obj {
     this.components = go.components;
   }
 
+  /** Translate actions applied to this object (Unity units, world space) */
+  moved: [number, number, number] = [0, 0, 0];
+
   /** World position (Unity) and rotation about z (deg) from the prefab's local transforms ("tr") up to its root */
   world(): { p: [number, number, number]; angle: number } {
     let p: [number, number, number] = [0, 0, 0];
@@ -208,7 +211,17 @@ export class Obj {
       void ls; // nested scales are not used by the node layouts
     }
     const angle = (Math.atan2(2 * (q[3] * q[2] + q[0] * q[1]), 1 - 2 * (q[1] * q[1] + q[2] * q[2])) * 180) / Math.PI;
+    // (an object moved by Translate carries its children along)
+    for (let go = this.go, guard = 0; go && guard < 64; go = this.prefab.gameObjects[String(go.parent)], guard++) {
+      const o = this.game.objs.get(`${this.src}|${go === this.go ? this.pid : this.findPid(go)}`);
+      if (o) { p[0] += o.moved[0]; p[1] += o.moved[1]; p[2] += o.moved[2]; }
+    }
     return { p, angle };
+  }
+
+  private findPid(go: any): number {
+    for (const k of Object.keys(this.prefab.gameObjects)) if (this.prefab.gameObjects[k] === go) return Number(k);
+    return -1;
   }
 }
 
@@ -1425,6 +1438,16 @@ export class Game {
         if (!m) { this.warn("no eligible random terrain"); continue; }
         n.terrain = toInt(m._id);
         n.tokenType = toInt(or(gd(m, "TokenType"), 0));
+        // PlayMakerFSM.SetFsmTemplate: the terrain's own FSM replaces the placeholder (rules reminder on click ...)
+        const tf = gd(m, "TemplateFsm");
+        if (tf) {
+          for (const old of n.obj.fsms) { old.finished = true; const i = this.allFsms.indexOf(old); if (i >= 0) this.allFsms.splice(i, 1); }
+          n.obj.fsms.length = 0;
+          const f = new Fsm(this, tf, n.obj);
+          n.obj.fsms.push(f);
+          this.allFsms.push(f);
+          f.start();
+        }
       }
       if (n.terrain < 0) continue;
       counts.set(n.terrain, (counts.get(n.terrain) ?? 0) + 1);
@@ -1825,13 +1848,21 @@ export class Game {
     if (!truthy(a)) { this.warn(`no activation for ${gd(g.model, "m_Name")} x${g.size}`); return; }
     // the activation text names a random healthy hero (LocalizationFilterType.RandomHero)
     this.prompt = { key: gd(a, "KeyActivation"), inserts: [`@hero:${this.randomHealthyHero()}`] };
+    // primary decisions: attack, no target, end the activation (a battleboard with streams in play), stop movement
+    // (a battleboard with fences, else fortified spaces / tokens)
     const fortified = this.nodes.concat(this.advNodes).some((n) => n.visible && n.kind === "Fortified");
-    const choices = [{ Localization: "«UI_ATTACK»" }, { Localization: "«UI_NO_TARGET»" }, ...(fortified ? [{ Localization: "«UI_STOP_MOVEMENT»" }] : [])];
+    const river = this.battleboard && this.terrainCount(7) > 0;
+    const stop = (this.battleboard && this.terrainCount(16) > 0) || (!this.battleboard && fortified) || (this.battleboard && fortified);
+    const opts: [string, any][] = [["attack", { Localization: "«UI_ATTACK»" }], ["none", { Localization: "«UI_NO_TARGET»" }]];
+    if (river) opts.push(["end", { Localization: "«UI_END_ENEMY_ACTIVATION»" }]);
+    if (stop) opts.push(["stop", { Localization: "«UI_STOP_MOVEMENT»" }]);
+    const choices = opts.map(([, c]) => c);
     const c = this.player.choose(this, gd(a, "KeyActivation"), choices, false);
-    const i = choices.indexOf(c);
+    const kind = opts[choices.indexOf(c)]?.[0] ?? "none";
     this.prompt = null;
-    if (i === 0) this.enemyAttack(g, a, true);
-    else if (i === 2) {
+    if (kind === "attack") this.enemyAttack(g, a, true);
+    else if (kind === "end") g.exhausted = true;
+    else if (kind === "stop") {
       // stopped by a fortified space: may it still attack? (attack reduction for elites)
       // the activation is drawn before the players are asked
       const r = this.randomActivation(g);
