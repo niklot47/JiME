@@ -44,27 +44,38 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   if (!menu || !options) return null;
 
   const STEP = 72;
+  // the original's five buttons and this app's entries in two columns (one column no longer fits the screen):
+  // the left column first, top to bottom; the grid stays centred, the panel wider and as tall as the rows
+  const ORIG = ["MenuRules", "MenuOptions", "MenuCameraControls", "MenuSurrender", "MenuQuitCampaign"];
+  const COL = 115;
+  const count = ORIG.length + extras.length;
+  const rows = Math.ceil(count / 2);
+  const place = (k: number): [number, number] => {
+    const col = k < rows ? 0 : 1, row = k < rows ? k : k - rows;
+    return [col ? COL : -COL, STEP * (rows - 1) / 2 - STEP * row];
+  };
+  // offsets from a button's own place in the layout (144, 72, 0, -72, -144)
+  const off = (k: number): Bind => { const [x, y] = place(k); return { dx: x, dy: y - (144 - STEP * Math.min(k, 4)) }; };
   const b: Binds = {
     Page_Menu: { show: true },
     "Page_Menu/z_Darkening": { onClick: onClose },
     // UIMenuPageController.OnRulesButtonClicked: the rules on the publisher's site
-    MenuRules: { onClick: () => { void openUrl(say("JIME_RULES_URL").replace(/<[^>]+>/g, "")); } },
-    MenuOptions: { onClick: () => setPage("options") },
-    MenuCameraControls: { onClick: () => setPage("camera") },
-    MenuSurrender: { onClick: () => setPage("surrender") },
-    // this app's entries: more buttons below "save and quit", the panel grown to hold them
+    MenuRules: { ...off(0), onClick: () => { void openUrl(say("JIME_RULES_URL").replace(/<[^>]+>/g, "")); } },
+    MenuOptions: { ...off(1), onClick: () => setPage("options") },
+    MenuCameraControls: { ...off(2), onClick: () => setPage("camera") },
+    MenuSurrender: { ...off(3), onClick: () => setPage("surrender") },
+    // this app's entries: more buttons after "save and quit" (copies of it)
     MenuQuitCampaign: {
-      onClick: onQuit, step: [0, -STEP],
-      clones: [{}, ...extras.map((e): Record<string, Bind> => ({
-        MenuQuitCampaign: { onClick: e.disabled ? undefined : e.onClick, disabled: e.disabled },
+      onClick: onQuit,
+      clones: [{ MenuQuitCampaign: off(4) }, ...extras.map((e, i): Record<string, Bind> => ({
+        MenuQuitCampaign: { ...off(5 + i), onClick: e.disabled ? undefined : e.onClick, disabled: e.disabled },
         Label_QuitCampaign: { html: e.label },
       }))],
     },
-    // the panel grows around its centre; its title and buttons move up by half the growth
-    "Page_Menu/Sprite_BG": { h: 474 + STEP * extras.length },
-    "Sprite_BG/Sprite_BGFIll": { h: 474 + STEP * extras.length },
-    "Sprite_BG/Label_Title": { dy: STEP * extras.length / 2 },
-    Grid_Options: { dy: STEP * extras.length / 2 },
+    // the panel around its centre: two buttons wide, as tall as the rows; the title follows its top edge
+    "Page_Menu/Sprite_BG": { w: 268 + 2 * COL, h: 474 + STEP * (rows - 5) },
+    "Sprite_BG/Sprite_BGFIll": { w: 268 + 2 * COL, h: 474 + STEP * (rows - 5) },
+    "Sprite_BG/Label_Title": { dy: STEP * (rows - 5) / 2 },
     // camera controls: shown over the menu, any click closes it
     DialogCameraControls: { show: page === "camera" },
     "DialogCameraControls/Sprite_Darkening ": { onClick: () => setPage("menu") },

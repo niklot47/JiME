@@ -74,6 +74,7 @@ def main():
         ("export_ui_layouts", ["export_ui_layouts.py"]),
         ("export_battleboard", ["export_battleboard.py"]),
         ("export_maproom", ["export_maproom.py"]),
+        ("export_title", ["export_title.py"]),
     ]
     say(f"game data: {data}")
     say(f"work: {work}")

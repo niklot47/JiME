@@ -20,6 +20,7 @@ let titleShown = false;
 import { CampaignPage, DifficultyPage, HeroesPage, ItemsPage, PartyNamePage, defaultItems, newDraft, type Draft } from "./NewGamePages.tsx";
 import { SaveSlotsPage } from "./SaveSlotsPage.tsx";
 import { CollectionPage } from "./CollectionPage.tsx";
+import { TitleScene3D } from "../../board/TitleScene3D.tsx";
 import { MapRoom3D } from "../../board/MapRoom3D.tsx";
 import { sceneTransition, useLeave } from "../../ui/curtain.tsx";
 
@@ -89,7 +90,7 @@ export function TitleScreen({ onPlay, onTools }: {
       ...(ui.products ? { products: ui.products } : {}),
     });
     putSave(s);
-    setDraft(newDraft());
+    // (the draft stays as it is: a new game starts from a fresh one, see onNew)
     play(s, true);
   };
 
@@ -113,8 +114,10 @@ export function TitleScreen({ onPlay, onTools }: {
   }
   return (
     <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined}>
-      {/* the map room behind the menus (MapRoomVisuals.MapVisual on the title screen, SetCameraForGameSetup) */}
-      <MapRoom3D view={page === "title" || page === "options" || page === "load" || page === "collection" ? "title" : "setup"} />
+      {/* the map room behind the new-game pages (MenuTransitioner.MapSceneVisibility: MapVisual + SetBlur); the title's
+          own scene over it on the title pages (TitlescreenVisuals), fading out to the map room */}
+      <MapRoom3D view="setup" />
+      <TitleScene3D shown={page === "title" || page === "options" || page === "load" || page === "collection"} />
       {shown !== "title" && <div className="title-dim" />}
       <div className={leaving ? "ng-leaving" : undefined} style={{ display: "contents" }}>{body}</div>
       {page === "options" && (

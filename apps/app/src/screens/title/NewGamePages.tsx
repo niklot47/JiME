@@ -303,18 +303,21 @@ export function ItemsPage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
 // ---------------------------------------------------------------- party name
 export function PartyNamePage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
   const [warn, setWarn] = useState(false);
+  // confirmed: the field goes at once (the page stays under the curtain a moment longer)
+  const [done, setDone] = useState(false);
+  const confirm = () => { if (!draft.partyName.trim()) { setWarn(true); return; } setDone(true); onNext(); };
   const b: Binds = {
     Panel_PartyName: { show: true },
     Label_GroupName: {
       html: "",
-      content: <input className="ng-input" maxLength={24} autoFocus value={draft.partyName} placeholder={ui.raw("UI_ENTER_PARTY_NAME")}
+      content: done ? null : <input className="ng-input" maxLength={24} autoFocus value={draft.partyName} placeholder={ui.raw("UI_ENTER_PARTY_NAME")}
         onChange={(e) => { setWarn(false); setDraft((d) => ({ ...d, partyName: e.target.value })); }}
-        onKeyDown={(e) => { if (e.key === "Enter") (draft.partyName.trim() ? onNext() : setWarn(true)); }} />,
+        onKeyDown={(e) => { if (e.key === "Enter") confirm(); }} />,
     },
     Name_Warning: { show: warn, onClick: () => setWarn(false) },
     "Panel_PartyName/Button_Back": { onClick: onBack },
     // PartyNameController.OnButtonContinue: the default name is not accepted
-    "Panel_PartyName/Button_Continue": { onClick: () => (draft.partyName.trim() ? onNext() : setWarn(true)) },
+    "Panel_PartyName/Button_Continue": { onClick: done ? undefined : confirm },
   };
   return <Page ui={ui} panel="Panel_PartyName" binds={b} />;
 }

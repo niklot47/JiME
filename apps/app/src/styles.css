@@ -466,6 +466,9 @@ html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui
 
 .maproom { position: absolute; inset: 0; }
 .title-screen .maproom { z-index: 0; }
+/* the title's battle scene over the map room: fades in when loaded, out to the map room for the new-game pages */
+.title-screen .title-scene { z-index: 0; opacity: 0; transition: opacity 0.9s ease-in-out; }
+.title-screen .title-scene.on { opacity: 1; }
 
 /* the collection: the picked product's box grows (CollectionItem.TweenScaleItem) */
 .ngui .ng-picked { scale: 1.15; transition: scale 0.2s; }

@@ -176,6 +176,14 @@ export const loadTileArt = () => once("art", async () => JSON.parse(await packTe
 /** Fresh copy each time: the engine may keep references into it */
 export const loadAdventure = async (id: number) => parseOrdered(await packText(`scenario/adventures/${id}.json`)) as any;
 
+/**
+ * This app's corrections of the publisher's texts: key -> [the publisher's text, ours]. Applied only while the text is
+ * still the publisher's (a pack that sets its own text wins). The Russian "Shield-maiden" role is feminine for every hero.
+ */
+const TEXT_FIXES: Record<string, Record<string, [string, string]>> = {
+  ru: { ROLE_SHIELD_MAIDEN: ["Воительница", "Воитель"] },
+};
+
 /** Text of one language from all layers (later layers override keys) */
 export const loadText = (lang: string) => once(`lang:${lang}`, async () => {
   const set = await loadPackSet();
@@ -186,6 +194,11 @@ export const loadText = (lang: string) => once(`lang:${lang}`, async () => {
       const r = await fetch(url(p.dir, String(c.path).replace(/\\/g, "/")));
       if (r.ok) for (const [k, v] of parseLangCsv(await r.text())) merged.set(k, v);
     }
+  const fixes = TEXT_FIXES[lang] ?? {};
+  for (const [k, v] of merged) {
+    const f = fixes[k.slice(k.indexOf("|") + 1)];
+    if (f && v === f[0]) merged.set(k, f[1]);
+  }
   return new TextDb(merged);
 });
 
