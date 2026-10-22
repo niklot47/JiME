@@ -200,6 +200,8 @@ function enterStyle(e: Enter): CSSProperties {
     ["--ng-x" as string]: `${dx}px`,
     ["--ng-y" as string]: `${-dy}px`,
     ["--ng-o" as string]: e.fade ? 0 : 1,
+    // leaving (.ng-leaving): a slide goes back out opaque, anything else fades
+    ["--ng-out" as string]: e.from && !e.fade ? 1 : 0,
   };
 }
 

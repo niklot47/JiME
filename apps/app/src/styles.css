@@ -477,3 +477,12 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 @keyframes ng-enter { from { translate: var(--ng-x, 0) var(--ng-y, 0); opacity: var(--ng-o, 1); } }
 /* entrances wait while the view is hidden for its images */
 .ng-wait .ng { animation-play-state: paused; }
+
+/* a page leaving (useLeave): sliding elements go back where they came from, the rest fades out */
+@keyframes ng-leave { to { translate: var(--ng-x, 0) var(--ng-y, 0); opacity: var(--ng-out, 0); } }
+.ng-leaving { pointer-events: none; }
+.ng-leaving .ngui .ng { animation: ng-leave 0.35s cubic-bezier(0.65, 0, 0.35, 1) 0s both !important; }
+/* the scene transitioner (ui/curtain.tsx) */
+.scene-curtain { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition-property: opacity;
+  transition-timing-function: linear; z-index: 10000; }
+.scene-curtain.on { opacity: 1; pointer-events: auto; }

@@ -21,6 +21,7 @@ import { CampaignPage, DifficultyPage, HeroesPage, ItemsPage, PartyNamePage, def
 import { SaveSlotsPage } from "./SaveSlotsPage.tsx";
 import { CollectionPage } from "./CollectionPage.tsx";
 import { MapRoom3D } from "../../board/MapRoom3D.tsx";
+import { sceneTransition, useLeave } from "../../ui/curtain.tsx";
 
 type Page = "title" | "campaign" | "difficulty" | "heroes" | "items" | "party" | "load" | "options" | "collection";
 
@@ -46,6 +47,9 @@ export function TitleScreen({ onPlay, onTools }: {
   const [saves, setSaves] = useState<CampaignSave[]>(() => listSaves());
   const [owned, setOwned] = useState<number[] | undefined>(() => ownedProducts());
   const [back, setBack] = useState<Page>("title");
+  const [leaving, leave] = useLeave();
+  // LevelLoader.TitlescreenToRestScene: the curtain, then the campaign
+  const play = (s: CampaignSave, intro?: boolean) => { void sceneTransition(() => onPlay(s, intro)); };
 
   useEffect(() => {
     void installFonts();
@@ -72,7 +76,8 @@ export function TitleScreen({ onPlay, onTools }: {
   if (error) return <div className="shell"><p className="error">{error}</p><button onClick={onTools}>Инструменты</button></div>;
   if (!ui) return <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined} />;
 
-  const go = (p: Page) => setPage(p);
+  // the page's elements leave (SlidingElement forward: false), then the next page comes in
+  const go = (p: Page) => leave(() => setPage(p));
   const start = () => {
     // GameSetupController.PartyNameInput -> StartNewGame: the campaign's first adventure next, written to a slot
     const src = { db: () => db } as unknown as ContentSource;
@@ -83,7 +88,7 @@ export function TitleScreen({ onPlay, onTools }: {
     });
     putSave(s);
     setDraft(newDraft());
-    onPlay(s, true);
+    play(s, true);
   };
 
   let body;
@@ -94,9 +99,9 @@ export function TitleScreen({ onPlay, onTools }: {
   else if (page === "items") body = <ItemsPage {...props} onBack={() => go("heroes")} onNext={() => go("party")} />;
   else if (page === "party") body = <PartyNamePage {...props} onBack={() => go("items")} onNext={start} />;
   else if (page === "load") {
-    body = <SaveSlotsPage ui={ui} saves={saves} onBack={() => go("title")} onResume={(s) => onPlay(s)}
+    body = <SaveSlotsPage ui={ui} saves={saves} onBack={() => go("title")} onResume={(s) => play(s)}
       onDelete={(s) => { deleteSave(s.slot); setSaves(listSaves()); }}
-      onReset={(s) => { const c = structuredClone(s); resetAdventure(c); putSave(c); setSaves(listSaves()); onPlay(c); }} />;
+      onReset={(s) => { const c = structuredClone(s); resetAdventure(c); putSave(c); setSaves(listSaves()); play(c); }} />;
   } else if (page === "collection") {
     body = <CollectionPage ui={ui} onBack={() => go("title")} onOptions={() => { setBack("collection"); go("options"); }}
       onToggle={(ids) => { setOwnedProducts(ids); setOwned(ids); }} />;
@@ -110,7 +115,7 @@ export function TitleScreen({ onPlay, onTools }: {
       <MapRoom3D view={page === "title" || page === "options" || page === "load" || page === "collection" ? "title" : "setup"} />
       {page !== "title" && page !== "options" && <div className="title-dim" />}
       {page === "options" && back === "collection" && <CollectionPage ui={ui} onBack={() => {}} onOptions={() => {}} onToggle={() => {}} />}
-      {body}
+      <div className={leaving ? "ng-leaving" : undefined} style={{ display: "contents" }}>{body}</div>
       {page === "options" && (
         <NguiMenu layout={ui.layout} atlas={ui.atlas} say={ui.say} extras={[]} langs={langs} lang={lang} labels={false}
           onLang={setLang} onLabels={() => {}} onSurrender={() => {}} onQuit={() => {}} onClose={() => go(back)} optionsOnly />

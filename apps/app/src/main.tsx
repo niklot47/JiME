@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { Curtain } from "./ui/curtain.tsx";
 import { initHost } from "./data/host.ts";
 import { installTheme } from "./data/pack.ts";
 import { sound } from "./audio/sound.ts";
@@ -19,5 +20,6 @@ document.addEventListener("click", (e) => {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
+    <Curtain />
   </StrictMode>,
 );

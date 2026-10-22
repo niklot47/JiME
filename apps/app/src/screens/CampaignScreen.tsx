@@ -10,6 +10,7 @@ import { useTitleUi } from "./title/useTitleUi.ts";
 import { MapPage } from "./campaign/MapPage.tsx";
 import { RestPage } from "./campaign/RestPage.tsx";
 import { CutscenePage, endingCutscene } from "./campaign/CutscenePage.tsx";
+import { sceneTransition } from "../ui/curtain.tsx";
 
 export function CampaignScreen({ save: initial, intro = false, onBack }: {
   save: CampaignSave;
@@ -23,6 +24,9 @@ export function CampaignScreen({ save: initial, intro = false, onBack }: {
   const lang = useLang();
   const { ui, adventures, cutscenes, error } = useTitleUi(lang);
   const keep = (s: CampaignSave) => { putSave(s); setSave(s); };
+  // LevelLoader's scene changes go through the black curtain (SceneTransitioner)
+  const fade = (f: () => void) => { void sceneTransition(f); };
+  const toTitle = () => fade(onBack);
   const resting = save.status === "rest";
   // AudioController.PlayMapMusic / PlayRestsceneAmbient
   useEffect(() => {
@@ -33,8 +37,8 @@ export function CampaignScreen({ save: initial, intro = false, onBack }: {
   }, [resting, scene, save.current, ui]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (save.status === "adventure" && save.game) {
-    return <GameScreen key={`${save.slot}:${save.completed.length}:${save.game.seed}`} onBack={onBack}
-      campaign={{ save, onSave: putSave, onFinish: (s) => { keep(s); setScene("map"); } }} />;
+    return <GameScreen key={`${save.slot}:${save.completed.length}:${save.game.seed}`} onBack={toTitle}
+      campaign={{ save, onSave: putSave, onFinish: (s) => fade(() => { keep(s); setScene("map"); }) }} />;
   }
   if (error) return <div className="shell"><p className="error">{error}</p><button className="link" onClick={onBack}>← Меню</button></div>;
   if (!ui) return <div className="title-screen" />;
@@ -44,7 +48,7 @@ export function CampaignScreen({ save: initial, intro = false, onBack }: {
     const id = endingCutscene(C, save.status === "victory", save.cutscene);
     return (
       <div className="title-screen">
-        {id !== null && <CutscenePage ui={ui} cutscene={id} titleKey={C?.TitleKey ?? ""} isNew={false} art={cutscenes} onDone={onBack} />}
+        {id !== null && <CutscenePage ui={ui} cutscene={id} titleKey={C?.TitleKey ?? ""} isNew={false} art={cutscenes} onDone={toTitle} />}
         {id === null && <div className="shell"><h3>{save.status === "victory" ? "Победа" : "Поражение"}</h3><button className="link" onClick={onBack}>← Меню</button></div>}
       </div>
     );
@@ -53,17 +57,17 @@ export function CampaignScreen({ save: initial, intro = false, onBack }: {
   if (scene === "prologue" && prologue !== undefined) {
     return (
       <div className="title-screen">
-        <CutscenePage ui={ui} cutscene={Number(prologue)} titleKey={C?.TitleKey ?? ""} isNew art={cutscenes} onDone={() => setScene("map")} />
+        <CutscenePage ui={ui} cutscene={Number(prologue)} titleKey={C?.TitleKey ?? ""} isNew art={cutscenes} onDone={() => fade(() => setScene("map"))} />
       </div>
     );
   }
   return (
     <div className="title-screen">
       {scene === "map"
-        ? <MapPage ui={ui} save={save} advArt={adventures} onQuit={onBack}
-            onConfirm={(adv) => { const s = structuredClone(save); chooseAdventure(s, adv); s.savedAt = new Date().toISOString(); keep(s); setScene("rest"); }} />
-        : <RestPage ui={ui} save={save} onChange={keep} onMap={() => setScene("map")} onQuit={onBack}
-            onEmbark={(s) => { beginAdventure(s); keep(s); }} />}
+        ? <MapPage ui={ui} save={save} advArt={adventures} onQuit={toTitle}
+            onConfirm={(adv) => fade(() => { const s = structuredClone(save); chooseAdventure(s, adv); s.savedAt = new Date().toISOString(); keep(s); setScene("rest"); })} />
+        : <RestPage ui={ui} save={save} onChange={keep} onMap={() => fade(() => setScene("map"))} onQuit={toTitle}
+            onEmbark={(s) => fade(() => { beginAdventure(s); keep(s); })} />}
     </div>
   );
 }
