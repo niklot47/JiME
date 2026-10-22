@@ -15,3 +15,6 @@ apps/app/src-tauri/gen/
 *.tsbuildinfo
 # local screenshots and files from Claude sessions (may contain FFG art)
 Claude outputs/
+
+# a local copy of the game (FFG content, never committed)
+Steam_JiME/
