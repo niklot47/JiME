@@ -82,6 +82,8 @@ export interface UiNode {
   /** UIGrid (k "grid": cell, cols = maxPerLine, arr 0 horizontal / 1 vertical, pv pivot, sort 1 alphabetic, hide inactive) or UITable */
   grid?: { k: "grid" | "table"; cell: [number, number]; cols: number; arr: number; pv: number; exp: number; sort: number; hide: number };
   mb?: string[];
+  /** a ParticleSystem on the node (export_ui_layouts.py ui_particles) */
+  ps?: import("./Particles2D.tsx").UiPS;
   ch?: UiNode[];
 }
 

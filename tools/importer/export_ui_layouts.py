@@ -182,6 +182,38 @@ def sample(img, uv, env):
     y = np.clip(((1 - v) * h).astype(int), 0, h - 1)
     return img[y, x]
 
+def ui_particles(ps, comps):
+    """a ParticleSystem in the UI: particles.py's parameters plus its material's picture, blending and tint"""
+    from particles import particle_params
+    try:
+        rco = next((c for c in comps if c.type.name == "ParticleSystemRenderer"), None)
+        rt = rco.read_typetree() if rco is not None else None
+        out = particle_params(ps.read_typetree(), rt)
+        if rt and rt.get("m_Materials") and rt["m_Materials"][0]["m_PathID"]:
+            mm = rt["m_Materials"][0]
+            mo = deref(rco.assets_file, mm["m_FileID"], mm["m_PathID"])
+            if mo is not None:
+                md = mo.read_typetree()
+                env = tex_env(md, "_MainTex")
+                if env:
+                    o = deref(mo.assets_file, env["m_Texture"]["m_FileID"], env["m_Texture"]["m_PathID"])
+                    fn = f"ps_{o.assets_file.name.split('.')[0]}_{o.path_id}.png"
+                    if not os.path.exists(os.path.join(TEX, fn)):
+                        o.read().image.save(os.path.join(TEX, fn))
+                    out["tex"] = f"images/ui/tex/{fn}"
+                try:
+                    sh = deref(mo.assets_file, md["m_Shader"]["m_FileID"], md["m_Shader"]["m_PathID"]).read_typetree()["m_ParsedForm"]["m_Name"]
+                except Exception:
+                    sh = ""
+                out["blend"] = "add" if "Additive" in sh or "Add" in sh else "alpha"
+                cols = dict(md["m_SavedProperties"].get("m_Colors", []))
+                t = cols.get("_TintColor") or cols.get("_Color")
+                if t: out["tint"] = [r3(t["r"]), r3(t["g"]), r3(t["b"]), r3(t["a"])]
+        return out
+    except Exception as e:
+        print("ui particles failed", e)
+        return None
+
 def save_plain(af, env, fn):
     """a material texture saved as it is (for the app's own animation of it); its pack path"""
     o = deref(af, env["m_Texture"]["m_FileID"], env["m_Texture"]["m_PathID"])
@@ -226,6 +258,9 @@ def mesh_art(gid, comps):
         except Exception:
             pass
         floats = dict(md["m_SavedProperties"].get("m_Floats", []))
+        ramp_env = tex_env(md, "_Ramp") if floats.get("_DynamicFlameColor") else None
+        ramp = tex_rgba(maf, ramp_env) if ramp_env else None
+        fcol = dict(md["m_SavedProperties"].get("m_Colors", [])).get("_Color")
         fx = None
         if shader.endswith("FlameDistortion"):
             fx = {"k": "wobble", "s": r3(floats.get("_NoiseStrength", 0)), "v": r3(floats.get("_Speed", 0)), "rev": int(floats.get("_ReverseDirection", 0) or 0)}
@@ -247,11 +282,14 @@ def mesh_art(gid, comps):
         x0, y0 = V.min(0); x1, y1 = V.max(0)
         bw, bh = float(x1 - x0), float(y1 - y0)
         if bw <= 0 or bh <= 0: return None
-        # output resolution: about the texture's density over the UV span, at most 1024
+        # output resolution: the texture's own density over the UV span on each axis (at most 2048)
         th, tw = rgba.shape[:2]
         uspan = max(1e-3, float(U[:, 0].max() - U[:, 0].min())); vspan = max(1e-3, float(U[:, 1].max() - U[:, 1].min()))
-        W = int(min(1024, max(16, tw * uspan * main.get("m_Scale", {"x": 1})["x"])))
-        H = int(min(1024, max(16, W * bh / bw)))
+        W = int(min(2048, max(16, tw * uspan * abs(main.get("m_Scale", {"x": 1})["x"]))))
+        H = int(min(2048, max(16, th * vspan * abs(main.get("m_Scale", {"y": 1})["y"]))))
+        if fx and fx["k"] == "scroll":
+            # the scrolling texture's UV span over the quad (its tiles' size on screen)
+            fx["uv"] = [r3(uspan), r3(vspan)]
         gx, gy = np.meshgrid((np.arange(W) + 0.5) / W * bw + x0, y1 - (np.arange(H) + 0.5) / H * bh)
         P = np.stack([gx.ravel(), gy.ravel()], 1)
         out = np.zeros((W * H, 4), np.float32)
@@ -272,6 +310,13 @@ def mesh_art(gid, comps):
                 px[:, 3] *= am[:, 3] if am[:, 3].min() < 0.999 else am[:, 0]
             if tint:
                 px[:, :3] *= np.array([tint["r"], tint["g"], tint["b"]]) * 2; px[:, 3] *= tint["a"]
+            if ramp is not None:
+                # the grey level picks the colour along the ramp (dark red .. yellow)
+                lum = px[:, 0].copy()
+                rc = ramp[min(ramp.shape[0] - 1, ramp.shape[0] // 2), np.clip((lum * (ramp.shape[1] - 1)).astype(int), 0, ramp.shape[1] - 1)]
+                # (the ramp's own colours: _Color tints the plain flames only)
+                px[:, :3] = rc[:, :3]
+                px[:, 3] *= np.clip(lum * 1.5, 0, 1)
             out[inside] = np.clip(px, 0, 1)
         img = Image.fromarray((out.reshape(H, W, 4) * 255).astype(np.uint8), "RGBA")
         fn = f"art_{mf.assets_file.name.split('.')[0]}_{gid}.png"
@@ -294,8 +339,19 @@ def node(gid, F=F):
     if not go.m_IsActive: n["on"] = False
     if p.x or p.y: n["p"] = [r3(p.x), r3(p.y)]
     if (s.x, s.y) != (1, 1): n["s"] = [r3(s.x), r3(s.y)]
-    rz = math.degrees(2 * math.atan2(q.z, q.w))
-    if abs(rz) > 0.01: n["r"] = r3(rz)
+    ps = next((c for c in comps if c.type.name == "ParticleSystem"), None)
+    if ps is not None:
+        n["ps"] = ui_particles(ps, comps)
+    # the rotation's effect in the UI plane: the x / y part of its matrix; a turn about y or x (determinant < 0)
+    # mirrors the piece (the difficulty art: Unity scenes flip pictures by turning them 180 degrees about y)
+    m00 = 1 - 2 * (q.y * q.y + q.z * q.z); m01 = 2 * (q.x * q.y - q.z * q.w)
+    m10 = 2 * (q.x * q.y + q.z * q.w); m11 = 1 - 2 * (q.x * q.x + q.z * q.z)
+    if m00 * m11 - m01 * m10 < 0:
+        rz = math.degrees(math.atan2(-m10, -m00))
+        n["s"] = [r3(-s.x), r3(s.y)]
+    else:
+        rz = math.degrees(math.atan2(m10, m00))
+    if abs(rz) > 0.01 and abs(abs(rz) - 360) > 0.01: n["r"] = r3(rz)
     for co in comps:
         if co.type.name != "MonoBehaviour": continue
         full, d = read_mb(co)

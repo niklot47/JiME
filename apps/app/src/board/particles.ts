@@ -5,9 +5,9 @@
 // on x (Unity is left-handed), so local directions are mirrored here the same way.
 import * as THREE from "three";
 
-type MinMax = [number, number] | { c: number[]; c2?: number[] };
-interface Gradient { c: [number, number, number, number][]; a: [number, number][] }
-type MinMaxColor = { k: [number, number, number, number][] } | { g: Gradient; g2?: Gradient };
+export type MinMax = [number, number] | { c: number[]; c2?: number[] };
+export interface Gradient { c: [number, number, number, number][]; a: [number, number][] }
+export type MinMaxColor = { k: [number, number, number, number][] } | { g: Gradient; g2?: Gradient };
 
 export interface PS {
   dur: number; loop: boolean; prewarm: boolean; delay: MinMax; speed: number; world: boolean; scaling: number; max: number;
@@ -29,7 +29,7 @@ function sample(c: number[], t: number): number {
   return c[i]! + (c[i + 1]! - c[i]!) * (x - i);
 }
 /** MinMaxCurve at time t (0..1) with the particle's random r (0..1) */
-function mm(v: MinMax | undefined, t: number, r: number, dflt = 0): number {
+export function mm(v: MinMax | undefined, t: number, r: number, dflt = 0): number {
   if (v === undefined) return dflt;
   if (Array.isArray(v)) return v[0] + (v[1] - v[0]) * r;
   const a = sample(v.c, t);
@@ -53,7 +53,7 @@ function grad(g: Gradient, t: number, out: number[]): void {
   const [a] = lerpKeys(g.a, 1, [1]);
   out[0] = r!; out[1] = g2!; out[2] = b!; out[3] = a!;
 }
-function color(v: MinMaxColor | undefined, t: number, r: number, out: number[]): void {
+export function color(v: MinMaxColor | undefined, t: number, r: number, out: number[]): void {
   if (!v) { out[0] = out[1] = out[2] = out[3] = 1; return; }
   if ("k" in v) {
     const a = v.k[0]!, b = v.k[v.k.length - 1]!;

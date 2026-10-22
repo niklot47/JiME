@@ -17,6 +17,12 @@ export interface Enter {
   delay?: number;
   /** linear instead of SlideElement's smoothstep */
   linear?: boolean;
+  /** a shake (degrees about the entering node) when the slide lands: iTween.ShakeRotation after the knock */
+  shake?: { deg: number; delay: number; dur: number };
+  /** a stop on the way (offset like from), reached at viaAt (0..1 of dur) and held until holdTo, then the place */
+  via?: [number, number];
+  viaAt?: number;
+  holdTo?: number;
 }
 
 /** What the app changes on a node (matched by node name) */
@@ -74,6 +80,15 @@ export interface Bind {
   /** make the node a clipping panel (a scroll view the layout does not have): region [cx, cy, w, h] around the node,
    *  off: the clip offset (minus the scroll, so the region stays while the contents move), soft: fading edges */
   clipPanel?: { clip: [number, number, number, number]; off?: [number, number]; soft?: [number, number] };
+  /** the node's own scale (both axes; its mirroring is kept), e.g. a chosen difficulty grown by its TweenScale */
+  scale?: number;
+  /** a new value replays the subtree's entrance (its boxes are new elements), e.g. the campaign shown changed */
+  enterKey?: string | number;
+  /** a pulsing glow: opacity between a0 and a1 over dur seconds, back and forth */
+  pulse?: [number, number, number];
+  /** a scrolling texture's (fx scroll) direction and pace: dx / dy tiles per cycle (x right, y down), cycle seconds,
+   *  opacity */
+  fxScroll?: { dx: number; dy: number; dur?: number; opacity?: number; tile?: number };
   /** seconds: a change of place glides there (a position tween between two states, e.g. the rest's heroes moving
    *  down for the role selection); applies to the subtree */
   move?: number;
@@ -103,8 +118,12 @@ export interface Box {
   /** the region of the nearest clipping panel (UIPanel softness / alpha clip), same space as left / top; sx / sy: the
    *  soft clip's fade width at the sides / top and bottom */
   clip?: { l: number; t: number; r: number; b: number; sx?: number; sy?: number };
-  /** total rotation (degrees, counter-clockwise as in Unity) of the node and its parents */
-  rot: number;
+  /** orientation of the node and its parents (rotation, mirroring): a 2 x 2 matrix [a, b, c, d], y up */
+  orient: number[];
+  /** where the node that set the entrance animation is (same space as left / top), the shake's centre */
+  eo?: [number, number];
+  /** UI units per particle unit for a particle system node (its box is a point at the node) */
+  psK?: number;
   /** the entrance animation (own or an ancestor's) */
   enter?: Enter;
   /** the gliding time of place changes (own or an ancestor's) */
@@ -134,8 +153,10 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
-      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, rot = 0) => {
+      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, o: number[] = ID, eo?: [number, number]) => {
       const b = bindOf(bs, anc, n.n);
+      const ownEnter = !!b.enter;
+      if (b.enterKey !== undefined) key = `${key}~${b.enterKey}`;
       ent = b.enter ?? ent;
       mv = b.move ?? mv;
       const entering = !inc && include.has(n.id);
@@ -146,7 +167,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
           // the copy's own bind replaces the one that matched (any of its key forms), so it wins inside the copy
           const own = cb[n.n] ?? {};
           const nb: Binds = { ...bs, ...cb, [bindKeyOf(bs, anc, n.n) ?? n.n]: { ...b, ...own, clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (own.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (own.dy ?? 0) } };
-          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip, ent, mv, rot);
+          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip, ent, mv, o, eo);
         });
         return;
       }
@@ -156,12 +177,16 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       const end = restState(n);
       const lx = (b.at?.[0] ?? at?.[0] ?? end.p?.[0] ?? n.p?.[0] ?? 0) + (b.dx ?? 0), ly = (b.at?.[1] ?? at?.[1] ?? end.p?.[1] ?? n.p?.[1] ?? 0) + (b.dy ?? 0);
       const pin = b.pin ?? "";
-      // the local position turns with the parents' rotation (a rotated piece of art carries its children around)
-      const [ox, oy] = turn(lx * sx, ly * sy, rot);
+      // the local position turns (and mirrors) with the parents (a turned piece of art carries its children around)
+      const [ox, oy] = apply(o, lx * sx, ly * sy);
       let x = n === root && rootIsScreen ? 0 : px + ox + (pin.includes("left") ? 640 - screenW / 2 : pin.includes("right") ? screenW / 2 - 640 : 0);
       let y = n === root && rootIsScreen ? 0 : py + oy + (pin.includes("top") ? (H - 720) / 2 : pin.includes("bottom") ? (720 - H) / 2 : 0);
-      const nrot = n === root ? 0 : rot + (n.r ?? 0);
-      const nsx = n === root && rootIsScreen ? 1 : sx * (end.s?.[0] ?? n.s?.[0] ?? 1), nsy = n === root && rootIsScreen ? 1 : sy * (end.s?.[1] ?? n.s?.[1] ?? 1);
+      // the node's scale: its size factor, its sign mirrors (a Unity turn of 180 degrees about y, exported as -x)
+      const s0x = end.s?.[0] ?? n.s?.[0] ?? 1, s0y = end.s?.[1] ?? n.s?.[1] ?? 1;
+      const slx = b.scale !== undefined ? Math.sign(s0x || 1) * b.scale : s0x, sly = b.scale !== undefined ? Math.sign(s0y || 1) * b.scale : s0y;
+      const no = n === root ? ID : mul(o, mul(rotM(n.r ?? 0), [Math.sign(slx || 1), 0, 0, Math.sign(sly || 1)]));
+      const nsx = n === root && rootIsScreen ? 1 : sx * Math.abs(slx), nsy = n === root && rootIsScreen ? 1 : sy * Math.abs(sly);
+      if (ownEnter && collect) eo = [x + screenW / 2, H / 2 - y];
       const pd = b.depth ?? (n.panel ? n.panel.d : panel);
       const k = `${key}/${n.id}`;
       const w = n.w;
@@ -202,7 +227,8 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         if (n.tr) rects.set(n.tr, rc);
         if (collect && inc && on && !w.off) {
           boxes.push({ key: k, node: n, w, bind: b, left: rc.l + screenW / 2, top: H / 2 - rc.t, width: rc.r - rc.l, height: rc.t - rc.b,
-            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py, rot: nrot,
+            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py, orient: no,
+            ...(ent && eo ? { eo } : {}),
             ...(ent ? { enter: ent } : {}),
             ...(mv ? { move: mv } : {}),
             ...(clip ? { clip: { l: clip.l + screenW / 2, r: clip.r + screenW / 2, t: H / 2 - clip.t, b: H / 2 - clip.b, sx: clip.sx, sy: clip.sy } } : {}) });
@@ -239,7 +265,14 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       const kids = b.extra ? [...(n.ch ?? []), ...b.extra] : n.ch ?? [];
       const na = [...anc, n.n];
       const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => bindOf(bs, na, c.n).show ?? (all && inc ? true : c.on ?? true)), b.cell) : null;
-      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip, ent, mv, nrot));
+      // a particle system: a point box at the node, drawn by the view's particle player (above its panel's widgets)
+      if (n.ps && collect && inc && on) {
+        boxes.push({ key: k, node: n, w: PS_WIDGET, bind: b, left: x + screenW / 2, top: H / 2 - y, width: 0, height: 0,
+          z: pd * 10000 + 9990, autoH: false, autoW: false, px: px + screenW / 2, py: H / 2 - py, orient: no,
+          // ParticleSystemScalingMode: hierarchy (0) takes the whole scale, local (1) its own, shape (2) none
+          psK: n.ps.scaling === 0 ? Math.abs(nsx) : n.ps.scaling === 1 ? 360 * Math.abs(s0x || 1) : 360 });
+      }
+      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip, ent, mv, no, eo));
     };
     visit(root, 0, 0, 1, 1, 0, true, binds, "", false, []);
   };
@@ -248,13 +281,18 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   return boxes.sort((a, b) => a.z - b.z);
 }
 
-/** (x, y) turned by deg degrees counter-clockwise (Unity's z rotation, y up) */
-function turn(x: number, y: number, deg: number): [number, number] {
+// 2 x 2 matrices [a, b, c, d] (x' = a x + b y, y' = c x + d y; y up): the nodes' orientation
+const ID = [1, 0, 0, 1];
+const PS_WIDGET: UiWidget = { k: "widget", w: 0, h: 0, pv: 4, d: 999 };
+function rotM(deg: number): number[] {
   const r = ((deg % 360) + 360) % 360;
-  if (r < 0.01 || r > 359.99) return [x, y];
+  if (r < 0.01 || r > 359.99) return ID;
   const a = (r * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
-  return [x * c - y * s, x * s + y * c];
+  return [c, -s, s, c];
 }
+const mul = (m: number[], n: number[]) => (m === ID ? n : n === ID ? m
+  : [m[0]! * n[0]! + m[1]! * n[2]!, m[0]! * n[1]! + m[1]! * n[3]!, m[2]! * n[0]! + m[3]! * n[2]!, m[2]! * n[1]! + m[3]! * n[3]!]);
+const apply = (m: number[], x: number, y: number): [number, number] => (m === ID ? [x, y] : [m[0]! * x + m[1]! * y, m[2]! * x + m[3]! * y]);
 
 /** Rest state of a node's one-shot tweens (position, scale, width, height); loops and ping-pongs keep the saved state */
 function restState(n: UiNode): { p?: [number, number]; s?: [number, number]; w?: number; h?: number } {

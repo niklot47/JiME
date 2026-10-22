@@ -2,6 +2,7 @@
 // (fit height to 720 UI units). The app drives it with bindings by node name (texts, clicks, show/hide, fills, clones).
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { assetUrl, type AtlasSprite } from "../data/pack.ts";
+import { Particles2D } from "./Particles2D.tsx";
 import type { UiLayoutFile, UiNode } from "./types.ts";
 import { solve, type Binds, type Box, type Enter, type Measured } from "./solve.ts";
 
@@ -194,15 +195,42 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
 /** CSS of an entrance animation (styles.css @keyframes ng-enter: from the offset / transparent to the box as it is) */
 function enterStyle(e: Enter): CSSProperties {
   const [dx, dy] = e.from ?? [0, 0];
+  if (e.via) {
+    // in, a stop on the way (held while it shakes), then to the place: keyframes built for these times
+    const name = `ng-enter-via-${Math.round((e.viaAt ?? 0.4) * 100)}-${Math.round((e.holdTo ?? e.viaAt ?? 0.4) * 100)}`;
+    ensureViaKeyframes(name, e.viaAt ?? 0.4, e.holdTo ?? e.viaAt ?? 0.4);
+    return {
+      animation: `${name} ${e.dur ?? 1}s ease-in-out ${e.delay ?? 0}s both`
+        + (e.shake ? `, ng-shake ${e.shake.dur}s ease-out ${(e.delay ?? 0) + e.shake.delay}s both` : ""),
+      ["--ng-x" as string]: `${dx}px`, ["--ng-y" as string]: `${-dy}px`,
+      ["--ng-vx" as string]: `${e.via[0]}px`, ["--ng-vy" as string]: `${-e.via[1]}px`,
+      ["--ng-o" as string]: e.fade ? 0 : 1, ["--ng-out" as string]: e.from && !e.fade ? 1 : 0,
+      ...(e.shake ? { ["--ng-sh" as string]: `${e.shake.deg}deg` } : {}),
+    };
+  }
   return {
     // SlidingElement.SlideElement: smoothstep 6t^5 - 15t^4 + 10t^3 (close to this bezier)
-    animation: `ng-enter ${e.dur ?? 0.35}s ${e.linear ? "linear" : "cubic-bezier(0.65, 0, 0.35, 1)"} ${e.delay ?? 0}s both`,
+    animation: `ng-enter ${e.dur ?? 0.35}s ${e.linear ? "linear" : "cubic-bezier(0.65, 0, 0.35, 1)"} ${e.delay ?? 0}s both`
+      + (e.shake ? `, ng-shake ${e.shake.dur}s ease-out ${(e.delay ?? 0) + e.shake.delay}s both` : ""),
+    ...(e.shake ? { ["--ng-sh" as string]: `${e.shake.deg}deg` } : {}),
     ["--ng-x" as string]: `${dx}px`,
     ["--ng-y" as string]: `${-dy}px`,
     ["--ng-o" as string]: e.fade ? 0 : 1,
     // leaving (.ng-leaving): a slide goes back out opaque, anything else fades
     ["--ng-out" as string]: e.from && !e.fade ? 1 : 0,
   };
+}
+
+const viaDone = new Set<string>();
+/** keyframes for an entrance with a stop: from the offset to the stop by `at`, held until `hold`, then to the place */
+function ensureViaKeyframes(name: string, at: number, hold: number): void {
+  if (viaDone.has(name)) return;
+  viaDone.add(name);
+  const st = document.createElement("style");
+  const p = (v: number) => `${Math.round(v * 100)}%`;
+  st.textContent = `@keyframes ${name} { 0% { translate: var(--ng-x) var(--ng-y); opacity: var(--ng-o, 1); }
+    ${p(at)}, ${p(hold)} { translate: var(--ng-vx) var(--ng-vy); opacity: 1; } 100% { translate: 0 0; opacity: 1; } }`;
+  document.head.appendChild(st);
 }
 
 const ALIGN: Record<number, CSSProperties["textAlign"]> = { 0: "left", 1: "left", 2: "center", 3: "right", 4: "justify" };
@@ -316,7 +344,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   const present = new Set(boxes.map((b) => b.key));
   for (const k of entered.current) if (!present.has(k)) entered.current.delete(k);
   const wobbles = new Map<string, Wobble>();
-  const onEnd = (key: string) => (e: React.AnimationEvent) => { if (e.animationName === "ng-enter") entered.current.add(key); };
+  const onEnd = (key: string) => (e: React.AnimationEvent) => { if (e.animationName.startsWith("ng-enter")) entered.current.add(key); };
   const items = boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
           let softMask: CSSProperties | null = null;
@@ -333,13 +361,28 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
               softMask = { maskImage: `${h}, ${v}`, maskComposite: "intersect", WebkitMaskImage: `${h}, ${v}`, WebkitMaskComposite: "source-in" } as CSSProperties;
             } else if (ins.some((v) => v > 0)) st.clipPath = `inset(${ins.map((v) => `${v}px`).join(" ")})`;
           }
+          // a particle system: the player around its point
+          if (b.node.ps) {
+            if (!b.psK) return null;
+            return <Particles2D key={b.key} ps={b.node.ps} x={b.left} y={b.top} k={b.psK} z={Math.round(b.z * 10)} mirror={b.orient[0]! < 0} />;
+          }
           if (b.bind.originParent) st.transformOrigin = `${b.px - b.left}px ${b.py - b.top}px`;
-          // a rotated widget (z, counter-clockwise in Unity) turns about its pivot
-          const rot = ((b.rot % 360) + 360) % 360;
-          if (rot > 0.5 && rot < 359.5) {
+          // turned / mirrored widgets turn about their pivot; a shaking group turns about its entering node, so the
+          // matrix carries the pivot offset itself (a sprite's own flip stays the image style's, about its centre)
+          const m = b.orient;
+          const turned = Math.abs(m[0]! - 1) > 1e-3 || Math.abs(m[1]!) > 1e-3 || Math.abs(m[2]!) > 1e-3 || Math.abs(m[3]! - 1) > 1e-3;
+          const shake = b.enter?.shake && b.eo && !entered.current.has(b.key);
+          if (turned || shake) {
             const [fx, fy] = ([[0, 1], [0.5, 1], [1, 1], [0, 0.5], [0.5, 0.5], [1, 0.5], [0, 0], [0.5, 0], [1, 0]][b.bind.pv ?? b.w.pv] ?? [0.5, 0.5]) as [number, number];
-            st.transformOrigin = `${fx * b.width}px ${(1 - fy) * b.height}px`;
-            st.transform = `rotate(${-rot}deg)`;
+            const P = [fx * b.width, (1 - fy) * b.height];
+            const O = shake ? [b.eo![0] - b.left, b.eo![1] - b.top] : P;
+            st.transformOrigin = `${O[0]}px ${O[1]}px`;
+            if (turned) {
+              // y-up [a b; c d] in CSS's y-down space, about P while the origin is O
+              const A = m[0]!, B = -m[2]!, C = -m[1]!, D = m[3]!;
+              const dx = P[0]! - O[0]!, dy = P[1]! - O[1]!;
+              st.transform = `matrix(${A}, ${B}, ${C}, ${D}, ${dx - (A * dx + C * dy)}, ${dy - (B * dx + D * dy)})`;
+            }
           }
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
@@ -347,8 +390,22 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             Object.assign(st, enterStyle(b.enter));
             if (entered.current.has(b.key)) st.animation = "none";
           }
-          // TweenPosition between two states: glide to the new place
-          if (b.move) st.transition = `left ${b.move}s cubic-bezier(0.65, 0, 0.35, 1), top ${b.move}s cubic-bezier(0.65, 0, 0.35, 1)`;
+          if (b.bind.pulse) {
+            const [a0, a1, d] = b.bind.pulse;
+            const anim = `ng-pulse ${d}s ease-in-out infinite alternate`;
+            st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${anim}` : anim;
+            Object.assign(st, { ["--ng-a0" as string]: a0, ["--ng-a1" as string]: a1 });
+          }
+          // looping tweens of the node (style 1 loop / 2 ping-pong, playing): a pulsing glow (TweenAlpha)
+          for (const t of b.node.tw ?? []) {
+            if (!t.on || !t.style || t.k !== "alpha" || typeof t.from !== "number" || typeof t.to !== "number") continue;
+            const a = color && color[3] !== undefined ? color[3] : 1;
+            const anim = `ng-pulse ${t.dur}s ease-in-out ${t.delay ?? 0}s infinite ${t.style === 2 ? "alternate" : "normal"}`;
+            st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${anim}` : anim;
+            Object.assign(st, { ["--ng-a0" as string]: t.from * a, ["--ng-a1" as string]: t.to * a });
+          }
+          // TweenPosition / TweenScale between two states: glide to the new place and size
+          if (b.move) st.transition = ["left", "top", "width", "height"].map((p) => `${p} ${b.move}s cubic-bezier(0.65, 0, 0.35, 1)`).join(", ");
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;
           // UIButton.disabledColor multiplies the sprite (a plain darkening, the hue is kept)
           const dis = b.bind.disabled && b.node.btn?.disabled;
@@ -368,18 +425,22 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             );
           }
           let img = imageStyle(b, atlas);
+          if (img && st.transform) delete (img as CSSProperties).transform;
           const fx = b.w.fx;
           if (fx?.k === "scroll") {
             // ScrollingWithMask: the texture tiled and moving one tile per 1 / v seconds, cut by its mask (a grey image)
-            const tw = b.width / (fx.sx || 1), th = b.height / (fx.sy || 1);
+            const fs = b.bind.fxScroll;
+            const tw = b.width * (fs?.tile ?? 1), th = b.height * (fs?.tile ?? 1);
             img = { backgroundImage: `url("${assetUrl(fx.tex)}")`, backgroundSize: `${tw}px ${th}px`, backgroundRepeat: "repeat",
               maskImage: `url("${assetUrl(fx.mask)}")`, maskSize: "100% 100%", maskMode: "luminance", WebkitMaskImage: `url("${assetUrl(fx.mask)}")`, WebkitMaskSize: "100% 100%",
-              ["--ng-tw" as string]: `${-tw}px` } as CSSProperties;
-            const scrollAnim = `ng-scroll ${(1 / Math.max(0.005, fx.v)).toFixed(1)}s linear infinite`;
+              // (the direction is the screen's: a mirrored picture scrolls its texture the other way)
+              ["--ng-tw" as string]: `${(fs?.dx ?? -1) * (b.orient[0]! < 0 ? -1 : 1) * tw}px`, ["--ng-th" as string]: `${(fs?.dy ?? 0) * th}px`,
+              ...(fs?.opacity !== undefined ? { opacity: fs.opacity } : {}) } as CSSProperties;
+            const scrollAnim = `ng-scroll ${(fs?.dur ?? 1 / Math.max(0.005, fx.v)).toFixed(1)}s linear infinite`;
             st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${scrollAnim}` : scrollAnim;
           } else if (fx?.k === "wobble" && fx.s > 0) {
-            // FlameDistortion: displaced by a slowly changing noise (an SVG filter, one per strength and speed)
-            const id = wobbleId(fx.s * Math.min(b.width, b.height) * 0.5, fx.v);
+            // FlameDistortion: displaced by a noise flowing one way (up, or down when reversed) through the picture
+            const id = wobbleId(b.width, b.height, fx.s * Math.min(b.width, b.height) * 0.5, fx.v, !!fx.rev);
             wobbles.set(id.id, id);
             st.filter = `${st.filter ? `${st.filter} ` : ""}url(#${id.id})`;
           }
@@ -397,11 +458,17 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
       {wobbles.size > 0 && (
         <svg className="ng-fx-defs" width="0" height="0" aria-hidden="true">
           {[...wobbles.values()].map((w) => (
-            <filter key={w.id} id={w.id} x="-10%" y="-10%" width="120%" height="120%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" result="n">
-                <animate attributeName="baseFrequency" values="0.035;0.042;0.035" dur={`${w.dur}s`} repeatCount="indefinite" />
-              </feTurbulence>
-              <feDisplacementMap in="SourceGraphic" in2="n" scale={w.scale} xChannelSelector="R" yChannelSelector="G" />
+            // the noise is one seamless tile of the picture's size, tiled, and moved by a whole tile per cycle: it flows
+            // without turning back
+            <filter key={w.id} id={w.id} filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse"
+              x={-w.pad} y={-w.pad} width={w.w + 2 * w.pad} height={w.h + 2 * w.pad}>
+              <feTurbulence type="fractalNoise" baseFrequency={`${(3 / w.w).toFixed(4)} ${(3 / w.h).toFixed(4)}`} numOctaves="2" seed="3"
+                stitchTiles="stitch" x="0" y="0" width={w.w} height={w.h} result="n" />
+              <feTile in="n" x={-w.w} y={-w.h} width={3 * w.w} height={3 * w.h} result="t" />
+              <feOffset in="t" dx="0" dy="0" result="o">
+                <animate attributeName="dy" from="0" to={w.rev ? w.h : -w.h} dur={`${w.dur}s`} repeatCount="indefinite" />
+              </feOffset>
+              <feDisplacementMap in="SourceGraphic" in2="o" scale={w.scale} xChannelSelector="R" yChannelSelector="G" />
             </filter>
           ))}
         </svg>
@@ -410,12 +477,14 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   );
 }
 
-interface Wobble { id: string; scale: number; dur: number }
-/** a wobble filter for a displacement (px) and a speed, shared by the boxes that need the same */
-function wobbleId(px: number, speed: number): Wobble {
+interface Wobble { id: string; w: number; h: number; pad: number; scale: number; dur: number; rev: boolean }
+/** a flowing-noise filter for a picture's size, a displacement (px), a speed (_Speed: picture heights per second)
+ *  and a direction, shared by the boxes that need the same */
+function wobbleId(width: number, height: number, px: number, speed: number, rev: boolean): Wobble {
+  const w = Math.max(4, Math.round(width)), h = Math.max(4, Math.round(height));
   const scale = Math.max(1, Math.round(px));
-  const dur = Math.round(Math.min(8, Math.max(0.8, 0.3 / Math.max(0.01, speed))) * 10) / 10;
-  return { id: `ng-wobble-${scale}-${String(dur).replace(".", "_")}`, scale, dur };
+  const dur = Math.round(Math.min(30, Math.max(1.5, 1 / Math.max(0.01, speed))) * 10) / 10;
+  return { id: `ng-wobble-${w}-${h}-${scale}-${String(dur).replace(".", "_")}${rev ? "r" : ""}`, w, h, pad: scale + 2, scale, dur, rev };
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);

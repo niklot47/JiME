@@ -493,5 +493,13 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .maproom-vignette.on { opacity: 1; }
 
 /* mesh-art animations (NguiView fx): the scrolling texture, the hidden filter definitions */
-@keyframes ng-scroll { from { background-position: 0 0; } to { background-position: var(--ng-tw, -100px) 0; } }
+@keyframes ng-scroll { from { background-position: 0 0; } to { background-position: var(--ng-tw, -100px) var(--ng-th, 0px); } }
 .ng-fx-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+/* SlidingElement.CoroutineKnockingAnimation: iTween.ShakeRotation (z) when the slide lands */
+@keyframes ng-shake { 0%, 100% { rotate: 0deg; } 15% { rotate: calc(var(--ng-sh, 3deg) * -1); } 35% { rotate: var(--ng-sh, 3deg); }
+  55% { rotate: calc(var(--ng-sh, 3deg) * -0.6); } 75% { rotate: calc(var(--ng-sh, 3deg) * 0.3); } }
+/* looping TweenAlpha (a pulsing glow) */
+@keyframes ng-pulse { from { opacity: var(--ng-a0, 1); } to { opacity: var(--ng-a1, 0.2); } }
+/* particle systems in the interface (Particles2D) */
+.ngui .ng-ps { position: absolute; pointer-events: none; }

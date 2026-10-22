@@ -67,13 +67,18 @@ export function CampaignPage({ ui, draft, setDraft, onBack, onNext, savesFull }:
           Sprite_Border: { onClick: () => select(id) },
           Sprite_New: { show: false }, Sprite_Debug: { show: false }, Sprite_Locked: { show: false },
           Sprite_Tutorial: { show: !!Number(C[String(id)]?.HasTutorial ?? 0) },
-          Sprite_Highlight_Interior: { show: on }, Sprite_Highlight_Exterior: { show: on },
+          // the chosen card: its glows pulse, the sparks of the interior glow's particle system fly off its edges
+          Sprite_Highlight_Interior: { show: on, pulse: [1, 0.45, 0.8] }, Sprite_Highlight_Exterior: { show: on, pulse: [1, 0.35, 0.8] },
         };
       }),
     },
-    "CampaignDisplay//Sprite_CampaignImage": { tex: sel !== null ? ui.campaignArt[String(sel)]?.Image : undefined },
-    "CampaignDisplay//Label_Title": { html: m ? ui.say(m.TitleKey) : "" },
-    "CampaignDisplay//Label_Description": { html: m ? ui.say(m.DescriptionKey) : "" },
+    // CampaignDisplay (each campaign shown anew): the art fades in (FadeInDisplay), the text's backing slides in from
+    // the left (SlideInFrame: TweenPosition -530 -> -205, 0.4 s), then the title and the description fade in
+    "CampaignDisplay//Sprite_CampaignImage": { tex: sel !== null ? ui.campaignArt[String(sel)]?.Image : undefined,
+      enterKey: sel ?? -1, enter: { fade: true, dur: 0.35, linear: true } },
+    "CampaignDisplay//Sprite_Frame": { enterKey: sel ?? -1, enter: { from: [-325, 0], dur: 0.4, delay: 0.2 } },
+    "CampaignDisplay//Label_Title": { html: m ? ui.say(m.TitleKey) : "", enterKey: sel ?? -1, enter: { fade: true, dur: 0.35, delay: 0.6, linear: true } },
+    "CampaignDisplay//Label_Description": { html: m ? ui.say(m.DescriptionKey) : "", enterKey: sel ?? -1, enter: { fade: true, dur: 0.35, delay: 0.95, linear: true } },
     "CampaignDisplay//Label_Purchase": { show: false },
     "CampaignDisplay//Sprite_Locked": { show: false }, "CampaignDisplay//Sprite_New": { show: false }, "CampaignDisplay//Sprite_Debug": { show: false },
     "CampaignDisplay//Sprite_Tutorial": { show: !!Number(m?.HasTutorial ?? 0) },
@@ -97,6 +102,13 @@ const DIFF: { d: Difficulty; node: string; key: string }[] = [
   { d: "adventure", node: "Difficulty_Adventure", key: "UI_DIFFICULTY_ADVENTURE" },
 ];
 
+/** CoroutineShow's entrances: where each comes from and where it meets the others (offsets from its place) */
+const ENTRY: Record<Difficulty, { from: [number, number]; via: [number, number] }> = {
+  normal: { from: [-665, 0], via: [95, 50] },
+  hard: { from: [665, 0], via: [-95, 50] },
+  adventure: { from: [0, 670], via: [0, -95] },
+};
+
 export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
   const d = draft.difficulty;
   const cur = DIFF.find((x) => x.d === d);
@@ -109,15 +121,21 @@ export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProp
     "Widget_DifficultySelection/Button_Back": { onClick: onBack },
     "Widget_DifficultySelection/Button_Continue": { onClick: onNext, disabled: !d },
   };
-  b.Difficulty_Normal = { depth: 7 };
-  // the flaming sword is an animated overlay of the painted one (its saved pose does not match it): left out of the still
-  b["Difficulty_Hard//FlameSword"] = { show: false };
   for (const x of DIFF) {
+    const on = d === x.d;
+    // CoroutineShow: the three fly in (TweenPosition, 0.9 s) - from the left, the right and the top - meet near the
+    // middle with a shake (CoroutineKnockingAnimation: iTween.ShakeRotation) and settle on their places.
+    // DifficultyToggle: the chosen one grows (TweenScale 1.6 -> 1.75, 0.35 s) above the others, its effects fade in
+    const e = ENTRY[x.d];
+    b[x.node] = { depth: on ? 9 : x.d === "normal" ? 8 : 7, scale: on ? 1.75 : 1.6, move: 0.35,
+      enter: { from: e.from, via: e.via, viaAt: 0.4, holdTo: 0.62, dur: 1.4, delay: 0.1, shake: { deg: 3, delay: 0.56, dur: 0.4 } } };
     b[`${x.node}//#art`] = { onClick: () => pick(x.d) };
-    b[`${x.node}/Effects`] = { show: d === x.d };
-    // the hard one's burst plays once on selection; the still export would keep it on
-    b[`${x.node}//Select_FX`] = { show: false };
+    b[`${x.node}/Effects`] = { show: on, enter: { fade: true, dur: 0.35, linear: true } };
   }
+  // the materials' motion: the light behind the orc falls through its mask (down, a little to the left), the clouds
+  // drift left and a little down, lighter
+  b["Main_Mask//#art"] = { onClick: () => pick("normal"), fxScroll: { dx: -1, dy: 3, dur: 45 } };
+  b["Clouds//#art"] = { onClick: () => pick("adventure"), fxScroll: { dx: -2, dy: 1, dur: 80, opacity: 0.7, tile: 0.6 } };
   return <Page ui={ui} panel="Panel_DifficultySelection" binds={b} />;
 }
 
