@@ -38,3 +38,11 @@ export const onImportLog = (f: (line: string) => void): Promise<UnlistenFn> =>
   listen<{ line: string }>("import-log", (e) => f(e.payload.line));
 export const onImportDone = (f: (d: { ok: boolean; code: number | null; task: "pip" | "import" }) => void): Promise<UnlistenFn> =>
   listen<{ ok: boolean; code: number | null; task: "pip" | "import" }>("import-done", (e) => f(e.payload));
+
+/** The title screen's Quit: close the app window (a plain browser tab cannot close itself: false) */
+export async function quitApp(): Promise<boolean> {
+  if (!isTauri()) return false;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  await getCurrentWindow().close();
+  return true;
+}

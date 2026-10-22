@@ -1,5 +1,5 @@
 // Messages between the UI thread and the game worker (the engine replays the whole game on every answer)
-import type { Answer, Decision, GameView, LogEntry, SaveData, SessionSetup } from "@jime/engine";
+import type { Answer, CampaignSave, Decision, GameView, LogEntry, SaveData, SessionSetup } from "@jime/engine";
 import type { GeneratedMap } from "@jime/engine/map";
 import type { PackConfig } from "../data/pack.ts";
 
@@ -7,7 +7,9 @@ export type Request =
   /** packConfig: packs folder URL and disabled packs (the worker has no localStorage and cannot ask the host) */
   | { type: "start"; setup: SessionSetup; save?: SaveData; packConfig: PackConfig }
   | { type: "answer"; answer: Answer }
-  | { type: "undo"; n?: number };
+  | { type: "undo"; n?: number }
+  /** the adventure has ended: apply it to the campaign (finishAdventure) and get the campaign back */
+  | { type: "finish"; campaign: CampaignSave };
 
 export interface GameState {
   view: GameView;
@@ -18,5 +20,5 @@ export interface GameState {
 }
 
 export type Reply =
-  | { id: number; ok: true; state: GameState; board?: GeneratedMap | null }
+  | { id: number; ok: true; state: GameState; board?: GeneratedMap | null; campaign?: CampaignSave }
   | { id: number; ok: false; error: string };

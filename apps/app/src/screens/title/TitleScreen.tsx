@@ -1,0 +1,138 @@
+// The original's title screen (Panel_Titlescreen/Titlescreen: StartUpMenuController) and what its buttons open: the
+// new-game pages (GameSetupController), the saved games (SavedGameController) and the options. A new campaign is
+// written to a save slot and handed to the app to play.
+import { useEffect, useMemo, useState } from "react";
+import { ENGINE_VERSION, newCampaignSave, resetAdventure, type CampaignSave, type ContentSource } from "@jime/engine";
+import type { TextDb } from "@jime/content-tools/text";
+import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
+import { findNode, type UiLayoutFile, type UiNode } from "../../ngui/types.ts";
+import { NguiMenu } from "../game/NguiMenu.tsx";
+import { installFonts, loadDb, loadHeroArt, loadModelArt, loadPackSet, loadText, loadUiArt, loadUiAtlas, loadUiLayout, assetUrl, type AtlasSprite, type HeroArt, type ModelArt } from "../../data/pack.ts";
+import { quitApp, inTauri } from "../../data/host.ts";
+import { setLang, useLang } from "../../data/lang.ts";
+import { textHtml } from "../../text/markup.ts";
+import { sound } from "../../audio/sound.ts";
+import { MAX_SAVES, deleteSave, listSaves, ownedProducts, putSave, setOwnedProducts } from "../../campaign/store.ts";
+import { textOf, type TitleUi } from "./common.ts";
+import { CampaignPage, DifficultyPage, HeroesPage, ItemsPage, PartyNamePage, defaultItems, newDraft, type Draft } from "./NewGamePages.tsx";
+import { SaveSlotsPage } from "./SaveSlotsPage.tsx";
+import { CollectionPage } from "./CollectionPage.tsx";
+import { MapRoom3D } from "../../board/MapRoom3D.tsx";
+
+type Page = "title" | "campaign" | "difficulty" | "heroes" | "items" | "party" | "load" | "options" | "collection";
+
+export function TitleScreen({ onPlay, onTools }: {
+  /** play a campaign save (new or loaded) */
+  onPlay: (s: CampaignSave, intro?: boolean) => void;
+  /** this app's developer screens (packs, map, interface preview ...) */
+  onTools: () => void;
+}) {
+  const lang = useLang();
+  const [layout, setLayout] = useState<UiLayoutFile | null>(null);
+  const [atlas, setAtlas] = useState<Record<string, AtlasSprite>>({});
+  const [db, setDb] = useState<any>(null);
+  const [text, setText] = useState<TextDb | null>(null);
+  const [english, setEnglish] = useState<TextDb | null>(null);
+  const [heroArt, setHeroArt] = useState<Record<string, HeroArt>>({});
+  const [art, setArt] = useState<{ campaigns: ModelArt; items: ModelArt; products: ModelArt }>({ campaigns: {}, items: {}, products: {} });
+  const [bg, setBg] = useState<string | undefined>();
+  const [langs, setLangs] = useState(["ru", "en", "it"]);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState<Page>("title");
+  const [draft, setDraft] = useState<Draft>(newDraft);
+  const [saves, setSaves] = useState<CampaignSave[]>(() => listSaves());
+  const [owned, setOwned] = useState<number[] | undefined>(() => ownedProducts());
+  const [back, setBack] = useState<Page>("title");
+
+  useEffect(() => {
+    void installFonts();
+    Promise.all([loadUiLayout(), loadUiAtlas(), loadDb(), loadHeroArt(), loadModelArt("campaigns"), loadModelArt("items"), loadModelArt("products"), loadUiArt()])
+      .then(([l, a, d, h, c, i, p, u]) => { setLayout(l); setAtlas(a); setDb(d); setHeroArt(h); setArt({ campaigns: c, items: i, products: p }); setBg(u.map); })
+      .catch((e) => setError(String(e)));
+    loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
+    loadText("en").then(setEnglish).catch(() => setEnglish(null));
+  }, []);
+  useEffect(() => { loadText(lang).then(setText).catch((e) => setError(String(e))); }, [lang]);
+  // the title music; the new-game pages have their own (AudioController.PlayNewGameMusic)
+  useEffect(() => { sound.music(page === "title" || page === "load" || page === "options" || page === "collection" ? "TitlescreenMusic" : "NewGameMusic"); }, [page]);
+
+  const ui = useMemo((): TitleUi | null => {
+    if (!layout || !db || !text) return null;
+    return {
+      layout, atlas, db, heroArt, lang, products: owned,
+      campaignArt: art.campaigns, itemArt: art.items, productArt: art.products,
+      say: (k, ins = []) => (k ? textHtml(text, k, ins, lang === "en" ? null : english) : ""),
+      raw: textOf(text, english),
+    };
+  }, [layout, atlas, db, text, english, heroArt, art, lang, owned]);
+
+  if (error) return <div className="shell"><p className="error">{error}</p><button onClick={onTools}>Инструменты</button></div>;
+  if (!ui) return <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined} />;
+
+  const go = (p: Page) => setPage(p);
+  const start = () => {
+    // GameSetupController.PartyNameInput -> StartNewGame: the campaign's first adventure next, written to a slot
+    const src = { db: () => db } as unknown as ContentSource;
+    const s = newCampaignSave(src, {
+      campaign: draft.campaign!, heroes: draft.heroes, difficulty: draft.difficulty ?? "normal", partyName: draft.partyName.trim(),
+      heroItems: draft.items.map((r) => r.filter((x): x is number => x !== null)), language: lang,
+      ...(ui.products ? { products: ui.products } : {}),
+    });
+    putSave(s);
+    setDraft(newDraft());
+    onPlay(s, true);
+  };
+
+  let body;
+  const props = { ui, draft, setDraft };
+  if (page === "campaign") body = <CampaignPage {...props} savesFull={saves.length >= MAX_SAVES} onBack={() => go("title")} onNext={() => go("difficulty")} />;
+  else if (page === "difficulty") body = <DifficultyPage {...props} onBack={() => go("campaign")} onNext={() => go("heroes")} />;
+  else if (page === "heroes") body = <HeroesPage {...props} onBack={() => go("difficulty")} onNext={() => { setDraft((d) => ({ ...d, items: defaultItems(ui, d.heroes) })); go("items"); }} />;
+  else if (page === "items") body = <ItemsPage {...props} onBack={() => go("heroes")} onNext={() => go("party")} />;
+  else if (page === "party") body = <PartyNamePage {...props} onBack={() => go("items")} onNext={start} />;
+  else if (page === "load") {
+    body = <SaveSlotsPage ui={ui} saves={saves} onBack={() => go("title")} onResume={(s) => onPlay(s)}
+      onDelete={(s) => { deleteSave(s.slot); setSaves(listSaves()); }}
+      onReset={(s) => { const c = structuredClone(s); resetAdventure(c); putSave(c); setSaves(listSaves()); onPlay(c); }} />;
+  } else if (page === "collection") {
+    body = <CollectionPage ui={ui} onBack={() => go("title")} onOptions={() => { setBack("collection"); go("options"); }}
+      onToggle={(ids) => { setOwnedProducts(ids); setOwned(ids); }} />;
+  } else {
+    body = <TitleMenu ui={ui} hasSaves={saves.length > 0} onNew={() => { setDraft(newDraft()); go("campaign"); }} onLoad={() => go("load")}
+      onOptions={() => { setBack("title"); go("options"); }} onCollection={() => go("collection")} />;
+  }
+  return (
+    <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined}>
+      {/* the map room behind the menus (MapRoomVisuals.MapVisual on the title screen, SetCameraForGameSetup) */}
+      <MapRoom3D view={page === "title" || page === "options" || page === "load" || page === "collection" ? "title" : "setup"} />
+      {page !== "title" && page !== "options" && <div className="title-dim" />}
+      {page === "options" && back === "collection" && <CollectionPage ui={ui} onBack={() => {}} onOptions={() => {}} onToggle={() => {}} />}
+      {body}
+      {page === "options" && (
+        <NguiMenu layout={ui.layout} atlas={ui.atlas} say={ui.say} extras={[]} langs={langs} lang={lang} labels={false}
+          onLang={setLang} onLabels={() => {}} onSurrender={() => {}} onQuit={() => {}} onClose={() => go(back)} optionsOnly />
+      )}
+      {/* this app's own screens (packs, map, interface preview, battleboard): not in the original */}
+      {page === "title" && <button className="title-tools" onClick={onTools}>Инструменты</button>}
+    </div>
+  );
+}
+
+/** Titlescreen/TitleMenu: logo, the menu buttons, version, gear */
+function TitleMenu({ ui, hasSaves, onNew, onLoad, onOptions, onCollection }: {
+  ui: TitleUi; hasSaves: boolean; onNew: () => void; onLoad: () => void; onOptions: () => void; onCollection: () => void;
+}) {
+  const show = useMemo(() => [findNode(ui.layout.root, "Titlescreen")].filter(Boolean) as UiNode[], [ui.layout]);
+  const b: Binds = {
+    Button_NewCampaign: { onClick: onNew },
+    Sprite_DLC_Available: { show: false },
+    Button_LoadCampaign: { onClick: onLoad, disabled: !hasSaves },
+    Button_Collection: { onClick: onCollection },
+    Button_Rules: { disabled: true, title: "Правила (помощник по правилам — позже)" },
+    Button_Quit: { onClick: () => { void quitApp(); }, disabled: !inTauri() },
+    "Fade_In/Sprite_Options": { onClick: onOptions },
+    Sprite_AsmoConnect_BG: { show: false },
+    Label_Version: { text: `JiME Reborn ${ENGINE_VERSION}` },
+  };
+  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={b} say={ui.say} className="ngui-page" />;
+}

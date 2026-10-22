@@ -21,7 +21,7 @@ export const SQUARE = 10 / 3;
 export const BOARD_W = 10;
 
 const gltfCache = new Map<string, Promise<GLTF>>();
-function loadGltf(path: string): Promise<GLTF> {
+export function loadGltf(path: string): Promise<GLTF> {
   let p = gltfCache.get(path);
   if (!p) {
     p = new GLTFLoader().loadAsync(assetUrl(path));
@@ -32,14 +32,14 @@ function loadGltf(path: string): Promise<GLTF> {
 
 /** The GameObject name (GLTFLoader sanitizes object names and keeps the original in userData.name) */
 export const nameOf = (o: THREE.Object3D): string => (o.userData?.name as string | undefined) ?? o.name;
-function find(root: THREE.Object3D, name: string): THREE.Object3D | null {
+export function find(root: THREE.Object3D, name: string): THREE.Object3D | null {
   let hit: THREE.Object3D | null = null;
   root.traverse((o) => { if (!hit && nameOf(o) === name) hit = o; });
   return hit;
 }
 
 /** Inactive GameObjects (extras.active = false) start hidden */
-function applyActive(root: THREE.Object3D): void {
+export function applyActive(root: THREE.Object3D): void {
   root.traverse((o) => { if (o.userData?.active === false) o.visible = false; });
 }
 
@@ -305,7 +305,7 @@ async function pieceObject(name: string): Promise<THREE.Object3D> {
 }
 
 /** Cutout foliage: alpha to coverage softens the clipped edges (with the renderer's multisampling) */
-function smoothCutout(m: THREE.Mesh): void {
+export function smoothCutout(m: THREE.Mesh): void {
   for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
     if (mat.alphaTest > 0) { mat.alphaToCoverage = true; mat.alphaTest = 0.35; }
   }

@@ -482,6 +482,17 @@ export interface Campaign {
   next_adventure: any;
   alternatives?: any[];
   result: any;
+  /** ffg flow (set by the campaign layer): the party's skills (SkillModel ids) with effects in play:
+   *  229 Collector (+2 lore per new item), 232 Chronicling (+2 lore when an adventure ends) */
+  party_skills?: number[];
+  /** ffg flow: corruption per player (SerializedHero.Corruption, ModifyCorruption) */
+  corruption?: number[];
+  /** ffg flow: hero rewards for the campaign layer (AwardTitle / AddSkill go to one hero) */
+  awards?: { kind: "title" | "skill"; player: number; id: number }[];
+  /** SetRestEpilogue: SerializedGame.RestTextOverride for the next rest scene */
+  rest_text?: { key: string; inserts: string[] } | null;
+  /** SetNextCutsceneId: GameData.OverrideCutsceneId (-1 = the campaign's victory / defeat cutscene) */
+  cutscene?: number;
 }
 
 export const newCampaign = (): Campaign => ({
@@ -593,6 +604,8 @@ export class Game {
   weather = [0, 0];
   ended: string | null = null;
   result: "victory" | "defeat" | null = null;
+  /** ProceedToNextGame ran: the campaign goes on (to SerializedGame.CurrentAdventureId) */
+  proceeded = false;
   objective: any = null;
   /** Inserts of the objective message at the time it was set (for UI) */
   objectiveInserts: string[] = [];
@@ -657,6 +670,11 @@ export class Game {
     this.campaign = opts.campaign ?? newCampaign();
     for (const k of keysOf(this.D.globals)) this.globals[k] = structuredClone(this.D.globals[k].value);
     for (const [k, v] of Object.entries(this.campaign.flags)) this.globals[k] = v;
+    if (this.flow === "ffg") {
+      // GameFsmVariables.Lore is the global "Campaign/Lore"; CorruptionPresence follows the heroes' corruption
+      this.globals["Campaign/Lore"] = this.campaign.lore;
+      this.globals.CorruptionPresence = (this.campaign.corruption ?? []).some((c) => c > 0);
+    }
     this.globals.PlayerCount = this.players;
     this.globals.Round = 1;
     this.globals.Threat = 0;
@@ -701,6 +719,12 @@ export class Game {
       this.warnings.clear();
       for (const [k, v] of saved) this.warnings.set(k, v);
     }
+  }
+
+  /** GameVariables.Lore += n (ffg flow keeps the "Campaign/Lore" global in step) */
+  addLore(n: number): void {
+    this.campaign.lore += n;
+    if (this.flow === "ffg") this.globals["Campaign/Lore"] = this.campaign.lore;
   }
 
   emit(key: any, ...inserts: unknown[]): void {
@@ -1285,6 +1309,8 @@ export class Game {
     if (this.ending) return;
     this.ending = true;
     this.result = victory ? "victory" : "defeat";
+    // GameController.SignalEndGame: skill 232 (Chronicling) gives 2 lore
+    if (this.flow === "ffg" && this.campaign.party_skills?.includes(232)) this.addLore(2);
     if (this.advFsm) this.advFsm.send(victory ? "ADVENTURE_END_VICTORY" : "ADVENTURE_END_FAILURE");
     if (!truthy(this.ended)) this.ended = "end_signalled";
     throw new EndGame();

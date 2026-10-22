@@ -41,6 +41,8 @@ export interface UiWidget {
   inv?: number;
   flip?: number;
   sp?: string | null;
+  /** sprite gradient (UIBasicSprite.applyGradient): colours multiplied in at the top and at the bottom */
+  grad?: [number[], number[]];
   tex?: string | null;
   lb?: UiLabel;
   /** the component is disabled */
@@ -83,6 +85,14 @@ export interface UiLayoutFile {
   size: [number, number];
   root: UiNode;
   fonts: Record<string, { role: string; name: string }>;
+  /** UI prefabs instantiated at runtime by the scene's scripts: "<GameObject>/<Controller>.<field>" -> tree */
+  prefabs?: Record<string, UiNode>;
+}
+
+/** A runtime prefab by its key's end (e.g. "CampaignSelectionPrefab", "Widget_SaveSlots/PrefabPool.Prefab") */
+export function prefabOf(layout: UiLayoutFile, keyEnd: string): UiNode | null {
+  for (const [k, n] of Object.entries(layout.prefabs ?? {})) if (k.endsWith(keyEnd)) return n;
+  return null;
 }
 
 /** Depth-first search by name (or a "/"-separated path of names, each step searching the subtree) */

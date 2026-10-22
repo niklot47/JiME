@@ -178,6 +178,12 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
       st.maskImage = m; (st as any).WebkitMaskImage = m;
     }
   }
+  // gradient sprites: alpha from the top colour to the bottom one (a fade; the hue is the widget colour)
+  if (w.grad && w.k === "sprite") {
+    const [top, bottom] = w.grad;
+    const m = `linear-gradient(to bottom, rgba(0,0,0,${top[3] ?? 1}), rgba(0,0,0,${bottom[3] ?? 1}))`;
+    st.maskImage = m; (st as any).WebkitMaskImage = m;
+  }
   // not drawn until its tinted / sliced image is made (no flash of the plain sprite)
   if (waiting) st.visibility = "hidden";
   if (w.flip === 1 || w.flip === 3) st.transform = "scaleX(-1)";
@@ -292,7 +298,21 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   pendingImages = 0;
   const items = boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
+          if (b.clip) {
+            // inside a clipping panel (scroll views): cut to its region, nothing at all when wholly outside
+            const c = b.clip;
+            if (b.left >= c.r || b.left + b.width <= c.l || b.top >= c.b || b.top + b.height <= c.t) return null;
+            const ins = [c.t - b.top, b.left + b.width - c.r, b.top + b.height - c.b, c.l - b.left].map((v) => Math.max(0, v));
+            if (ins.some((v) => v > 0)) st.clipPath = `inset(${ins.map((v) => `${v}px`).join(" ")})`;
+          }
           if (b.bind.originParent) st.transformOrigin = `${b.px - b.left}px ${b.py - b.top}px`;
+          // a rotated widget (z, counter-clockwise in Unity) turns about its pivot
+          const rot = b.node.r ? ((b.node.r % 360) + 360) % 360 : 0;
+          if (rot > 0.5 && rot < 359.5) {
+            const [fx, fy] = ([[0, 1], [0.5, 1], [1, 1], [0, 0.5], [0.5, 0.5], [1, 0.5], [0, 0], [0.5, 0], [1, 0]][b.bind.pv ?? b.w.pv] ?? [0.5, 0.5]) as [number, number];
+            st.transformOrigin = `${fx * b.width}px ${(1 - fy) * b.height}px`;
+            st.transform = `rotate(${-rot}deg)`;
+          }
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;

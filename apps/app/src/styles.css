@@ -450,3 +450,25 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui .ng-callout { animation: ng-callout-in 0.3s ease-out, ng-callout-pulse 0.7s ease-in-out 0.3s infinite alternate; }
 @keyframes ng-callout-in { from { transform: scale(0.1); } to { transform: scale(1); } }
 @keyframes ng-callout-pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+
+/* title screen and new-game pages (screens/title) */
+.title-screen { position: fixed; inset: 0; background: #1b1612 center / cover no-repeat; overflow: hidden; }
+.title-screen .ngui { z-index: 2; }
+.title-dim { position: absolute; inset: 0; background: rgba(12, 9, 6, 0.72); z-index: 1; }
+.ngui-wheel { position: absolute; inset: 0; z-index: 2; }
+.ngui .ng-input { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; background: transparent; border: 0; outline: 0;
+  pointer-events: auto; font: inherit; color: inherit; text-align: center; text-shadow: inherit; padding: 0 8px; }
+.ngui .ng-input::placeholder { color: rgba(218, 215, 186, 0.55); }
+
+.maproom { position: absolute; inset: 0; }
+.title-screen .maproom { z-index: 0; }
+
+/* the collection: the picked product's box grows (CollectionItem.TweenScaleItem) */
+.ngui .ng-picked { scale: 1.15; transition: scale 0.2s; }
+/* this app's tools, a quiet link in the title screen's corner */
+.title-tools { position: absolute; right: 12px; bottom: 10px; z-index: 5; background: rgba(0, 0, 0, 0.45); color: #d9c9a3;
+  border: 1px solid rgba(217, 201, 163, 0.35); border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; opacity: 0.7; }
+.title-tools:hover { opacity: 1; }
+
+/* long texts in the title font (cutscenes) */
+.ngui .ng-loose { letter-spacing: 0.06em; word-spacing: 0.12em; }

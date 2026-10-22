@@ -16,13 +16,16 @@ const LANG_NAMES: Record<string, string> = { en: "English", ru: "Русский"
 
 export interface MenuExtra { label: string; onClick: () => void; disabled?: boolean }
 
-export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLang, onLabels, onSurrender, onQuit, onClose }: {
+export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLang, onLabels, onSurrender, onQuit, onClose, optionsOnly }: {
   layout: UiLayoutFile; atlas: Atlas; say: Say; extras: MenuExtra[];
   langs: string[]; lang: string; labels: boolean; onLang: (l: string) => void; onLabels: (v: boolean) => void;
   onSurrender: () => void; onQuit: () => void; onClose: () => void;
+  /** only the options page (the title screen's gear, StartUpMenuController.OnOptionsButtonClicked) */
+  optionsOnly?: boolean;
 }) {
   const classic = useBbClassic();
-  const [page, setPage] = useState<"menu" | "options" | "camera" | "surrender">("menu");
+  const [page, setPage] = useState<"menu" | "options" | "camera" | "surrender">(optionsOnly ? "options" : "menu");
+  const back = () => (optionsOnly ? onClose() : setPage("menu"));
   const [s, setS] = useState(sound.settings);
   useEffect(() => sound.onChange(() => setS(sound.settings)), []);
   const menu = top(layout, "Page_Menu");
@@ -62,7 +65,7 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   // ---- options page
   const o: Binds = {
     Panel_Options: { show: true },
-    "Panel_Options/z_Darkening": { onClick: () => setPage("menu") },
+    "Panel_Options/z_Darkening": { onClick: back },
     Dialog_LanguageChangeConfirmation: { show: false },
     Panel_GraphicSettings: { show: false },
     Button_GraphicSettings: { disabled: true, title: "Настройки графики — позже" },

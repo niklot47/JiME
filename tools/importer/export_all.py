@@ -13,7 +13,7 @@ PTR = re.compile(r"^ptr\((-?\d+):(-?\d+)\)$")
 # ---------- model index (sharedassets0 ScriptableObjects) ----------
 MODEL_TYPES = {"AdventureModel", "EncounterModel", "EncounterGroupModel", "TileModel", "EnemyModel",
                "EnemyActivationModel", "EnemyBonusModel", "ItemModel", "SkillModel", "TitleModel",
-               "CampaignModel", "ProductModel", "TerrainNodeModel", "LastStandModel", "RoleModel", "HeroModel"}
+               "CampaignModel", "ProductModel", "TerrainNodeModel", "LastStandModel", "RoleModel", "HeroModel", "CutsceneModel"}
 models = {}      # pid -> (type, data)
 for o in SA0.objects.values():
     if o.type.name != "MonoBehaviour": continue

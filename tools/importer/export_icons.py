@@ -2,6 +2,8 @@
 # and images/enemies/enemies.json: { "<id>": "images/enemies/<id>.png" }. Source: EnemyModel.Icon (Resources path).
 # Hero icons and portraits (HeroModel.Icon / Portrait) to images/heroes/<id>_icon.png, <id>.png and
 # images/heroes/heroes.json: { "<id>": { "name": NameKey, "icon": path, "portrait": path } }.
+# Campaign art (CampaignModel.Image / ThumbnailImage), item icons (ItemModel.Icon) and product images (ProductModel.Image)
+# and adventure location art (AdventureModel.LocationArt, the travel map) for the menus: images/<campaigns|items|products|adventures>/<id>[_thumb].png + <dir>.json { "<id>": { "<field>": path } }.
 import os, json
 from jload import *
 from prefab import CONT, RA
@@ -49,6 +51,37 @@ def main():
         json.dump(found, fp, indent=1)
     print(f"enemy icons: {len(found)}/{len(db['models']['EnemyModel'])} -> {OUT}")
     heroes(db)
+    model_images(db, "CampaignModel", "campaigns", (("Image", "", 1280), ("ThumbnailImage", "_thumb", 512)))
+    model_images(db, "ItemModel", "items", (("Icon", "", 256),))
+    model_images(db, "ProductModel", "products", (("Image", "", 512),))
+    model_images(db, "AdventureModel", "adventures", (("LocationArt", "", 768),))
+    model_images(db, "CutsceneModel", "cutscenes", (("Texture", "", 1600),))
+
+def model_images(db, model, dirname, fields):
+    out = os.path.join(PACK, "images", dirname)
+    os.makedirs(out, exist_ok=True)
+    found, cache = {}, {}
+    for mid, m in db["models"].get(model, {}).items():
+        e = {}
+        for field, suffix, size in fields:
+            p = (m.get(field) or {}).get("Path")
+            if not p: continue
+            fn = f"{mid}{suffix}.png"
+            if p in cache:
+                if cache[p]: e[field] = cache[p]
+                continue
+            try: img = load_res(p)
+            except Exception as ex: print(model, "image failed", p, ex); img = None
+            cache[p] = None
+            if img is None: continue
+            img = img.convert("RGBA")
+            img.thumbnail((size, size))
+            img.save(os.path.join(out, fn))
+            cache[p] = e[field] = f"images/{dirname}/{fn}"
+        if e: found[mid] = e
+    with open(os.path.join(out, f"{dirname}.json"), "w", encoding="utf-8") as fp:
+        json.dump(found, fp, indent=1)
+    print(f"{dirname}: {len(found)}/{len(db['models'].get(model, {}))} -> {out}")
 
 def heroes(db):
     out = os.path.join(PACK, "images", "heroes")

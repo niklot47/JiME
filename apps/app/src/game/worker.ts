@@ -1,5 +1,5 @@
 // Game worker: owns the content source and the Session, so map generation and replays never block the UI
-import { Session } from "@jime/engine";
+import { Session, finishAdventure } from "@jime/engine";
 import { BrowserSource } from "../data/source.ts";
 import { applyPackConfig } from "../data/pack.ts";
 import type { GameState, Reply, Request } from "./protocol.ts";
@@ -20,6 +20,11 @@ async function handle(req: Request): Promise<Omit<Extract<Reply, { ok: true }>, 
     return { ok: true, state: state(session), board };
   }
   if (!session) throw new Error("no game started");
+  if (req.type === "finish") {
+    const campaign = structuredClone(req.campaign);
+    finishAdventure(campaign, session.game);
+    return { ok: true, state: state(session), campaign };
+  }
   if (req.type === "answer") session.answer(req.answer);
   else session.undo(req.n ?? 1);
   return { ok: true, state: state(session) };

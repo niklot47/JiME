@@ -61,10 +61,37 @@ const showKey = (p: any, g?: Game, f?: Fsm) => {
   return keyOf(gd(p, "Message"));
 };
 
+/** AddItemToInventory (FFG): upgrade, add once, award message, Collector skill, the Luckwearer title */
+function addItemFfg(g: Game, id: any): void {
+  const items = g.D.models.ItemModel ?? {};
+  if (id === undefined || id === null) return;
+  // UpgradeItem: an upgradeable item comes upgraded (a random upgrade, repeatedly) while the lore covers the cost
+  for (let m = items[String(id)]; m && or(m.Upgrades, []).length && g.campaign.lore >= toInt(or(m.UpgradeCost, 0)); m = items[String(id)]) {
+    id = gd(g.rng.choice(m.Upgrades), "id");
+  }
+  if (g.campaign.items.includes(id)) return;
+  const m = items[String(id)] ?? {};
+  const type = toInt(or(m.Type, 0)); // ItemType: 0 weapon, 1 armor, 2 item, 3 mount
+  g.campaign.items.push(id);
+  if (type === 2 && g.campaign.party_skills?.includes(229)) g.addLore(2);
+  g.emit(type === 3 ? "UI_AWARD_MOUNT_FORMATTED" : "UI_AWARD_ITEM_FORMATTED", gd(m, "NameKey", ""));
+  // CheckForAwardTitle: more non-mount items than heroes gives the Luckwearer title (20) to a hero
+  const noMounts = g.campaign.items.filter((i: any) => toInt(or(gd(items[String(i)], "Type"), 0)) !== 3).length;
+  if (noMounts > g.players && !g.campaign.titles.includes(20)) {
+    g.prompt = { key: "UI_AWARD_TITLE_CHOOSE_HERO", inserts: ["TITLE_LUCKWEARER"] };
+    const r = g.player.playerChoice(g, "UI_AWARD_TITLE_CHOOSE_HERO", true);
+    g.prompt = null;
+    if (!r.skip && r.player >= 0) {
+      g.campaign.titles.push(20);
+      (g.campaign.awards ??= []).push({ kind: "title", player: r.player, id: 20 });
+    }
+  }
+}
+
 const COSMETIC = [
   "FocusCameraOnObjects", "FocusCameraOnWorldPositions", "HighlightLocations", "ClearLocationHighlights", "HighlightTileSpace",
   "SetPosition", "GetPosition", "SetVector3XYZ", "TransformPoint", "SetGameObject",
-  "SetTokenType", "SaveGame", "SetNextCutsceneId", "SetTileSepiaValue",
+  "SetTokenType", "SaveGame", "SetTileSepiaValue",
   "ClearHeroHighlights", "SetHeroHighlights", "ShowTutorialArrow", "HideTutorialArrows", "SetLockedUI", "SetForcedUI", "ClearForcedUI",
 ];
 
@@ -286,17 +313,50 @@ export const ACTIONS: Record<string, ActionHandler> = {
   ArraySet: noop,
 
   // --- campaign / rewards
-  AddLore: (g, f, p) => { g.campaign.lore += g.num(f, gd(p, "Lore")); },
+  AddLore: (g, f, p) => { g.addLore(g.num(f, gd(p, "Lore"))); },
   AwardXP: (g, f, p) => { g.campaign.xp += g.num(f, gd(p, "XP")); },
-  AwardTitle: (g, _f, p) => { g.campaign.titles.push(idOf(gd(p, "Title"))); },
+  AwardTitle: (g, f, p) => {
+    const id = idOf(gd(p, "Title"));
+    if (g.flow !== "ffg") { g.campaign.titles.push(id); return; }
+    // AwardTitle: to one hero (PlayerIndex); a title any hero already has is not given twice
+    const player = g.num(f, gd(p, "PlayerIndex"), -1);
+    if (id === undefined || id === null || player < 0) return;
+    if (g.campaign.titles.includes(id)) {
+      g.emit("TITLE_ALREADY_EARNED", gd(g.D.models.TitleModel?.[String(id)], "NameKey", ""));
+      return;
+    }
+    g.campaign.titles.push(id);
+    (g.campaign.awards ??= []).push({ kind: "title", player, id });
+  },
+  AddSkill: (g, f, p) => {
+    const id = idOf(gd(p, "Skill"));
+    const player = g.num(f, gd(p, "PlayerIndex"), -1);
+    if (g.flow === "ffg" && id !== undefined && id !== null && player >= 0) (g.campaign.awards ??= []).push({ kind: "skill", player, id });
+  },
+  SetRestEpilogue: (g, f, p) => {
+    const k = keyOf(gd(p, "Message"));
+    if (g.flow === "ffg" && k) g.campaign.rest_text = { key: String(k), inserts: g.quietly(() => g.msgKey(f, gd(p, "Message"), true)[1].map(String)) };
+  },
+  SetNextCutsceneId: (g, f, p) => { if (g.flow === "ffg") g.campaign.cutscene = g.num(f, gd(p, "CutsceneId"), -1); },
   IsTitleEarned: (g, _f, p) => (g.campaign.titles.includes(idOf(gd(p, "Title"))) ? gd(p, "AlreadyEarned") : gd(p, "NotEarned")),
-  AddItemToInventory: (g, _f, p) => { g.campaign.items.push(idOf(gd(p, "Item"))); },
+  AddItemToInventory: (g, _f, p) => {
+    if (g.flow !== "ffg") { g.campaign.items.push(idOf(gd(p, "Item"))); return; }
+    addItemFfg(g, idOf(gd(p, "Item")));
+  },
   IsItemInInventory: (g, _f, p) => (g.campaign.items.includes(idOf(gd(p, "Item"))) ? gd(p, "InInventory") : gd(p, "NotInInventory")),
   RemoveItemFromInventory: (g, _f, p) => {
     const i = idOf(gd(p, "Item"));
     if (g.campaign.items.includes(i)) removeFirst(g.campaign.items, i);
   },
-  ModifyCorruption: noop,
+  ModifyCorruption: (g, f, p) => {
+    if (g.flow !== "ffg") return null;
+    // GameData.ModifyCorruption (not below 0); CorruptionPresence = some hero has corruption
+    const player = g.num(f, gd(p, "PlayerIndex"), -1);
+    const c = (g.campaign.corruption ??= Array.from({ length: g.players }, () => 0));
+    if (player >= 0 && player < g.players) c[player] = Math.max(0, (c[player] ?? 0) + g.num(f, gd(p, "Corruption")));
+    g.globals.CorruptionPresence = c.some((v) => v > 0);
+    return null;
+  },
   CheckHero: (_g, _f, p) => gd(p, "HeroNotInPlayEvent"),
   StoreRandomHero: (g, f, p) => g.set(f, gd(p, "PlayerIndexVariable"), g.rng.randrange(g.players)),
   LockUnlockEncounter: (g, _f, p) => {
@@ -305,9 +365,18 @@ export const ACTIONS: Record<string, ActionHandler> = {
     if (truthy(gd(p, "Unlock"))) { if (!chain.includes(e)) chain.push(e); }
     else if (chain.includes(e)) removeFirst(chain, e);
   },
-  SetNextAdventure: (g, _f, p) => { g.campaign.next_adventure = idOf(gd(p, "Adventure")); },
-  AddAlternativeAdventure: (g, _f, p) => { (g.campaign.alternatives ??= []).push(idOf(gd(p, "Adventure"))); },
+  SetNextAdventure: (g, _f, p) => {
+    g.campaign.next_adventure = idOf(gd(p, "Adventure"));
+    // "this action clears the alternative adventures"
+    if (g.flow === "ffg") g.campaign.alternatives = [];
+  },
+  AddAlternativeAdventure: (g, _f, p) => {
+    const id = idOf(gd(p, "Adventure"));
+    const alt = (g.campaign.alternatives ??= []);
+    if (g.flow !== "ffg" || !alt.includes(id)) alt.push(id);
+  },
   ProceedToNextGame: (g) => {
+    g.proceeded = true;
     g.ended = g.ended || "proceed";
     throw new EndGame();
   },

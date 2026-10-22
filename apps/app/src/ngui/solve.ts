@@ -54,6 +54,9 @@ export interface Bind {
   /** repeat the node: one copy per entry (binds for that copy's subtree), shifted by step each */
   clones?: Record<string, Bind>[];
   step?: [number, number];
+  /** more children after the saved ones: UI prefabs the game instantiates at runtime (ui.json "prefabs"), e.g. the
+   *  campaign cards in Table_CampaignList, hero portraits in the hero scroll view, save slots */
+  extra?: UiNode[];
 }
 export type Binds = Record<string, Bind>;
 
@@ -74,6 +77,8 @@ export interface Box {
   /** the parent's position (same space as left / top) */
   px: number;
   py: number;
+  /** the region of the nearest clipping panel (UIPanel softness / alpha clip), same space as left / top */
+  clip?: { l: number; t: number; r: number; b: number };
 }
 
 export interface Measured { w: number; h: number }
@@ -99,15 +104,17 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
-      anc: string[], at?: [number, number]) => {
+      anc: string[], at?: [number, number], clip: Rect | null = null) => {
       const b = bindOf(bs, anc, n.n);
       const entering = !inc && include.has(n.id);
       if (entering) { inc = true; active = true; }
       if (b.clones && !key.endsWith("#")) {
         b.clones.forEach((cb, i) => {
           const step = b.step ?? [0, 0];
-          const nb: Binds = { ...bs, ...cb, [n.n]: { ...b, ...(cb[n.n] ?? {}), clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (cb[n.n]?.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (cb[n.n]?.dy ?? 0) } };
-          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at);
+          // the copy's own bind replaces the one that matched (any of its key forms), so it wins inside the copy
+          const own = cb[n.n] ?? {};
+          const nb: Binds = { ...bs, ...cb, [bindKeyOf(bs, anc, n.n) ?? n.n]: { ...b, ...own, clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (own.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (own.dy ?? 0) } };
+          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip);
         });
         return;
       }
@@ -160,7 +167,8 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         if (n.tr) rects.set(n.tr, rc);
         if (collect && inc && on && !w.off) {
           boxes.push({ key: k, node: n, w, bind: b, left: rc.l + screenW / 2, top: H / 2 - rc.t, width: rc.r - rc.l, height: rc.t - rc.b,
-            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py });
+            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py,
+            ...(clip ? { clip: { l: clip.l + screenW / 2, r: clip.r + screenW / 2, t: H / 2 - clip.t, b: H / 2 - clip.b } } : {}) });
         }
       } else {
         // a panel without clipping covers the screen, a clipping one its clip region (moved by the clip offset, e.g. a
@@ -182,11 +190,13 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         }
         rects.set(n.id, r0);
         if (n.tr) rects.set(n.tr, r0);
+        // a clipping panel: what it holds is cut to its region (within any outer clipping panel)
+        if (c) clip = clip ? { l: Math.max(clip.l, r0.l), r: Math.min(clip.r, r0.r), b: Math.max(clip.b, r0.b), t: Math.min(clip.t, r0.t) } : { ...r0 };
       }
-      const kids = n.ch ?? [];
+      const kids = b.extra ? [...(n.ch ?? []), ...b.extra] : n.ch ?? [];
       const na = [...anc, n.n];
       const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => bindOf(bs, na, c.n).show ?? (all && inc ? true : c.on ?? true)), b.cell) : null;
-      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined));
+      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip));
     };
     visit(root, 0, 0, 1, 1, 0, true, binds, "", false, []);
   };
@@ -220,11 +230,18 @@ function restState(n: UiNode): { p?: [number, number]; s?: [number, number]; w?:
  * inside repeated parts (the three enemy health bars), so a bind can be scoped to an ancestor.
  */
 function bindOf(bs: Binds, anc: string[], name: string): Bind {
+  const k = bindKeyOf(bs, anc, name);
+  return k !== null ? bs[k]! : {};
+}
+
+/** The key of the bind that applies to a node (see bindOf), null when none */
+function bindKeyOf(bs: Binds, anc: string[], name: string): string | null {
   for (let i = anc.length - 1; i >= 0; i--) {
-    const b = bs[`${anc[i]}//${name}`];
-    if (b) return b;
+    const k = `${anc[i]}//${name}`;
+    if (bs[k]) return k;
   }
-  return bs[`${anc[anc.length - 1] ?? ""}/${name}`] ?? bs[name] ?? {};
+  const k = `${anc[anc.length - 1] ?? ""}/${name}`;
+  return bs[k] ? k : bs[name] ? name : null;
 }
 
 /** UIGrid.ResetPosition: active children laid out by cell, line by line, then shifted to the grid's pivot */

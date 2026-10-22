@@ -1,5 +1,6 @@
 // UI-side handle of the game worker: request -> promise of the new state
 import type { GeneratedMap } from "@jime/engine/map";
+import type { CampaignSave } from "@jime/engine";
 import type { GameState, Reply, Request } from "./protocol.ts";
 
 export class GameClient {
@@ -21,7 +22,7 @@ export class GameClient {
     };
   }
 
-  request(req: Request): Promise<{ state: GameState; board?: GeneratedMap | null }> {
+  request(req: Request): Promise<{ state: GameState; board?: GeneratedMap | null; campaign?: CampaignSave }> {
     const id = this.next++;
     return new Promise((ok, fail) => {
       this.waiting.set(id, { ok, fail });

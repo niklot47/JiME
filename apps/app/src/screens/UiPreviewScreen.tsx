@@ -9,7 +9,7 @@ import { findNode, type UiLayoutFile, type UiNode } from "../ngui/types.ts";
 /** Nodes worth previewing: the children of the big UI groups */
 function candidates(root: UiNode): UiNode[] {
   const out: UiNode[] = [];
-  const groups = ["UI Root", "UI_SharedGameWorldmap", "UI_Game", "UI_Map", "UI_Rest", "Page_Menu", "Panel_Titlescreen", "UI_Cutscene", "Panel_Options"];
+  const groups = ["UI Root", "UI_SharedGameWorldmap", "UI_Game", "UI_Map", "UI_Rest", "Page_Menu", "Panel_Titlescreen", "GameSetup", "UI_Cutscene", "Panel_Options"];
   for (const g of groups) {
     const n = g === "UI Root" ? root : findNode(root, g);
     if (!n) continue;

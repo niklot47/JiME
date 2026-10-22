@@ -261,6 +261,16 @@ export const loadHeroArt = () => once("heroes", async () => {
   }
 });
 
+/** Model images for the menus (export_icons.py model_images): images/<dir>/<dir>.json { "<id>": { "<field>": path } } */
+export type ModelArt = Record<string, Record<string, string>>;
+export const loadModelArt = (dir: "campaigns" | "items" | "products" | "adventures" | "cutscenes") => once(`art:${dir}`, async () => {
+  try {
+    return JSON.parse(await packText(`images/${dir}/${dir}.json`)) as ModelArt;
+  } catch {
+    return {} as ModelArt;
+  }
+});
+
 /** Interface art of the "Original" theme (images/ui/ui.json from tools/importer/export_ui.py); {} if absent */
 export const loadUiArt = () => once("ui", async () => {
   try {

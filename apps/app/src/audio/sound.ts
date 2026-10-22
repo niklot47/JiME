@@ -190,6 +190,8 @@ class Sound {
   /** Files of a playlist with the own-music setting applied */
   private async files(l: "music" | "ambient", list: string): Promise<string[]> {
     const db = await this.loadDb();
+    // "clip:<name>": one clip on its own (AudioController.PlayCutsceneMusic)
+    if (list.startsWith("clip:")) { const f = db?.clips[list.slice(5)]?.file; return f ? [f] : []; }
     const orig = (db?.playlists[list] ?? []).map((n) => db!.clips[n]?.file).filter((f): f is string => !!f);
     if (l === "ambient" || list === "TitlescreenMusic") return orig;
     const src = this.settings.source;

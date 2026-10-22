@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Battleboard3D, PIECES, type BBToken } from "../board/Battleboard3D.tsx";
 import { boardsOf } from "./BattleboardPreviewScreen.tsx";
 import { useBbClassic } from "../data/bbClassic.ts";
-import { keysOf, tokenFamily, type Answer, type LogEntry, type SaveData, type SpaceRef, type SessionSetup } from "@jime/engine";
+import { ENGINE_SAVE_VERSION, adventureSetup, keysOf, tokenFamily, type Answer, type CampaignSave, type LogEntry, type SaveData, type SpaceRef, type SessionSetup } from "@jime/engine";
+import { setLang, useLang } from "../data/lang.ts";
 import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
 import type { TextDb } from "@jime/content-tools/text";
 import { BoardView, type Pick, type Token } from "../board/BoardView.tsx";
@@ -122,7 +123,17 @@ function tileCenter(t: GenTile): [number, number] {
   return [x, y];
 }
 
-export function GameScreen({ onBack }: { onBack: () => void }) {
+/** A campaign's adventure in progress: the screen starts it, keeps its answers saved and hands the end back */
+export interface CampaignPlay {
+  save: CampaignSave;
+  /** the save with the latest answers (after every answer) */
+  onSave: (s: CampaignSave) => void;
+  /** the adventure is over and applied to the campaign (finishAdventure) */
+  onFinish: (s: CampaignSave) => void;
+}
+
+export function GameScreen({ onBack, campaign }: { onBack: () => void; campaign?: CampaignPlay }) {
+  const campaignRef = useRef(campaign?.save ?? null);
   const client = useRef<GameClient | null>(null);
   const [db, setDb] = useState<any>(null);
   const [art, setArt] = useState<TileArtDb | null>(null);
@@ -135,7 +146,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   const [uiArt, setUiArt] = useState<Record<string, string>>({});
   const [atlas, setAtlas] = useState<Record<string, AtlasSprite>>({});
   const [uiLayout, setUiLayout] = useState<UiLayoutFile | null>(null);
-  const [lang, setLang] = useState("ru");
+  const lang = useLang();
   const [langs, setLangs] = useState(LANGS);
   const [text, setText] = useState<TextDb | null>(null);
   const [english, setEnglish] = useState<TextDb | null>(null);
@@ -192,18 +203,48 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     }
   }
 
+  // a campaign keeps its adventure's answers in its save slot; a single adventure in the autosave
+  const persist = (save: SaveData) => {
+    const cs = campaignRef.current;
+    if (!campaign || !cs?.game) { writeAutosave(save); return; }
+    const next: CampaignSave = { ...cs, game: { ...cs.game, answers: structuredClone(save.answers) }, savedAt: new Date().toISOString() };
+    campaignRef.current = next;
+    campaign.onSave(next);
+  };
+
   const start = (setup: SessionSetup, save?: SaveData) => run(async (c) => {
     const [r, a] = await Promise.all([c.request({ type: "start", setup, save, packConfig: packConfig() }), loadAdventure(setup.adv)]);
     savedRound.current = 0;
     setGame({ state: r.state, board: r.board ?? null, adv: a });
-    writeAutosave(r.state.save);
+    persist(r.state.save);
   });
 
   const update = (req: { type: "answer"; answer: Answer } | { type: "undo" }) => run(async (c) => {
     const { state } = await c.request(req);
     setGame((g) => (g ? { ...g, state } : g));
-    writeAutosave(state.save);
+    persist(state.save);
   });
+
+  // campaign: start (or resume) the adventure in progress as soon as the pack is loaded
+  const campaignStarted = useRef(false);
+  useEffect(() => {
+    const cs = campaignRef.current;
+    if (!campaign || !cs?.game || !db || campaignStarted.current) return;
+    campaignStarted.current = true;
+    const setup = adventureSetup(cs, cs.game.seed, cs.game.mapSeed);
+    const save: SaveData | undefined = cs.game.answers.length
+      ? { format: "jime-save", formatVersion: 1, engine: ENGINE_SAVE_VERSION, savedAt: cs.savedAt, setup, answers: cs.game.answers } : undefined;
+    void start(setup, save);
+  }, [db]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** the adventure is over: the campaign takes its result (GameController.ProceedToNextGame / EndCampaign) */
+  const finish = () => run(async (c) => {
+    const cs = campaignRef.current;
+    if (!campaign || !cs) return;
+    const r = await c.request({ type: "finish", campaign: cs });
+    if (r.campaign) campaign.onFinish(r.campaign);
+  });
+  const quit = () => (campaign ? onBack() : setGame(null));
   const answer = (a: Answer) => update({ type: "answer", answer: a });
 
   async function loadFile(f: File) {
@@ -277,6 +318,9 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
   }, [game?.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------- setup screen
+  if (!game && campaign) {
+    return <div className="shell"><p className="muted">{error ?? "Подготовка приключения…"}</p>{error && <button className="link" onClick={onBack}>← Меню</button>}</div>;
+  }
   if (!game) {
     const auto = readAutosave();
     const ready = !!db && !busy;
@@ -406,7 +450,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
         content={{ kind: "decision", d: pending!, onAnswer: answer }} />
     : talking ? <MessageDialog atlas={atlas} say={say} entry={head!} left={messages.length} onNext={() => drop(head!)} onSkipAll={() => setUnread([])} />
     : pending ? <DecisionDialog key={state.answers} d={pending} view={view} atlas={atlas} say={say} enemyArt={enemyArt} onAnswer={answer} />
-    : <GameOverDialog view={view} atlas={atlas} onQuit={() => setGame(null)} />;
+    : <GameOverDialog view={view} atlas={atlas} onQuit={() => (campaign ? finish() : setGame(null))} />;
   return (
     <div className="game-screen hud">
       <div className="board-wrap">
@@ -466,13 +510,13 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
               { label: "Сохранить в файл", onClick: () => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save) },
               { label: view3d ? "Доска: 2D" : "Доска: 3D", onClick: () => toggleView(!view3d) },
             ]}
-            onSurrender={() => { setModal(null); answer({ surrender: true }); }} onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
+            onSurrender={() => { setModal(null); answer({ surrender: true }); }} onQuit={() => { setModal(null); quit(); }} onClose={() => setModal(null)} />
         )}
         {modal === "settings" && !uiLayout && (
           <SettingsDialog atlas={atlas} say={say} view3d={view3d} labels={labels} canUndo={!!state.answers && !busy}
             onView3d={toggleView} onLabels={setLabels} onUndo={() => { setModal(null); update({ type: "undo" }); }}
             onSave={() => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save)}
-            onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
+            onQuit={() => { setModal(null); quit(); }} onClose={() => setModal(null)} />
         )}
         {enemy && uiLayout && (
           <NguiEnemy key={enemy.uid} layout={uiLayout} atlas={atlas} say={say} art={enemyArt} enemy={enemy}
