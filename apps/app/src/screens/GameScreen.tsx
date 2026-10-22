@@ -585,7 +585,8 @@ function GameBoard({ game, db, art, tokenArt, tokenMeshes, fx, table, tableMap, 
     });
     return <Battleboard3D boards={boardsOf(adv.model)} visible={view.battleboard.visible} rivers={nodes.some(done)}
       pits={nodes.filter((n) => done(n) && n.pit).map((n) => n.pit!)} tokens={bbTokens} fx={fx}
-      onPick={(id) => pick({ kind: "token", id })} marker={marker?.pos ?? null} weather={view.battleboard.weather} />;
+      onPick={(id) => pick({ kind: "token", id })} marker={marker?.pos ?? null}
+      markers={nodes.filter((n) => n.pieceAt === cut && n.pos).map((n) => n.pos!)} weather={view.battleboard.weather} />;
   }
   if (!board) return <div className="board empty"><p className="muted">В этом приключении нет генерируемой карты (поле боя или готовая карта). Решения — в диалогах поверх экрана.</p></div>;
   if (view3d) {

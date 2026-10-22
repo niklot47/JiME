@@ -407,6 +407,8 @@ interface Props {
   onPick?: (id: string) => void;
   /** location highlight (Unity world x, y): where enemies are to be placed */
   marker?: [number, number] | null;
+  /** more location highlights at once (the terrain placed by a RevealTerrainNodes message: one on each piece) */
+  markers?: [number, number][];
   /** WeatherEffect per board: 0 none, 1 light rain, 2 heavy rain */
   weather?: number[];
 }
@@ -425,7 +427,7 @@ function rainNodes(main: THREE.Object3D): THREE.Object3D[][] {
   return [[find(main, "LightRain"), find(main, "HeavyRain")], [find(main, "LightRain (1)"), find(main, "HeavyRain")]].map((l) => l.filter((x): x is THREE.Object3D => !!x));
 }
 
-export function Battleboard3D({ boards, visible = [true, true], rivers = true, pits = [], tokens = [], fx = {}, onPick, marker = null, weather = [0, 0] }: Props) {
+export function Battleboard3D({ boards, visible = [true, true], rivers = true, pits = [], tokens = [], fx = {}, onPick, marker = null, markers = [], weather = [0, 0] }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<{ scene: THREE.Scene; env: THREE.Group | null; layer: THREE.Group; placed: Map<string, Placed>; fxs: Fx[]; ready: boolean; marker: THREE.Group | null; markerKey: string; emitters: Emitter[]; flown: boolean; controls: MapControls } | null>(null);
   const pickRef = useRef(onPick);
@@ -536,10 +538,10 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
         return !e.done;
       });
       const pulse = 0.55 + 0.45 * Math.sin(now / 260);
-      if (s.marker) {
-        const ring = s.marker.userData.ring as THREE.Mesh;
+      for (const m of s.marker?.children ?? []) {
+        const ring = m.userData.ring as THREE.Mesh;
         ring.rotation.z -= dt * 1.6;
-        ((s.marker.userData.glow as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.45 + 0.3 * pulse;
+        ((m.userData.glow as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.45 + 0.3 * pulse;
       }
       controls.update();
       // heat haze: the frame without it, copied, then the haze particles sampling the copy
@@ -585,16 +587,22 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
   useEffect(() => {
     const s = st.current;
     if (!s?.env) return;
-    const mk = marker ? `${marker[0].toFixed(2)},${marker[1].toFixed(2)}` : "";
+    // GameViewHighlightManager location highlights: where enemies go, or on each terrain piece being placed
+    const spots = [...(marker ? [marker] : []), ...markers];
+    const mk = spots.map((p) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(";");
     if (mk !== s.markerKey) {
       s.markerKey = mk;
       if (s.marker) { s.scene.remove(s.marker); s.marker = null; }
-      if (marker) {
-        const m = markerGroup(fx);
-        m.scale.setScalar(1.7);
-        m.position.copy(toScene(marker[0], marker[1], 0.06));
-        s.scene.add(m);
-        s.marker = m;
+      if (spots.length) {
+        const all = new THREE.Group();
+        for (const p of spots) {
+          const m = markerGroup(fx);
+          m.scale.setScalar(1.7);
+          m.position.copy(toScene(p[0], p[1], 0.06));
+          all.add(m);
+        }
+        s.scene.add(all);
+        s.marker = all;
       }
     }
     const env = s.env;
