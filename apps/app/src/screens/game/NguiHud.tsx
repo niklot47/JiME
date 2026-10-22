@@ -109,7 +109,11 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
     },
     "Sprite_ThreatMeterBackground/Label_ThreatValue": { text: value },
     Label_Objective: { html: view.objective ? say(view.objective, view.objectiveInserts) : say("UI_DEFAULT_OBJECTIVE") },
-    Table_AdventureRules: { show: false },
+    // UI_Game.AddAdventureRule: the rules in force under the objective (one label; the table stacks them the same way)
+    Table_AdventureRules: { show: (view.adventureRules ?? []).length > 0 },
+    Label_AdventureRule: { html: (view.adventureRules ?? []).map((r) => say(r.key, r.inserts)).join("<br>") },
+    "Label_AdventureRule (1)": { show: false },
+    "Label_AdventureRule (2)": { show: false },
     Sprite_Darkness: { show: view.darkness, title: "Тьма" },
     Widget_ThreatEventSelected: info !== null && marks[info] !== undefined ? { show: true, at: [TRACK * (marks[info]! / max), 4.9] } : { show: false },
     // one marker per threat event (the layout has 10; clones of the first keep it simple)

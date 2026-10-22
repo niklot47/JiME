@@ -226,8 +226,18 @@ export const ACTIONS: Record<string, ActionHandler> = {
     g.objectiveInserts = g.quietly(() => g.msgKey(f, gd(p, "Message"), true)[1].map(String));
   },
   StoreKey: (g, f, p) => g.set(f, gd(p, "StoreResult"), keyOf(gd(p, "Key"))),
-  AddAdventureRule: (g, _f, p) => g.emit("RULE:" + String(keyOf(gd(p, "AdventureRule")) ?? "None")),
-  RemoveAdventureRule: noop,
+  AddAdventureRule: (g, f, p) => {
+    const key = keyOf(gd(p, "AdventureRule"));
+    g.emit("RULE:" + String(key ?? "None"));
+    // SerializedGame.CurrentAdventureRules: shown under the objective while in force (inserts resolved now; UI only)
+    if (key) g.adventureRules.push({ key: String(key), inserts: g.quietly(() => g.msgKey(f, gd(p, "AdventureRule"), true)[1].map(String)) });
+  },
+  RemoveAdventureRule: (g, _f, p) => {
+    // the first rule whose message contains the key
+    const k = String(gd(p, "RuleToRemoveKey") ?? "");
+    const i = k ? g.adventureRules.findIndex((r) => r.key.includes(k)) : -1;
+    if (i >= 0) g.adventureRules.splice(i, 1);
+  },
   SetDarknessMessageOverride: (g, _f, p) => { g.globals.DarknessMessageOverride = keyOf(gd(p, "Message")); },
 
   // --- flow / variables

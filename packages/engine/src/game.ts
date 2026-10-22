@@ -609,6 +609,8 @@ export class Game {
   objective: any = null;
   /** Inserts of the objective message at the time it was set (for UI) */
   objectiveInserts: string[] = [];
+  /** AddAdventureRule / RemoveAdventureRule: the adventure's special rules in force (UI_Game.LabelAdventureRules) */
+  adventureRules: { key: string; inserts: string[] }[] = [];
   /** The dialog a Player is being asked about (set by dialog actions just before the call; UI only) */
   prompt: { fsm: Fsm; msg: any } | { key?: string; inserts: string[] } | null = null;
   /** Adventure._activatingEnemy: the group whose activation / attack is being resolved */

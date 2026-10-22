@@ -8,7 +8,7 @@ import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, type UiLayoutFile, type UiNode } from "../../ngui/types.ts";
 import { NguiMenu } from "../game/NguiMenu.tsx";
 import { installFonts, loadDb, loadHeroArt, loadModelArt, loadPackSet, loadText, loadUiArt, loadUiAtlas, loadUiLayout, assetUrl, type AtlasSprite, type HeroArt, type ModelArt } from "../../data/pack.ts";
-import { quitApp, inTauri } from "../../data/host.ts";
+import { quitApp, inTauri, openUrl } from "../../data/host.ts";
 import { setLang, useLang } from "../../data/lang.ts";
 import { textHtml } from "../../text/markup.ts";
 import { sound } from "../../audio/sound.ts";
@@ -136,7 +136,8 @@ function TitleMenu({ ui, hasSaves, onNew, onLoad, onOptions, onCollection }: {
     Sprite_DLC_Available: { show: false },
     Button_LoadCampaign: { onClick: onLoad, disabled: !hasSaves },
     Button_Collection: { onClick: onCollection },
-    Button_Rules: { disabled: true, title: "Правила (помощник по правилам — позже)" },
+    // StartUpMenuController.OpenWebRules: the rules on the publisher's site
+    Button_Rules: { onClick: () => { void openUrl(ui.raw("JIME_RULES_URL")); } },
     Button_Quit: { onClick: () => { void quitApp(); }, disabled: !inTauri() },
     "Fade_In/Sprite_Options": { onClick: onOptions },
     Sprite_AsmoConnect_BG: { show: false },

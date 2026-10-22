@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { sound } from "../../audio/sound.ts";
 import { setBbClassic, useBbClassic } from "../../data/bbClassic.ts";
 import { NguiView, getUiScale, setUiScale, type Bind, type Binds } from "../../ngui/NguiView.tsx";
+import { openUrl } from "../../data/host.ts";
 import type { UiLayoutFile, UiNode } from "../../ngui/types.ts";
 import type { Atlas, Say } from "./ui.ts";
 
@@ -36,7 +37,8 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   const b: Binds = {
     Page_Menu: { show: true },
     "Page_Menu/z_Darkening": { onClick: onClose },
-    MenuRules: { disabled: true, title: "Правила (помощник по правилам — позже)" },
+    // UIMenuPageController.OnRulesButtonClicked: the rules on the publisher's site
+    MenuRules: { onClick: () => { void openUrl(say("JIME_RULES_URL").replace(/<[^>]+>/g, "")); } },
     MenuOptions: { onClick: () => setPage("options") },
     MenuCameraControls: { onClick: () => setPage("camera") },
     MenuSurrender: { onClick: () => setPage("surrender") },

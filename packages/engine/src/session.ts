@@ -273,6 +273,8 @@ export interface GameView {
   darkness: boolean;
   objective: string | null;
   objectiveInserts: string[];
+  /** the adventure's special rules in force, shown under the objective */
+  adventureRules: { key: string; inserts: string[] }[];
   ended: string | null;
   result: string | null;
   /** damage/fear: bot simulation only; lastStand: next last stand difficulty */
@@ -313,6 +315,7 @@ export function viewOf(g: Game): GameView {
       .sort((a, b) => a.threshold - b.threshold),
     darkness: g.isDarknessNow(), objective: g.objective,
     objectiveInserts: [...g.objectiveInserts],
+    adventureRules: g.adventureRules.map((r) => ({ key: r.key, inserts: [...r.inserts] })),
     ended: g.ended, result: g.result,
     heroes: g.heroes.map((h) => ({ ...h })),
     tiles: [...g.tiles.values()].map((t) => ({ id: t.id, code: t.code, section: t.section, visible: t.visible, explored: t.explored, token: t.exploreToken, shownAt: t.shownAt, tokenAt: t.tokenAt })),

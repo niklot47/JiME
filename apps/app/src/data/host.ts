@@ -39,6 +39,13 @@ export const onImportLog = (f: (line: string) => void): Promise<UnlistenFn> =>
 export const onImportDone = (f: (d: { ok: boolean; code: number | null; task: "pip" | "import" }) => void): Promise<UnlistenFn> =>
   listen<{ ok: boolean; code: number | null; task: "pip" | "import" }>("import-done", (e) => f(e.payload));
 
+/** Application.OpenURL: a web page in the system browser (a new tab outside Tauri) */
+export async function openUrl(url: string): Promise<void> {
+  if (!/^https?:\/\//.test(url)) return;
+  if (isTauri()) await invoke("open_url", { url });
+  else window.open(url, "_blank", "noopener");
+}
+
 /** The title screen's Quit: close the app window (a plain browser tab cannot close itself: false) */
 export async function quitApp(): Promise<boolean> {
   if (!isTauri()) return false;

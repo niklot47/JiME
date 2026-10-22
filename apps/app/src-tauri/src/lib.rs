@@ -248,6 +248,21 @@ fn set_packs_dir(app: AppHandle, state: State<'_, AppState>, path: Option<String
     Ok(out)
 }
 
+/// Open a web page in the system browser (Application.OpenURL: the rules, a product's store page); http(s) only
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(format!("not a web address: {url}"));
+    }
+    #[cfg(target_os = "windows")]
+    let r = std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", &url]).spawn();
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(&url).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let r = std::process::Command::new("xdg-open").arg(&url).spawn();
+    r.map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -261,6 +276,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             packs_info,
             set_packs_dir,
+            open_url,
             importer::detect_game,
             importer::check_game,
             importer::python_info,
