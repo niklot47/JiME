@@ -71,7 +71,7 @@ export interface UiNode {
   s?: [number, number];
   r?: number;
   w?: UiWidget;
-  panel?: { d: number; clip: [number, number, number, number] | null; off?: [number, number]; an?: Anchor[] };
+  panel?: { d: number; clip: [number, number, number, number] | null; off?: [number, number]; an?: Anchor[]; soft?: [number, number] };
   btn?: { hover: number[] | null; pressed: number[] | null; disabled: number[] | null; dur: number; target?: number };
   tw?: UiTween[];
   loc?: string;

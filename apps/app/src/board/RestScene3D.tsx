@@ -19,9 +19,11 @@ export function RestScene3D({ area = 0 }: { area?: number }) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050403);
-    const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
-    scene.add(new THREE.HemisphereLight(0xffe2c0, 0x1a120a, 0.9));
+    // Camera002: clear to its background colour, a night blue behind the trees; its field of view
+    scene.background = new THREE.Color().setRGB(0.032, 0.04, 0.118, THREE.SRGBColorSpace);
+    const camera = new THREE.PerspectiveCamera(28.9, 1, 0.01, 100);
+    // RenderSettings: flat ambient light 0.77 grey (it lights the moonlit forest behind the camp), the fire's lights on top
+    scene.add(new THREE.AmbientLight(new THREE.Color().setRGB(0.772, 0.772, 0.772, THREE.SRGBColorSpace), 1));
     let emitters: Emitter[] = [];
     let alive = true;
     void loadGltf("maproom/rest.glb").then((g) => {
@@ -31,7 +33,14 @@ export function RestScene3D({ area = 0 }: { area?: number }) {
       root.updateMatrixWorld(true);
       root.traverse((o) => {
         const m = o as THREE.Mesh;
-        if (m.isMesh) smoothCutout(m);
+        if (m.isMesh) {
+          smoothCutout(m);
+          // the backdrop (Forest-BG / Dungeon-BG: the moonlit trees, the far wall) is a painted, unlit picture
+          const mat = m.material as THREE.MeshStandardMaterial;
+          if (!Array.isArray(m.material) && /-BG$/.test(mat.name ?? "")) {
+            m.material = new THREE.MeshBasicMaterial({ map: mat.map, color: mat.color, transparent: mat.transparent, alphaTest: mat.alphaTest, side: mat.side });
+          }
+        }
         const L = o.userData?.light as { type: number; color: number[]; intensity: number; range: number } | undefined;
         if (L) o.add(new THREE.PointLight(new THREE.Color(L.color[0] ?? 1, L.color[1] ?? 1, L.color[2] ?? 1), L.intensity * 3, L.range * 3, 1.2));
       });

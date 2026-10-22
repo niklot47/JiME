@@ -77,7 +77,9 @@ export function TitleScreen({ onPlay, onTools }: {
   if (!ui) return <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined} />;
 
   // the page's elements leave (SlidingElement forward: false), then the next page comes in
-  const go = (p: Page) => leave(() => setPage(p));
+  const go = (p: Page) => (p === "options" || page === "options" ? setPage(p) : leave(() => setPage(p)));
+  // what is drawn under the options: the page they were opened from
+  const shown: Page = page === "options" ? back : page;
   const start = () => {
     // GameSetupController.PartyNameInput -> StartNewGame: the campaign's first adventure next, written to a slot
     const src = { db: () => db } as unknown as ContentSource;
@@ -93,16 +95,16 @@ export function TitleScreen({ onPlay, onTools }: {
 
   let body;
   const props = { ui, draft, setDraft };
-  if (page === "campaign") body = <CampaignPage {...props} savesFull={saves.length >= MAX_SAVES} onBack={() => go("title")} onNext={() => go("difficulty")} />;
-  else if (page === "difficulty") body = <DifficultyPage {...props} onBack={() => go("campaign")} onNext={() => go("heroes")} />;
-  else if (page === "heroes") body = <HeroesPage {...props} onBack={() => go("difficulty")} onNext={() => { setDraft((d) => ({ ...d, items: defaultItems(ui, d.heroes) })); go("items"); }} />;
-  else if (page === "items") body = <ItemsPage {...props} onBack={() => go("heroes")} onNext={() => go("party")} />;
-  else if (page === "party") body = <PartyNamePage {...props} onBack={() => go("items")} onNext={start} />;
-  else if (page === "load") {
+  if (shown === "campaign") body = <CampaignPage {...props} savesFull={saves.length >= MAX_SAVES} onBack={() => go("title")} onNext={() => go("difficulty")} />;
+  else if (shown === "difficulty") body = <DifficultyPage {...props} onBack={() => go("campaign")} onNext={() => go("heroes")} />;
+  else if (shown === "heroes") body = <HeroesPage {...props} onBack={() => go("difficulty")} onNext={() => { setDraft((d) => ({ ...d, items: defaultItems(ui, d.heroes) })); go("items"); }} />;
+  else if (shown === "items") body = <ItemsPage {...props} onBack={() => go("heroes")} onNext={() => go("party")} />;
+  else if (shown === "party") body = <PartyNamePage {...props} onBack={() => go("items")} onNext={start} />;
+  else if (shown === "load") {
     body = <SaveSlotsPage ui={ui} saves={saves} onBack={() => go("title")} onResume={(s) => play(s)}
       onDelete={(s) => { deleteSave(s.slot); setSaves(listSaves()); }}
       onReset={(s) => { const c = structuredClone(s); resetAdventure(c); putSave(c); setSaves(listSaves()); play(c); }} />;
-  } else if (page === "collection") {
+  } else if (shown === "collection") {
     body = <CollectionPage ui={ui} onBack={() => go("title")} onOptions={() => { setBack("collection"); go("options"); }}
       onToggle={(ids) => { setOwnedProducts(ids); setOwned(ids); }} />;
   } else {
@@ -113,8 +115,7 @@ export function TitleScreen({ onPlay, onTools }: {
     <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined}>
       {/* the map room behind the menus (MapRoomVisuals.MapVisual on the title screen, SetCameraForGameSetup) */}
       <MapRoom3D view={page === "title" || page === "options" || page === "load" || page === "collection" ? "title" : "setup"} />
-      {page !== "title" && page !== "options" && <div className="title-dim" />}
-      {page === "options" && back === "collection" && <CollectionPage ui={ui} onBack={() => {}} onOptions={() => {}} onToggle={() => {}} />}
+      {shown !== "title" && <div className="title-dim" />}
       <div className={leaving ? "ng-leaving" : undefined} style={{ display: "contents" }}>{body}</div>
       {page === "options" && (
         <NguiMenu layout={ui.layout} atlas={ui.atlas} say={ui.say} extras={[]} langs={langs} lang={lang} labels={false}
@@ -141,6 +142,9 @@ function TitleMenu({ ui, hasSaves, onNew, onLoad, onOptions, onCollection }: {
     Button_Quit: { onClick: () => { void quitApp(); }, disabled: !inTauri() },
     "Fade_In/Sprite_Options": { onClick: onOptions },
     Sprite_AsmoConnect_BG: { show: false },
+    Sprite_FFGLogo: { show: false },
+    Sprite_MELogo: { color: [1, 1, 1, 0] },
+    Label_License: { show: false },
     Label_Version: { text: `JiME Reborn ${ENGINE_VERSION}` },
   };
   // CoroutineAnimateButtons: the menu buttons slide in from the left one after another (0.2 s apart); afterwards

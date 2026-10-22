@@ -254,6 +254,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   const [measured, setMeasured] = useState(() => new Map<string, Measured>());
   // UILabel.Overflow.ShrinkContent: font factor per label until its text fits (reset when the text changes)
   const shownOnce = useRef(false);
+  // boxes whose entrance animation has finished: no restart when React moves their element (a reorder re-inserts it)
+  const entered = useRef(new Set<string>());
   const [shrink, setShrink] = useState(() => new Map<string, { html: string; f: number }>());
   useSyncExternalStore(subscribe, snapshot);
   useLayoutEffect(() => {
@@ -310,18 +312,29 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   });
 
   pendingImages = 0;
+  // a box gone from the view enters again next time it shows
+  const present = new Set(boxes.map((b) => b.key));
+  for (const k of entered.current) if (!present.has(k)) entered.current.delete(k);
+  const onEnd = (key: string) => (e: React.AnimationEvent) => { if (e.animationName === "ng-enter") entered.current.add(key); };
   const items = boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
+          let softMask: CSSProperties | null = null;
           if (b.clip) {
             // inside a clipping panel (scroll views): cut to its region, nothing at all when wholly outside
             const c = b.clip;
             if (b.left >= c.r || b.left + b.width <= c.l || b.top >= c.b || b.top + b.height <= c.t) return null;
             const ins = [c.t - b.top, b.left + b.width - c.r, b.top + b.height - c.b, c.l - b.left].map((v) => Math.max(0, v));
-            if (ins.some((v) => v > 0)) st.clipPath = `inset(${ins.map((v) => `${v}px`).join(" ")})`;
+            if (c.sx || c.sy) {
+              // UIPanel soft clip: the contents fade out towards the region's edges
+              const sx = c.sx ?? 0, sy = c.sy ?? 0;
+              const h = `linear-gradient(to right, transparent ${c.l - b.left}px, #000 ${c.l + sx - b.left}px, #000 ${c.r - sx - b.left}px, transparent ${c.r - b.left}px)`;
+              const v = `linear-gradient(to bottom, transparent ${c.t - b.top}px, #000 ${c.t + sy - b.top}px, #000 ${c.b - sy - b.top}px, transparent ${c.b - b.top}px)`;
+              softMask = { maskImage: `${h}, ${v}`, maskComposite: "intersect", WebkitMaskImage: `${h}, ${v}`, WebkitMaskComposite: "source-in" } as CSSProperties;
+            } else if (ins.some((v) => v > 0)) st.clipPath = `inset(${ins.map((v) => `${v}px`).join(" ")})`;
           }
           if (b.bind.originParent) st.transformOrigin = `${b.px - b.left}px ${b.py - b.top}px`;
           // a rotated widget (z, counter-clockwise in Unity) turns about its pivot
-          const rot = b.node.r ? ((b.node.r % 360) + 360) % 360 : 0;
+          const rot = ((b.rot % 360) + 360) % 360;
           if (rot > 0.5 && rot < 359.5) {
             const [fx, fy] = ([[0, 1], [0.5, 1], [1, 1], [0, 0.5], [0.5, 0.5], [1, 0.5], [0, 0], [0.5, 0], [1, 0]][b.bind.pv ?? b.w.pv] ?? [0.5, 0.5]) as [number, number];
             st.transformOrigin = `${fx * b.width}px ${(1 - fy) * b.height}px`;
@@ -329,7 +342,10 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           }
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
-          if (b.enter) Object.assign(st, enterStyle(b.enter));
+          if (b.enter) {
+            Object.assign(st, enterStyle(b.enter));
+            if (entered.current.has(b.key)) st.animation = "none";
+          }
           // TweenPosition between two states: glide to the new place
           if (b.move) st.transition = `left ${b.move}s cubic-bezier(0.65, 0, 0.35, 1), top ${b.move}s cubic-bezier(0.65, 0, 0.35, 1)`;
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;
@@ -343,7 +359,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             const keyText = /^[A-Z][A-Z0-9_]+$/.test(raw) ? say(raw) : "";
             const html = b.bind.html ?? (b.bind.text !== undefined ? escapeHtml(b.bind.text) : b.node.loc ? say(b.node.loc) : keyText || escapeHtml(raw));
             return (
-              <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...labelStyle(b, shrink.get(b.key)?.f ?? 1) }} title={b.bind.title} onClick={click}
+              <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...labelStyle(b, shrink.get(b.key)?.f ?? 1), ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}
                 ref={(el) => { if (el) labelRefs.current.set(b.key, el); else labelRefs.current.delete(b.key); }}>
                 <span dangerouslySetInnerHTML={{ __html: html }} />
                 {b.bind.content}
@@ -352,7 +368,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           }
           const img = imageStyle(b, atlas);
           if (!img && !click && !b.bind.content) return null;
-          return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img }} title={b.bind.title} onClick={click}>{b.bind.content}</div>;
+          return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{b.bind.content}</div>;
         });
   // hidden only until it has been complete once (a later new image must not blank a view that is already up)
   const complete = pendingImages === 0;

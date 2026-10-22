@@ -51,7 +51,6 @@ export function CampaignPage({ ui, draft, setDraft, onBack, onNext, savesFull }:
   const panel = findNode(ui.layout.root, "Panel_CampaignSelection");
   const reqNode = panel ? findNode(panel, "Warning_ProductRequired") : null;
   const reqLabel = reqNode?.ch?.find((c) => c.n === "Label_ProductRequired");
-  const reqImage = reqNode?.ch?.find((c) => c.n === "Sprite_BG")?.ch?.[0]?.n;
   const productName = req !== null ? ui.raw(ui.db.models.ProductModel?.[String(req)]?.NameKey) : "";
   const b: Binds = {
     Panel_CampaignSelection: { show: true },
@@ -79,9 +78,9 @@ export function CampaignPage({ ui, draft, setDraft, onBack, onNext, savesFull }:
     "CampaignDisplay//Sprite_Locked": { show: false }, "CampaignDisplay//Sprite_New": { show: false }, "CampaignDisplay//Sprite_Debug": { show: false },
     "CampaignDisplay//Sprite_Tutorial": { show: !!Number(m?.HasTutorial ?? 0) },
     Warning_LanguageUnavailable: { show: false },
-    Warning_ProductRequired: { show: req !== null },
+    // CampaignDisplay: the required product's box is the warning's own picture (its glow sits behind it)
+    Warning_ProductRequired: { show: req !== null, tex: req !== null ? ui.productArt[String(req)]?.Image : undefined },
     ...(reqLabel ? { "Warning_ProductRequired/Label_ProductRequired": { html: ui.say(reqLabel.loc ?? "").replace("PRODUCT_NAME", productName), color: reqOk ? undefined : [1, 0.45, 0.4, 1] } } : {}),
-    ...(reqImage && req !== null ? { [`Sprite_BG/${reqImage}`]: { tex: ui.productArt[String(req)]?.Image } } : {}),
     // CampaignSelectController.SetArrowVisibility
     Sprite_LeftArrow: { show: list.length > 3 && index > 0, onClick: () => select(list[index - 1]!) },
     Sprite_RightArrow: { show: list.length > 3 && index < list.length - 1, onClick: () => select(list[index + 1]!) },
@@ -110,6 +109,9 @@ export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProp
     "Widget_DifficultySelection/Button_Back": { onClick: onBack },
     "Widget_DifficultySelection/Button_Continue": { onClick: onNext, disabled: !d },
   };
+  b.Difficulty_Normal = { depth: 7 };
+  // the flaming sword is an animated overlay of the painted one (its saved pose does not match it): left out of the still
+  b["Difficulty_Hard//FlameSword"] = { show: false };
   for (const x of DIFF) {
     b[`${x.node}//#art`] = { onClick: () => pick(x.d) };
     b[`${x.node}/Effects`] = { show: d === x.d };
@@ -138,7 +140,9 @@ export function HeroesPage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
     HeroSelectionSlot: {
       clones: heroes.slice(first, first + IN_VIEW).map((id, i): Record<string, Bind> => ({
         // UICenterOnChild keeps the portraits around the middle of the view (the prefab's art sits 93 left of its root)
-        HeroSelectionSlot: { onClick: () => toggle(id), dx: (i - (IN_VIEW - 1) / 2) * 186 + 93 },
+        // the slot's root sits 93 right of its art and overlaps the next portrait: the frame and portrait take the clicks
+        HeroSelectionSlot: { dx: (i - (IN_VIEW - 1) / 2) * 186 + 93 },
+        Sprite_Border: { onClick: () => toggle(id) },
         Label_HeroName: { html: ui.say(H[String(id)]?.NameKey) },
         Hero_Image: { tex: ui.heroArt[String(id)]?.portrait, onClick: () => toggle(id) },
         Sprite_GlowInterior: { show: draft.heroes.includes(id) },

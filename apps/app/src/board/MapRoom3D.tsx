@@ -8,6 +8,10 @@
 // Unity's scene is mirrored on x by the exporter (like the battleboards).
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { applyActive, loadGltf, nameOf, smoothCutout } from "./Battleboard3D.tsx";
 import { attachEmitters, type Emitter } from "./particles.ts";
 import { packText } from "../data/pack.ts";
@@ -39,6 +43,12 @@ interface Props {
 }
 
 const TILT = THREE.MathUtils.degToRad(75);
+/** the zoom (MapZoom animation): the camera lower and more level, the ground under it the same spot as before */
+const ZOOM_TILT = THREE.MathUtils.degToRad(42);
+const ZOOM_H = 5.2;
+const ZOOM_Z = 0.6 - ZOOM_H / Math.tan(ZOOM_TILT);
+const HEMI_DAY = new THREE.Color(0xfff0dc), HEMI_NIGHT = new THREE.Color(0xffb070);
+const KEY_DAY = new THREE.Color(0xffe2b8), KEY_NIGHT = new THREE.Color(0xff9a4a);
 /** MapRoomVisuals.ZoomCamera / MoveCameraTo: the rig stops this far from the location (Unity x mirrored) */
 const RIG_OFFSET = new THREE.Vector3(2.25, 0, -3);
 
@@ -58,10 +68,23 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d0a07);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
-    scene.add(new THREE.HemisphereLight(0xfff0dc, 0x2a2016, 1.15));
+    // lighting: the title screen's background keeps a bright, even light; the travel map is the scene as it is - a dark
+    // room (RenderSettings: flat ambient 0.06, 0.16, 0.39 x 1.33) lit by its candles and lamps
+    const hemi = new THREE.HemisphereLight(0xfff0dc, 0x2a2016, 1.15);
+    scene.add(hemi);
     const key = new THREE.DirectionalLight(0xffe2b8, 1.4);
     key.position.set(-6, 20, -8);
     scene.add(key);
+    const ambient = new THREE.AmbientLight(new THREE.Color().setRGB(0.06, 0.158, 0.39, THREE.SRGBColorSpace), 0);
+    scene.add(ambient);
+    const sceneLights: THREE.Light[] = [];
+    // MapZoom: depth of field around the location (the rest of the map blurred)
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bokeh = new BokehPass(scene, camera, { focus: 10, aperture: 0.004, maxblur: 0.012 });
+    composer.addPass(bokeh);
+    composer.addPass(new OutputPass());
+    const bokehU = (bokeh as unknown as { uniforms: Record<string, { value: number }> }).uniforms;
     const s = { root: null as THREE.Object3D | null, info: null as MapRoomInfo | null, byGoid: new Map<number, THREE.Object3D>(), grow: [] as { o: THREE.Object3D; t: number; delay: number }[] };
     st.current = s;
     let emitters: Emitter[] = [];
@@ -75,7 +98,16 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         const ud = o.userData ?? {};
         if (typeof ud.goid === "number") s.byGoid.set(ud.goid, o);
         const m = o as THREE.Mesh;
-        if (m.isMesh) smoothCutout(m);
+        if (m.isMesh) {
+          smoothCutout(m);
+          // the map is four quarters (Map0..3) side by side: no wrap-around at their edges (it showed as seams)
+          if (/^(Main)?Map\d?/.test(nameOf(o))) {
+            for (const mat of ([] as THREE.Material[]).concat(m.material)) {
+              const t = (mat as THREE.MeshStandardMaterial).map;
+              if (t) { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true; }
+            }
+          }
+        }
         // the scene's lights (candles, the campfire, the fill lights), at their world scale
         const L = ud.light as { type: number; color: number[]; intensity: number; range: number } | undefined;
         if (L && o.visible !== false) {
@@ -85,8 +117,12 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
             const d = new THREE.DirectionalLight(c, L.intensity * 0.8);
             d.position.set(0, 0, 0);
             o.add(d);
+            sceneLights.push(d);
           } else if (L.type === 2) {
-            o.add(new THREE.PointLight(c, L.intensity * 2.2, L.range * Math.max(ws.x, ws.y, ws.z) * 1.4, 1.2));
+            const pl = new THREE.PointLight(c, L.intensity * 2.2, L.range * Math.max(ws.x, ws.y, ws.z) * 1.4, 1.2);
+            pl.userData.base = pl.intensity;
+            o.add(pl);
+            sceneLights.push(pl);
           }
         }
       });
@@ -109,6 +145,8 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
     let tilt = TILT, tiltTo = TILT;
     let first = true;
     let lastPx: [number, number] | null = null;
+    let dof = false;
+    let hemiMix = 0;
     const locationOf = (adv: number | null): THREE.Object3D | null => {
       if (adv === null || !s.info) return null;
       const l = s.info.locations.find((x) => x.ids.includes(adv));
@@ -131,7 +169,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       } else {
         // ZoomCamera: the rig to the location, the camera down (the MapZoom animation)
         if (lp) rigTo.copy(lp).add(RIG_OFFSET).setY(0);
-        localTo.set(0, 8.2, -1.6); tiltTo = TILT;
+        localTo.set(0, ZOOM_H, ZOOM_Z); tiltTo = ZOOM_TILT;
       }
       const k = first ? 1 : 1 - Math.exp(-dt * 2.4);
       first = false;
@@ -140,6 +178,23 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       tilt += (tiltTo - tilt) * k;
       camera.position.copy(rig).add(local);
       camera.lookAt(camera.position.clone().add(new THREE.Vector3(0, -Math.sin(tilt), Math.cos(tilt))));
+      // lights by view (eased like the camera): bright for the title pages, the dark room for the travel map
+      const dark = v === "map" || v === "zoom" ? 1 : 0;
+      const lk = 1 - Math.exp(-dt * 2);
+      // (tuned by eye against the original's travel map: warm orange candlelight, dim edges, bluish shadows)
+      hemi.intensity += ((1 - dark) * 1.15 + dark * 0.75 - hemi.intensity) * lk;
+      key.intensity += ((1 - dark) * 1.4 + dark * 0.9 - key.intensity) * lk;
+      ambient.intensity += (dark * 0.3 - ambient.intensity) * lk;
+      hemi.color.lerpColors(HEMI_DAY, HEMI_NIGHT, hemiMix += (dark - hemiMix) * lk);
+      key.color.lerpColors(KEY_DAY, KEY_NIGHT, hemiMix);
+      for (const l of sceneLights) {
+        const base = (l.userData.base as number | undefined) ?? l.intensity;
+        l.userData.base = base;
+        l.intensity = base * (1 + dark * 1.6);
+      }
+      // depth of field on the location when zoomed in
+      dof = v === "zoom" && !!lp;
+      if (dof && lp) bokehU.focus!.value = camera.position.distanceTo(lp);
       // the location name follows the location on screen
       // (reported when it moved: the page re-renders on it)
       const cb = props.current.onFocusPx;
@@ -159,6 +214,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
     const resize = () => {
       const w = el.clientWidth, h = el.clientHeight;
       renderer.setSize(w, h);
+      composer.setSize(w, h);
       camera.aspect = w / Math.max(1, h);
       camera.updateProjectionMatrix();
     };
@@ -189,7 +245,8 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         if (shown) e.step(dt, camera);
         return !e.done;
       });
-      renderer.render(scene, camera);
+      if (dof) composer.render(dt);
+      else renderer.render(scene, camera);
     };
     tick();
     (window as any).__maproom = { scene, camera, state: s };
@@ -197,6 +254,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       alive = false;
       cancelAnimationFrame(raf);
       ro.disconnect();
+      composer.dispose();
       renderer.dispose();
       el.removeChild(renderer.domElement);
       st.current = null;
@@ -236,5 +294,10 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
   };
   useEffect(refresh, [ready, focus, completed.join(","), showRecent, view]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <div ref={host} className={`maproom ${className ?? ""}`} />;
+  // the travel map's darkened edges (the original's camera vignette)
+  return (
+    <div ref={host} className={`maproom ${className ?? ""}`}>
+      <div className={`maproom-vignette${view === "map" || view === "zoom" ? " on" : ""}`} />
+    </div>
+  );
 }

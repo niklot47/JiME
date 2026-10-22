@@ -3,7 +3,7 @@
 #   images/ui/layouts/ui.json   { "root": <node>, "fonts": {<UIFont path id>: "text"|"title"}, "size": [1280, 720] }
 #   images/ui/tex/<file>_<pid>.png   UITexture / UI2DSprite images
 # node: { n: name, id: GameObject path id, tr: Transform path id (anchor targets), on: active, p: [x, y], s: [sx, sy], r: z degrees, ch: [nodes],
-#         w: widget (see widget()), panel: {d: depth, clip: [cx, cy, w, h] | null, off: clip offset}, btn: {hover, pressed, disabled, dur},
+#         w: widget (see widget()), panel: {d: depth, clip: [cx, cy, w, h] | null, off: clip offset, soft: [sx, sy]}, btn: {hover, pressed, disabled, dur},
 #         tw: [tweens], loc: localization key }
 # "prefabs": { "<GameObject>/<Controller>.<field>": node } - UI prefabs the scene's scripts instantiate at runtime (campaign cards, hero slots,
 #   save slots ...), exported the same way; their ids are renumbered from PREFAB_ID0 up (bundle path ids may not fit a JS number)
@@ -199,6 +199,10 @@ def mesh_art(gid, comps):
         meo = deref(mf.assets_file, mesh_ref["m_FileID"], mesh_ref["m_PathID"])
         if mo is None: return None
         md = mo.read_typetree()
+        # draw order of the pieces of one picture: the material's render queue (3004..3009 on the difficulty art),
+        # else Renderer.sortingOrder
+        rq = int(md.get("m_CustomRenderQueue", -1) or -1)
+        order = rq - 3000 if rq >= 3000 else int(md_.get("m_SortingOrder", 0) or 0)
         maf = mo.assets_file
         main = tex_env(md, "_MainTex") or tex_env(md, "_Diffuse")
         if main is None: return None
@@ -250,7 +254,7 @@ def mesh_art(gid, comps):
         fn = f"art_{mf.assets_file.name.split('.')[0]}_{gid}.png"
         img.save(os.path.join(TEX, fn))
         _art[key] = {"n": "#art", "id": -gid, "p": [r3((x0 + x1) / 2), r3((y0 + y1) / 2)],
-                     "w": {"k": "texture", "w": r3(bw), "h": r3(bh), "pv": 4, "d": 0, "tex": f"images/ui/tex/{fn}"}}
+                     "w": {"k": "texture", "w": r3(bw), "h": r3(bh), "pv": 4, "d": order, "tex": f"images/ui/tex/{fn}"}}
     except Exception as e:
         print("mesh art failed", gid, e)
     return _art[key]
@@ -284,6 +288,9 @@ def node(gid, F=F):
             n["panel"] = {"d": d.get("mDepth", 0), "clip": [r3(cr.get("x", 0)), r3(cr.get("y", 0)), r3(cr.get("z", 0)), r3(cr.get("w", 0))] if clip else None}
             off = d.get("mClipOffset") or {}
             if clip and (off.get("x") or off.get("y")): n["panel"]["off"] = [r3(off.get("x", 0)), r3(off.get("y", 0))]
+            # UIDrawCall.Clipping.SoftClip (3): the contents fade out over this many units at the region's edges
+            soft = d.get("mClipSoftness") or {}
+            if clip == 3 and (soft.get("x") or soft.get("y")): n["panel"]["soft"] = [r3(soft.get("x", 0)), r3(soft.get("y", 0))]
             an = [anchor(d.get(k)) for k in ("leftAnchor", "rightAnchor", "bottomAnchor", "topAnchor")]
             if clip and any(a and a[0] for a in an): n["panel"]["an"] = an  # UIPanel.OnAnchor: the clip region follows them
         elif cls in ("UIButton", "UIButtonColor"):

@@ -13,6 +13,13 @@ import type { Atlas, Say } from "./ui.ts";
 
 const top = (layout: UiLayoutFile, name: string): UiNode | null => (layout.root.ch ?? []).find((c) => c.n === name) ?? null;
 const SCALES = [1, 0.9, 0.8, 0.7, 0.6];
+/**
+ * The options list scrolls inside the window (the layout has no scroll view there; more options will come): the region
+ * in Grid_Option_Widgets' units (it sits at -320, -22), from the window's top border to above its bottom border, and
+ * how far the list can move to show its last row
+ */
+const OPTIONS_CLIP: [number, number, number, number] = [320, 20, 900, 540];
+const OPTIONS_SCROLL = 45;
 const LANG_NAMES: Record<string, string> = { en: "English", ru: "Русский", it: "Italiano", de: "Deutsch", fr: "Français", es: "Español", pl: "Polski" };
 
 export interface MenuExtra { label: string; onClick: () => void; disabled?: boolean }
@@ -28,6 +35,9 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   const [page, setPage] = useState<"menu" | "options" | "camera" | "surrender">(optionsOnly ? "options" : "menu");
   const back = () => (optionsOnly ? onClose() : setPage("menu"));
   const [s, setS] = useState(sound.settings);
+  const [scroll, setScroll] = useState(0);
+  const scrollBy = (d: number) => setScroll((v) => Math.max(0, Math.min(OPTIONS_SCROLL, v + d)));
+  const [touchY, setTouchY] = useState<number | null>(null);
   useEffect(() => sound.onChange(() => setS(sound.settings)), []);
   const menu = top(layout, "Page_Menu");
   const options = top(layout, "Panel_Options");
@@ -67,6 +77,8 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
   // ---- options page
   const o: Binds = {
     Panel_Options: { show: true },
+    // a scroll view over the options: the rows move, the region stays (clip offset against the scroll), soft edges
+    Grid_Option_Widgets: { dy: scroll, clipPanel: { clip: OPTIONS_CLIP, off: [0, -scroll], soft: [0, 10] } },
     "Panel_Options/z_Darkening": { onClick: back },
     Dialog_LanguageChangeConfirmation: { show: false },
     Panel_GraphicSettings: { show: false },
@@ -104,7 +116,16 @@ export function NguiMenu({ layout, atlas, say, extras, langs, lang, labels, onLa
 
   // keyed: each page is its own view (hidden until its images are ready, no flash of untinted parts)
   let view: ReactNode = <NguiView key="menu" layout={layout} atlas={atlas} show={[menu]} binds={b} say={say} className="ngui-menu" />;
-  if (page === "options") view = <NguiView key="options" layout={layout} atlas={atlas} show={[options]} binds={o} say={say} className="ngui-menu" />;
+  if (page === "options") {
+    view = (
+      <div className="ngui-wheel" onWheel={(e) => scrollBy(e.deltaY > 0 ? 30 : -30)}
+        onTouchStart={(e) => setTouchY(e.touches[0]?.clientY ?? null)}
+        onTouchMove={(e) => { const y = e.touches[0]?.clientY; if (touchY !== null && y !== undefined) { scrollBy((touchY - y) * 0.6); setTouchY(y); } }}
+        onTouchEnd={() => setTouchY(null)}>
+        <NguiView key="options" layout={layout} atlas={atlas} show={[options]} binds={o} say={say} className="ngui-menu" />
+      </div>
+    );
+  }
   return <div className="ngui-modal">{view}</div>;
 }
 

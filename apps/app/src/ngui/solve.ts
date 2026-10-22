@@ -71,6 +71,9 @@ export interface Bind {
   step?: [number, number];
   /** entrance animation of the subtree when it appears */
   enter?: Enter;
+  /** make the node a clipping panel (a scroll view the layout does not have): region [cx, cy, w, h] around the node,
+   *  off: the clip offset (minus the scroll, so the region stays while the contents move), soft: fading edges */
+  clipPanel?: { clip: [number, number, number, number]; off?: [number, number]; soft?: [number, number] };
   /** seconds: a change of place glides there (a position tween between two states, e.g. the rest's heroes moving
    *  down for the role selection); applies to the subtree */
   move?: number;
@@ -97,8 +100,11 @@ export interface Box {
   /** the parent's position (same space as left / top) */
   px: number;
   py: number;
-  /** the region of the nearest clipping panel (UIPanel softness / alpha clip), same space as left / top */
-  clip?: { l: number; t: number; r: number; b: number };
+  /** the region of the nearest clipping panel (UIPanel softness / alpha clip), same space as left / top; sx / sy: the
+   *  soft clip's fade width at the sides / top and bottom */
+  clip?: { l: number; t: number; r: number; b: number; sx?: number; sy?: number };
+  /** total rotation (degrees, counter-clockwise as in Unity) of the node and its parents */
+  rot: number;
   /** the entrance animation (own or an ancestor's) */
   enter?: Enter;
   /** the gliding time of place changes (own or an ancestor's) */
@@ -108,7 +114,7 @@ export interface Box {
 export interface Measured { w: number; h: number }
 
 const PIVOT: Record<number, [number, number]> = { 0: [0, 1], 1: [0.5, 1], 2: [1, 1], 3: [0, 0.5], 4: [0.5, 0.5], 5: [1, 0.5], 6: [0, 0], 7: [0.5, 0], 8: [1, 0] };
-type Rect = { l: number; r: number; b: number; t: number };
+type Rect = { l: number; r: number; b: number; t: number; sx?: number; sy?: number };
 
 /**
  * screenW: width of the screen in UI units (720 * aspect); the root's origin is the screen centre.
@@ -128,7 +134,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
-      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number) => {
+      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, rot = 0) => {
       const b = bindOf(bs, anc, n.n);
       ent = b.enter ?? ent;
       mv = b.move ?? mv;
@@ -140,7 +146,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
           // the copy's own bind replaces the one that matched (any of its key forms), so it wins inside the copy
           const own = cb[n.n] ?? {};
           const nb: Binds = { ...bs, ...cb, [bindKeyOf(bs, anc, n.n) ?? n.n]: { ...b, ...own, clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (own.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (own.dy ?? 0) } };
-          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip, ent, mv);
+          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip, ent, mv, rot);
         });
         return;
       }
@@ -150,8 +156,11 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       const end = restState(n);
       const lx = (b.at?.[0] ?? at?.[0] ?? end.p?.[0] ?? n.p?.[0] ?? 0) + (b.dx ?? 0), ly = (b.at?.[1] ?? at?.[1] ?? end.p?.[1] ?? n.p?.[1] ?? 0) + (b.dy ?? 0);
       const pin = b.pin ?? "";
-      let x = n === root && rootIsScreen ? 0 : px + lx * sx + (pin.includes("left") ? 640 - screenW / 2 : pin.includes("right") ? screenW / 2 - 640 : 0);
-      let y = n === root && rootIsScreen ? 0 : py + ly * sy + (pin.includes("top") ? (H - 720) / 2 : pin.includes("bottom") ? (720 - H) / 2 : 0);
+      // the local position turns with the parents' rotation (a rotated piece of art carries its children around)
+      const [ox, oy] = turn(lx * sx, ly * sy, rot);
+      let x = n === root && rootIsScreen ? 0 : px + ox + (pin.includes("left") ? 640 - screenW / 2 : pin.includes("right") ? screenW / 2 - 640 : 0);
+      let y = n === root && rootIsScreen ? 0 : py + oy + (pin.includes("top") ? (H - 720) / 2 : pin.includes("bottom") ? (720 - H) / 2 : 0);
+      const nrot = n === root ? 0 : rot + (n.r ?? 0);
       const nsx = n === root && rootIsScreen ? 1 : sx * (end.s?.[0] ?? n.s?.[0] ?? 1), nsy = n === root && rootIsScreen ? 1 : sy * (end.s?.[1] ?? n.s?.[1] ?? 1);
       const pd = b.depth ?? (n.panel ? n.panel.d : panel);
       const k = `${key}/${n.id}`;
@@ -193,44 +202,58 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         if (n.tr) rects.set(n.tr, rc);
         if (collect && inc && on && !w.off) {
           boxes.push({ key: k, node: n, w, bind: b, left: rc.l + screenW / 2, top: H / 2 - rc.t, width: rc.r - rc.l, height: rc.t - rc.b,
-            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py,
+            z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py, rot: nrot,
             ...(ent ? { enter: ent } : {}),
             ...(mv ? { move: mv } : {}),
-            ...(clip ? { clip: { l: clip.l + screenW / 2, r: clip.r + screenW / 2, t: H / 2 - clip.t, b: H / 2 - clip.b } } : {}) });
+            ...(clip ? { clip: { l: clip.l + screenW / 2, r: clip.r + screenW / 2, t: H / 2 - clip.t, b: H / 2 - clip.b, sx: clip.sx, sy: clip.sy } } : {}) });
         }
       } else {
         // a panel without clipping covers the screen, a clipping one its clip region (moved by the clip offset, e.g. a
         // scrolled UIScrollView); a bare transform is a point
-        const c = n.panel?.clip, co = n.panel?.off ?? [0, 0];
-        const r0 = n.panel && !c ? screen
+        const pnl = b.clipPanel ? { d: n.panel?.d ?? panel, ...b.clipPanel } : n.panel;
+        const c = pnl?.clip, co = pnl?.off ?? [0, 0];
+        const r0 = pnl && !c ? screen
           : c ? { l: x + (co[0] + c[0] - c[2] / 2) * sx, r: x + (co[0] + c[0] + c[2] / 2) * sx, b: y + (co[1] + c[1] - c[3] / 2) * sy, t: y + (co[1] + c[1] + c[3] / 2) * sy }
           : { l: x, r: x, b: y, t: y };
         // UIPanel.OnAnchor: an anchored clipping panel's region is its anchored sides
-        if (c && n.panel?.an) {
+        if (c && n.panel?.an && !b.clipPanel) {
           const side = (a: Anchor, lo: "l" | "b", hi: "r" | "t") => {
             if (!a || !a[0]) return null;
             const tr = a[0] === root.id || a[0] === root.tr ? screen : rects.get(a[0]) ?? null;
             return tr ? tr[lo] + a[1] * (tr[hi] - tr[lo]) + a[2] : null;
           };
-          const [la, ra, ba, ta] = n.panel.an;
+          const [la, ra, ba, ta] = n.panel.an!;
           r0.l = side(la!, "l", "r") ?? r0.l; r0.r = side(ra!, "l", "r") ?? r0.r;
           r0.b = side(ba!, "b", "t") ?? r0.b; r0.t = side(ta!, "b", "t") ?? r0.t;
         }
         rects.set(n.id, r0);
         if (n.tr) rects.set(n.tr, r0);
         // a clipping panel: what it holds is cut to its region (within any outer clipping panel)
-        if (c) clip = clip ? { l: Math.max(clip.l, r0.l), r: Math.min(clip.r, r0.r), b: Math.max(clip.b, r0.b), t: Math.min(clip.t, r0.t) } : { ...r0 };
+        // UIPanel soft clip: the fade at its edges (in screen units)
+        const soft = pnl?.soft;
+        if (c) {
+          clip = clip ? { l: Math.max(clip.l, r0.l), r: Math.min(clip.r, r0.r), b: Math.max(clip.b, r0.b), t: Math.min(clip.t, r0.t) } : { ...r0 };
+          if (soft) { clip.sx = soft[0] * Math.abs(sx); clip.sy = soft[1] * Math.abs(sy); }
+        }
       }
       const kids = b.extra ? [...(n.ch ?? []), ...b.extra] : n.ch ?? [];
       const na = [...anc, n.n];
       const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => bindOf(bs, na, c.n).show ?? (all && inc ? true : c.on ?? true)), b.cell) : null;
-      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip, ent, mv));
+      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip, ent, mv, nrot));
     };
     visit(root, 0, 0, 1, 1, 0, true, binds, "", false, []);
   };
   run(false); // targets laid out once, so anchors can point at later nodes too
   run(true);
   return boxes.sort((a, b) => a.z - b.z);
+}
+
+/** (x, y) turned by deg degrees counter-clockwise (Unity's z rotation, y up) */
+function turn(x: number, y: number, deg: number): [number, number] {
+  const r = ((deg % 360) + 360) % 360;
+  if (r < 0.01 || r > 359.99) return [x, y];
+  const a = (r * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+  return [x * c - y * s, x * s + y * c];
 }
 
 /** Rest state of a node's one-shot tweens (position, scale, width, height); loops and ping-pongs keep the saved state */
