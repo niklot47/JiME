@@ -297,8 +297,9 @@ export class GameNode {
   readonly token: number;
   readonly game: Game;
   readonly obj: Obj;
-  readonly tile: Tile | null;
-  readonly space: number;
+  /** the tile and space it stands on (MoveGameObjectToRandomSpace can move it) */
+  tile: Tile | null;
+  space: number;
   kind: string;
   readonly encId: number | null;
   /** battleboard: position on the boards (Unity world x, y; boards 10 wide from x = -5) and rotation about z (deg) */

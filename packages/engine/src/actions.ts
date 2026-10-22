@@ -1,6 +1,6 @@
 // FSM action handlers (PlayMaker action name -> behaviour). Port of the a_* methods of engine-py Game.
 // A handler returns an event name to fire on the current state, or nothing.
-import type { Fsm, Game } from "./game.ts";
+import type { Fsm, Game, Tile } from "./game.ts";
 import { EndGame, EnemyGroup, GameNode, NODE_KINDS, bonusCost, keyOf } from "./game.ts";
 import { gd, or, pyFloat, removeFirst, toInt, truthy } from "./py.ts";
 
@@ -538,7 +538,24 @@ export const ACTIONS: Record<string, ActionHandler> = {
     const o = nodeTarget(g, f, p);
     if (o && o.node) o.node.kind = NODE_KINDS[gd(p, "Type", 0)]!;
   },
-  MoveGameObjectToRandomSpace: noop,
+  // MoveGameObjectToRandomSpace (ffg flow, tile maps): the object's node to a random space of the explored tiles in
+  // view, of the given sections only when restricted
+  MoveGameObjectToRandomSpace: (g, f, p) => {
+    if (g.flow !== "ffg" || g.battleboard) return;
+    const o = g.objRef(f.owner.src, gd(p, "GameObject"));
+    if (!o?.node) return;
+    const restrict = g.boolean(f, gd(p, "RestrictToSections"));
+    const forced: number[] = or(gd(p, "ForcedSectionIds"), []).map(Number);
+    const spaces: [Tile, number][] = [];
+    for (const t of g.tiles.values()) {
+      if (!t.visible || !t.explored || (restrict && !forced.includes(t.section))) continue;
+      t.spaces.forEach((_, i) => spaces.push([t, i]));
+    }
+    if (!spaces.length) return;
+    const [t, i] = g.rng.choice(spaces);
+    o.node.tile = t;
+    o.node.space = i;
+  },
   RevealTerrainNodes: (g, f, p) => {
     if (!g.battleboard) {
       const n = or(gd(p, "TerrainNodes"), []).length;
