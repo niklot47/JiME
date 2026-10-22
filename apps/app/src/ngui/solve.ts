@@ -80,6 +80,8 @@ export interface Bind {
   /** make the node a clipping panel (a scroll view the layout does not have): region [cx, cy, w, h] around the node,
    *  off: the clip offset (minus the scroll, so the region stays while the contents move), soft: fading edges */
   clipPanel?: { clip: [number, number, number, number]; off?: [number, number]; soft?: [number, number] };
+  /** play the particle systems of the subtree (most UI systems are started by code, so none plays unless asked) */
+  particles?: boolean;
   /** the node's own scale (both axes; its mirroring is kept), e.g. a chosen difficulty grown by its TweenScale */
   scale?: number;
   /** a new value replays the subtree's entrance (its boxes are new elements), e.g. the campaign shown changed */
@@ -153,9 +155,10 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
-      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, o: number[] = ID, eo?: [number, number]) => {
+      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, o: number[] = ID, eo?: [number, number], pso = false) => {
       const b = bindOf(bs, anc, n.n);
       const ownEnter = !!b.enter;
+      pso = b.particles ?? pso;
       if (b.enterKey !== undefined) key = `${key}~${b.enterKey}`;
       ent = b.enter ?? ent;
       mv = b.move ?? mv;
@@ -167,7 +170,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
           // the copy's own bind replaces the one that matched (any of its key forms), so it wins inside the copy
           const own = cb[n.n] ?? {};
           const nb: Binds = { ...bs, ...cb, [bindKeyOf(bs, anc, n.n) ?? n.n]: { ...b, ...own, clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (own.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (own.dy ?? 0) } };
-          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip, ent, mv, o, eo);
+          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip, ent, mv, o, eo, pso);
         });
         return;
       }
@@ -266,13 +269,13 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       const na = [...anc, n.n];
       const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => bindOf(bs, na, c.n).show ?? (all && inc ? true : c.on ?? true)), b.cell) : null;
       // a particle system: a point box at the node, drawn by the view's particle player (above its panel's widgets)
-      if (n.ps && collect && inc && on) {
+      if (n.ps && pso && collect && inc && on) {
         boxes.push({ key: k, node: n, w: PS_WIDGET, bind: b, left: x + screenW / 2, top: H / 2 - y, width: 0, height: 0,
           z: pd * 10000 + 9990, autoH: false, autoW: false, px: px + screenW / 2, py: H / 2 - py, orient: no,
           // ParticleSystemScalingMode: hierarchy (0) takes the whole scale, local (1) its own, shape (2) none
           psK: n.ps.scaling === 0 ? Math.abs(nsx) : n.ps.scaling === 1 ? 360 * Math.abs(s0x || 1) : 360 });
       }
-      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip, ent, mv, no, eo));
+      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip, ent, mv, no, eo, pso));
     };
     visit(root, 0, 0, 1, 1, 0, true, binds, "", false, []);
   };

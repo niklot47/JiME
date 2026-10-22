@@ -68,7 +68,7 @@ export function CampaignPage({ ui, draft, setDraft, onBack, onNext, savesFull }:
           Sprite_New: { show: false }, Sprite_Debug: { show: false }, Sprite_Locked: { show: false },
           Sprite_Tutorial: { show: !!Number(C[String(id)]?.HasTutorial ?? 0) },
           // the chosen card: its glows pulse, the sparks of the interior glow's particle system fly off its edges
-          Sprite_Highlight_Interior: { show: on, pulse: [1, 0.45, 0.8] }, Sprite_Highlight_Exterior: { show: on, pulse: [1, 0.35, 0.8] },
+          Sprite_Highlight_Interior: { show: on, pulse: [1, 0.45, 0.8], particles: true }, Sprite_Highlight_Exterior: { show: on, pulse: [1, 0.35, 0.8] },
         };
       }),
     },
@@ -130,7 +130,7 @@ export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProp
     b[x.node] = { depth: on ? 9 : x.d === "normal" ? 8 : 7, scale: on ? 1.75 : 1.6, move: 0.35,
       enter: { from: e.from, via: e.via, viaAt: 0.4, holdTo: 0.62, dur: 1.4, delay: 0.1, shake: { deg: 3, delay: 0.56, dur: 0.4 } } };
     b[`${x.node}//#art`] = { onClick: () => pick(x.d) };
-    b[`${x.node}/Effects`] = { show: on, enter: { fade: true, dur: 0.35, linear: true } };
+    b[`${x.node}/Effects`] = { show: on, enter: { fade: true, dur: 0.35, linear: true }, particles: true };
   }
   // the materials' motion: the light behind the orc falls through its mask (down, a little to the left), the clouds
   // drift left and a little down, lighter
