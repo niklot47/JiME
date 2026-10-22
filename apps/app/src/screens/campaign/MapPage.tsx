@@ -6,7 +6,7 @@ import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, type UiNode } from "../../ngui/types.ts";
 import { MapRoom3D } from "../../board/MapRoom3D.tsx";
 import { SLIDE, withEnter, type TitleUi } from "../title/common.ts";
-import type { ModelArt } from "../../data/pack.ts";
+import { assetUrl, type ModelArt } from "../../data/pack.ts";
 
 export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
   ui: TitleUi; save: CampaignSave; advArt: ModelArt;
@@ -25,6 +25,13 @@ export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
     const t = setTimeout(() => setConfirm(true), 2000);
     return () => clearTimeout(t);
   }, [zoomed]);
+  // the alternatives' pictures loaded ahead (the arrows switch them without a gap under the text)
+  useEffect(() => {
+    for (const a of choices) {
+      const t = advArt[String(a)]?.LocationArt;
+      if (t) new Image().src = assetUrl(t);
+    }
+  }, [choices.join(","), advArt]); // eslint-disable-line react-hooks/exhaustive-deps
   const show = useMemo(() => [findNode(ui.layout.root, "UI_Map")].filter(Boolean) as UiNode[], [ui.layout]);
   const adv = choices[sel] ?? save.current;
   const A = ui.db.models.AdventureModel?.[String(adv)] ?? {};
@@ -44,7 +51,8 @@ export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
     Label_AdventureName: { html: ui.say(A.NameKey) },
     // the rest text a scenario left (SetRestEpilogue), else the adventure's own story
     Label_Epilogue: { html: save.restText ? ui.say(save.restText.key, save.restText.inserts) : ui.say(A.RestStoryKey) },
-    Texture_Location: { tex: advArt[String(adv)]?.LocationArt },
+    // (black under the picture while it loads)
+    Texture_Location: { tex: advArt[String(adv)]?.LocationArt, className: "ng-black" },
     Widget_MapMarker: px && zoomed ? { show: true, atPx: [px[0], px[1] + 30] } : { show: false },
     Label_Location: { html: ui.say(A.LocationKey) },
     Button_Continue: { html: ui.say(confirm ? "UI_CONFIRM" : "UI_CONTINUE"), onClick: next },

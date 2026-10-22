@@ -137,13 +137,14 @@ export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProp
     const e = ENTRY[x.d];
     b[x.node] = { depth: on ? 9 : x.d === "normal" ? 8 : 7, scale: on ? 1.75 : 1.6, move: 0.35,
       enter: { from: e.from, via: e.via, viaAt: 0.4, holdTo: 0.62, dur: 1.4, delay: 0.1, shake: { deg: 3, delay: 0.56, dur: 0.4 } } };
-    b[`${x.node}//#art`] = { onClick: () => pick(x.d) };
+    // the pictures are layered pieces: no hover tint (one piece lighting up at a time looks like flicker)
+    b[`${x.node}//#art`] = { onClick: () => pick(x.d), className: "ng-nohover" };
     b[`${x.node}/Effects`] = { show: on && landed, enter: { fade: true, dur: 0.35, linear: true }, particles: x.d === "hard" ? true : SPARKS };
   }
   // the materials' motion: the light behind the orc falls through its mask (down, a little to the left), the clouds
   // drift left and a little down, lighter
-  b["Main_Mask//#art"] = { onClick: () => pick("normal"), fxScroll: { dx: -1, dy: 3, dur: 45 } };
-  b["Clouds//#art"] = { onClick: () => pick("adventure"), fxScroll: { dx: -2, dy: 1, dur: 80, opacity: 0.7, tile: 0.6 } };
+  b["Main_Mask//#art"] = { onClick: () => pick("normal"), className: "ng-nohover", fxScroll: { dx: -1, dy: 3, dur: 45 } };
+  b["Clouds//#art"] = { onClick: () => pick("adventure"), className: "ng-nohover", fxScroll: { dx: -2, dy: 1, dur: 80, opacity: 0.7, tile: 0.6 } };
   return <Page ui={ui} panel="Panel_DifficultySelection" binds={b} />;
 }
 
@@ -167,7 +168,7 @@ export function HeroesPage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
       clones: heroes.slice(first, first + IN_VIEW).map((id, i): Record<string, Bind> => ({
         // UICenterOnChild keeps the portraits around the middle of the view (the prefab's art sits 93 left of its root)
         // the slot's root sits 93 right of its art and overlaps the next portrait: the frame and portrait take the clicks
-        HeroSelectionSlot: { dx: (i - (IN_VIEW - 1) / 2) * 186 + 93, dy: 45 },
+        HeroSelectionSlot: { dx: (i - (IN_VIEW - 1) / 2) * 186 + 93, dy: 70 },
         Sprite_Border: { onClick: () => toggle(id) },
         Label_HeroName: { html: ui.say(H[String(id)]?.NameKey) },
         Hero_Image: { tex: ui.heroArt[String(id)]?.portrait, onClick: () => toggle(id) },

@@ -248,6 +248,9 @@ def mesh_art(gid, comps):
         if rgba is None: return None
         alpha_env = tex_env(md, "_Alpha") or tex_env(md, "_Mask")
         alpha = tex_rgba(maf, alpha_env) if alpha_env else None
+        # a coloured picture as the alpha texture (the hard difficulty's FlameHighlight: a fire picture cut out by its
+        # alpha, the main texture only a grey cloud the ramp colours): the picture's own colours are the flame's
+        alpha_pic = alpha is not None and float(np.abs(alpha[..., 0] - alpha[..., 2]).mean()) > 0.05
         tint = dict(md["m_SavedProperties"].get("m_Colors", [])).get("_TintColor")
         # the material's animation, played by the app over the still picture:
         #   FlameDistortion: the picture wobbles by a scrolling noise (strength in UV units, speed)
@@ -304,6 +307,7 @@ def mesh_art(gid, comps):
             if not inside.any(): continue
             uv = l1[inside, None] * U[a] + l2[inside, None] * U[b] + l3[inside, None] * U[c]
             px = sample(rgba, uv, main)
+            am = None
             if alpha is not None:
                 am = sample(alpha, uv, alpha_env)
                 # an alpha / mask texture: its alpha channel when it has one, else its grey level
@@ -317,6 +321,10 @@ def mesh_art(gid, comps):
                 # (the ramp's own colours: _Color tints the plain flames only)
                 px[:, :3] = rc[:, :3]
                 px[:, 3] *= np.clip(lum * 1.5, 0, 1)
+                if alpha_pic and am is not None:
+                    # the fire picture, its glow breathing with the cloud
+                    px[:, :3] = am[:, :3] * np.clip(0.75 + lum * 0.5, 0, 1.25)[:, None]
+                    px[:, 3] = am[:, 3] * np.clip(0.55 + lum * 0.6, 0, 1)
             out[inside] = np.clip(px, 0, 1)
         img = Image.fromarray((out.reshape(H, W, 4) * 255).astype(np.uint8), "RGBA")
         fn = f"art_{mf.assets_file.name.split('.')[0]}_{gid}.png"
@@ -418,9 +426,27 @@ def main():
     fonts = {f"{k[2]}": {"role": v[0], "name": v[1]} for k, v in _fonts.items()}
     with open(os.path.join(OUT, "ui.json"), "w", encoding="utf-8") as fp:
         json.dump({"size": [1280, 720], "root": tree, "fonts": fonts, "prefabs": prefabs}, fp, ensure_ascii=False, separators=(",", ":"))
+    export_cursor()
     count = lambda n: 1 + sum(count(c) for c in n.get("ch", []))
     print(f"ui prefabs: {len(prefabs)} ({sum(count(p) for p in prefabs.values())} nodes)")
     print(f"ui layouts: {count(tree)} nodes, {len([v for v in _tex.values() if v])} textures, fonts {fonts} -> {OUT}")
+
+def export_cursor():
+    """PlayerSettings.defaultCursor (the silver arrow), cut to its drawn part -> images/ui/cursor.png (+ hotspot)"""
+    gm = FILES.get("globalgamemanagers")
+    ps = next((o for o in gm.objects.values() if o.type.name == "PlayerSettings"), None) if gm else None
+    if ps is None: return
+    t = ps.read_typetree()
+    pp, hs = t.get("defaultCursor") or {}, t.get("cursorHotspot") or {"x": 0, "y": 0}
+    o = deref(gm, pp.get("m_FileID", 0), pp.get("m_PathID", 0))
+    if o is None: return
+    img = o.read().image.convert("RGBA")
+    bb = img.getbbox()
+    if bb: img = img.crop((0, 0, max(bb[2], int(hs["x"]) + 1), max(bb[3], int(hs["y"]) + 1)))
+    img.save(os.path.join(PACK, "images", "ui", "cursor.png"))
+    with open(os.path.join(PACK, "images", "ui", "cursor.json"), "w", encoding="utf-8") as fp:
+        json.dump({"hotspot": [int(hs["x"]), int(hs["y"])]}, fp)
+    print("cursor", img.size, hs)
 
 if __name__ == "__main__":
     main()

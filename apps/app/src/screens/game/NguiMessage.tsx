@@ -11,6 +11,11 @@ import type { Atlas, Say } from "./ui.ts";
 /** MessagePopup.InitializePlacement for PopupOptions.PopupCenterOn.Top: LocalPositionTop (0, 215) + 0.5 * label.minHeight (2) */
 const TOP: [number, number] = [0, 216];
 const MAX_CHOICES = 5; // ButtonMultipleChoice0..4 (+ the cancel button) in the layout
+/** line breaks around a button's text (some localized choices start with "\n\n"): off, so it stays centred */
+const BREAK = String.raw`(?:\s|<br\s*\/?>|\n)+`;
+const trimBreaks = (html: string) => html
+  .replace(new RegExp(`^((?:<(?!br)[^>]+>)*)${BREAK}`), "$1")
+  .replace(new RegExp(`${BREAK}((?:<\/[^>]+>)*)$`), "$1");
 
 /** MessageAdditionalInfo of an enemy attack: physical damage, fear, extra effect key */
 export interface AttackInfo { physical: number; fear: number; effect: string | null }
@@ -70,7 +75,7 @@ export function NguiMessage({ layout, atlas, say, content, party = [] }: {
       case "choice": {
         b.Grid_MultipleChoice = { show: true };
         d.choices.slice(0, MAX_CHOICES).forEach((c, i) =>
-          btn(`ButtonMultipleChoice${i}`, () => content.onAnswer(i), { node: `Label_Choice${i}`, html: say(c.key, c.inserts) || `#${i + 1}` }));
+          btn(`ButtonMultipleChoice${i}`, () => content.onAnswer(i), { node: `Label_Choice${i}`, html: trimBreaks(say(c.key, c.inserts)) || `#${i + 1}` }));
         for (let i = d.choices.length; i < MAX_CHOICES; i++) b[`ButtonMultipleChoice${i}`] = { show: false };
         b.ButtonCancelMultipleChoice = d.canCancel ? { show: true, onClick: () => content.onAnswer(null) } : { show: false };
         break;

@@ -375,7 +375,11 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui-root { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .ngui .ng { position: absolute; box-sizing: border-box; pointer-events: none; }
 .ngui .ng-click { pointer-events: auto; cursor: pointer; }
+.ngui .ng-black { background-color: #000; }
+/* the game's own cursor everywhere (the original has no hand over buttons); text fields keep the caret */
+html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui-cursor) !important; }
 .ngui .ng-click:hover { filter: brightness(1.12); }
+.ngui .ng-click.ng-nohover:hover, .ngui .ng-click.ng-nohover:active { filter: none; }
 .ngui .ng-click:active { filter: brightness(0.9); }
 .ngui .ng-disabled { filter: grayscale(0.7) brightness(0.6); }
 .ngui .ng-label span { display: block; }
@@ -482,6 +486,9 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 @keyframes ng-leave { to { translate: var(--ng-x, 0) var(--ng-y, 0); opacity: var(--ng-out, 0); } }
 .ng-leaving { pointer-events: none; }
 .ng-leaving .ngui .ng { animation: ng-leave 0.35s cubic-bezier(0.65, 0, 0.35, 1) 0s both !important; }
+/* a slide under a clip leaves with the clip held in place (its insets move against the slide) */
+@keyframes ng-leave-clip { to { translate: var(--ng-x, 0) var(--ng-y, 0); opacity: var(--ng-out, 0); clip-path: var(--ng-clip0); } }
+.ng-leaving .ngui .ng.ng-clipslide { animation: ng-leave-clip 0.35s cubic-bezier(0.65, 0, 0.35, 1) 0s both !important; }
 /* the scene transitioner (ui/curtain.tsx) */
 .scene-curtain { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition-property: opacity;
   transition-timing-function: linear; z-index: 10000; }
@@ -489,7 +496,8 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 
 /* the travel map's vignette (MapRoom3D) */
 .maproom-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s;
-  background: radial-gradient(ellipse at 45% 42%, transparent 25%, rgba(8, 3, 0, 0.55) 62%, rgba(4, 2, 0, 0.92) 100%); }
+  background: radial-gradient(ellipse at 45% 42%, transparent 18%, rgba(8, 3, 0, 0.6) 55%, rgba(3, 1, 0, 0.97) 100%),
+    linear-gradient(to right, rgba(3, 1, 0, 0.55), transparent 22%, transparent 78%, rgba(3, 1, 0, 0.55)); }
 /* the candle-lit room: the picture graded warmer and with more contrast (the original's orange, deep shadows) */
 .maproom canvas { transition: filter 1s; }
 .maproom-dark canvas { filter: sepia(0.6) saturate(2.2) contrast(1.15) brightness(1.08); }

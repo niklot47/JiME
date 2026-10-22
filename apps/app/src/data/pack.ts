@@ -322,4 +322,16 @@ export async function installTheme(choice = themeChoice()): Promise<void> {
     else root.style.removeProperty(`--ui-${role}`);
   }
   root.classList.toggle("theme-original", Object.keys(art).length > 0);
+  // the game's own mouse cursor (PlayerSettings.defaultCursor: images/ui/cursor.png from export_ui_layouts.py)
+  let cursor: string | null = null;
+  if (choice === "original") {
+    try {
+      const c = JSON.parse(await packText("images/ui/cursor.json")) as { hotspot?: [number, number] };
+      const [x, y] = c.hotspot ?? [0, 0];
+      cursor = `url("${assetUrl("images/ui/cursor.png")}") ${x} ${y}, auto`;
+    } catch { /* no cursor in the packs */ }
+  }
+  if (cursor) root.style.setProperty("--ui-cursor", cursor);
+  else root.style.removeProperty("--ui-cursor");
+  root.classList.toggle("game-cursor", !!cursor);
 }

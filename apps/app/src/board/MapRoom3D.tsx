@@ -90,6 +90,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
     const s = { root: null as THREE.Object3D | null, info: null as MapRoomInfo | null, byGoid: new Map<number, THREE.Object3D>(), grow: [] as { o: THREE.Object3D; t: number; delay: number }[] };
     st.current = s;
     let emitters: Emitter[] = [];
+    const flicker: THREE.Object3D[] = [];
     let alive = true;
     void Promise.all([loadGltf("maproom/maproom.glb"), loadInfo()]).then(([g, info]) => {
       if (!alive) return;
@@ -126,9 +127,42 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
           } else if (L.type === 2) {
             const pl = new THREE.PointLight(c, L.intensity * 2.2, L.range * Math.max(ws.x, ws.y, ws.z) * 1.4, 1.2);
             pl.userData.base = pl.intensity;
+            // the campfire's own light stays small (boosted like the room's lights it washed the map out around it)
+            pl.userData.boost = /campfire/i.test(nameOf(o)) ? -0.8 : 3;
             o.add(pl);
             sceneLights.push(pl);
           }
+        }
+      });
+      // the candle's light and flame flicker (the light nearest the candle flame's emitter)
+      const flame = (() => { let f: THREE.Object3D | null = null; root.traverse((o) => { if (!f && nameOf(o) === "FX-CandleFlame") f = o; }); return f as THREE.Object3D | null; })();
+      if (flame) {
+        const fp = flame.getWorldPosition(new THREE.Vector3());
+        let best: THREE.Light | null = null, bd = 3;
+        for (const l of sceneLights) { const d = l.getWorldPosition(new THREE.Vector3()).distanceTo(fp); if (d < bd) { bd = d; best = l; } }
+        if (best) best.userData.flicker = true;
+        flame.userData.flicker = flame.scale.clone();
+        flicker.push(flame);
+      }
+      // the inkwell stands on the papers under it, not sunk into a curled sheet
+      root.traverse((o) => {
+        if (nameOf(o) !== "Inkwell_1" || !o.parent) return;
+        const bb = new THREE.Box3().setFromObject(o);
+        const c = bb.getCenter(new THREE.Vector3()), r = Math.min(bb.max.x - bb.min.x, bb.max.z - bb.min.z) * 0.35;
+        const others: THREE.Object3D[] = [];
+        root.traverse((x) => { if ((x as THREE.Mesh).isMesh && x.visible) { let in_ = false; for (let p: THREE.Object3D | null = x; p; p = p.parent) if (p === o) in_ = true; if (!in_) others.push(x); } });
+        const ray = new THREE.Raycaster();
+        let top = -Infinity;
+        for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]] as const) {
+          ray.set(new THREE.Vector3(c.x + dx, bb.max.y + 20, c.z + dz), new THREE.Vector3(0, -1, 0));
+          const h = ray.intersectObjects(others, false)[0];
+          if (h) top = Math.max(top, h.point.y);
+        }
+        if (top > bb.min.y + 0.01) {
+          const w0 = o.getWorldPosition(new THREE.Vector3());
+          const w1 = w0.clone().setY(w0.y + top - bb.min.y);
+          o.position.copy(o.parent.worldToLocal(w1));
+          o.updateMatrixWorld(true);
         }
       });
       // the camera rig of the scene is ours
@@ -189,15 +223,22 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       // (tuned by eye against the original's travel map: warm orange candlelight, dim edges, bluish shadows)
       // (the original's travel map: high contrast, orange, the light falling off towards the edges - little fill light,
       // the candles and lamps doing the work)
-      hemi.intensity += ((1 - dark) * 1.15 + dark * 0.5 - hemi.intensity) * lk;
-      key.intensity += ((1 - dark) * 1.4 + dark * 0.7 - key.intensity) * lk;
+      hemi.intensity += ((1 - dark) * 1.15 + dark * 0.42 - hemi.intensity) * lk;
+      key.intensity += ((1 - dark) * 1.4 + dark * 0.6 - key.intensity) * lk;
       ambient.intensity += (dark * 0.12 - ambient.intensity) * lk;
       hemi.color.lerpColors(HEMI_DAY, HEMI_NIGHT, hemiMix += (dark - hemiMix) * lk);
       key.color.lerpColors(KEY_DAY, KEY_NIGHT, hemiMix);
       for (const l of sceneLights) {
         const base = (l.userData.base as number | undefined) ?? l.intensity;
         l.userData.base = base;
-        l.intensity = base * (1 + dark * 3);
+        l.intensity = base * (1 + dark * ((l.userData.boost as number | undefined) ?? 3));
+        // a candle flame: two slow waves and a quick one (never fully steady, never jumping)
+        if (l.userData.flicker) l.intensity *= 1 + 0.1 * Math.sin(t * 7.3) * Math.sin(t * 2.1) + 0.05 * Math.sin(t * 23.7 + Math.sin(t * 3.1) * 2);
+      }
+      for (const f of flicker) {
+        const s0 = f.userData.flicker as THREE.Vector3;
+        const k = 1 + 0.07 * Math.sin(t * 6.1) * Math.sin(t * 1.7) + 0.03 * Math.sin(t * 19.3);
+        f.scale.set(s0.x * (2 - k), s0.y * k, s0.z * (2 - k));
       }
       // depth of field on the location when zoomed in
       dof = v === "zoom" && !!lp;

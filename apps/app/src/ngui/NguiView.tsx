@@ -348,6 +348,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   const items = boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
           let softMask: CSSProperties | null = null;
+          let extraCls = "";
           if (b.clip) {
             // inside a clipping panel (scroll views): cut to its region, nothing at all when wholly outside
             const c = b.clip;
@@ -389,16 +390,19 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
           if (b.enter) {
             Object.assign(st, enterStyle(b.enter));
-            if (entered.current.has(b.key)) st.animation = "none";
-            else if (b.clip && b.enter.from && !b.enter.via && !softMask) {
+            let clipSlide = false;
+            if (b.clip && b.enter.from && !b.enter.via && !softMask) {
               // the slide moves the element and its clip-path with it: the clip's insets move the other way, so the
-              // region stays where the panel is
+              // region stays where the panel is (entering, and leaving again: .ng-clipslide)
               const c = b.clip, [dx, dy] = b.enter.from, tx = dx, ty = -dy;
               const ins = [c.t - b.top, b.left + b.width - c.r, b.top + b.height - c.b, c.l - b.left];
               const at = (o: number[]) => `inset(${ins.map((v, i) => `${v + o[i]!}px`).join(" ")})`;
               Object.assign(st, { clipPath: at([0, 0, 0, 0]), ["--ng-clip0" as string]: at([-ty, tx, ty, -tx]), ["--ng-clip1" as string]: at([0, 0, 0, 0]) });
               st.animation = (st.animation as string).replace(/^ng-enter /, "ng-enter-clip ");
+              clipSlide = true;
             }
+            if (entered.current.has(b.key)) st.animation = "none";
+            if (clipSlide) extraCls = " ng-clipslide";
           }
           if (b.bind.pulse) {
             const [a0, a1, d] = b.bind.pulse;
@@ -420,7 +424,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           // UIButton.disabledColor multiplies the sprite (a plain darkening, the hue is kept)
           const dis = b.bind.disabled && b.node.btn?.disabled;
           if (dis) st.filter = `brightness(${(((dis[0] ?? 1) + (dis[1] ?? 1) + (dis[2] ?? 1)) / 3).toFixed(3)})`;
-          const cls = `ng ng-${b.w.k}${click ? " ng-click" : ""}${b.bind.disabled ? " ng-disabled" : ""}${b.node.btn ? " ng-btn" : ""} ${b.bind.className ?? ""}`;
+          const cls = `ng ng-${b.w.k}${extraCls}${click ? " ng-click" : ""}${b.bind.disabled ? " ng-disabled" : ""}${b.node.btn ? " ng-btn" : ""} ${b.bind.className ?? ""}`;
           if (b.w.k === "label") {
             // label text: binding, its localization component, a bare key typed into the label (set by code), the saved text
             const raw = b.w.lb!.text;
