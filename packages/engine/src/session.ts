@@ -4,7 +4,7 @@
 // answers the players gave. When the interpreter needs a decision that is not in the list yet, the
 // ScriptedPlayer throws NeedInput; the Session keeps that decision as `pending`. After the answer is
 // appended, the game is replayed from scratch (~10-20 ms). Save = setup + answers; undo = drop answers.
-import { Bot, Game, generateBoard, keyOf, newCampaign, type Campaign, type ContentSource, type Difficulty, type EnemyGroup, type EnemyUnit,
+import { Bot, Game, Surrender, generateBoard, keyOf, newCampaign, type Campaign, type ContentSource, type Difficulty, type EnemyGroup, type EnemyUnit,
   type LogEntry, type Option, type Player } from "./game.ts";
 import { gd } from "./py.ts";
 import type { GeneratedMap } from "./map/mapgen.ts";
@@ -37,7 +37,7 @@ export type Decision =
  * test -> integer >= 0; attack -> hits + 100 x AttackAbilityType flags (see attackHits / attackAbilities); confirm/lastStand/lastStandType -> boolean; choice -> index or null (cancel);
  * hero -> { player, skip }; action -> option index or null (end hero turn)
  */
-export type Answer = number | boolean | null | { player: number; skip: boolean };
+export type Answer = number | boolean | null | { player: number; skip: boolean } | { surrender: true };
 
 export class NeedInput extends Error {
   readonly decision: Decision;
@@ -62,8 +62,12 @@ const describeOption = (g: Game, [kind, x]: Option): ActionOption => {
 
 const isInt = (a: unknown, min = 0, max = Infinity): a is number => Number.isInteger(a) && (a as number) >= min && (a as number) <= max;
 
+/** The "surrender" answer, accepted at any decision: the adventure ends as a defeat */
+export const isSurrender = (a: Answer): a is { surrender: true } => typeof a === "object" && a !== null && "surrender" in a;
+
 /** Throws AnswerError if `a` is not a valid answer to `d` */
 export function validateAnswer(d: Decision, a: Answer): void {
+  if (isSurrender(a)) return;
   const bad = (why: string) => { throw new AnswerError(`${d.kind}: ${why} (${JSON.stringify(a)})`); };
   switch (d.kind) {
     case "test":
@@ -105,6 +109,7 @@ export class ScriptedPlayer implements Player {
     const a = this.answers[this.i]!;
     validateAnswer(d, a);
     this.i++;
+    if (isSurrender(a)) throw new Surrender();
     return a;
   }
 

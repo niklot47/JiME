@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 const [, , scriptFile, out = "shot"] = process.argv;
 const targets = await (await fetch("http://127.0.0.1:9222/json")).json();
-const page = targets.find((t) => t.type === "page" && !t.url.startsWith("devtools"));
+const page = targets.find((t) => t.type === "page" && t.url.includes("localhost:1420")) ?? targets.find((t) => t.type === "page" && !t.url.startsWith("devtools"));
 if (!page) { console.log("no page", targets.map((t) => t.url)); process.exit(1); }
 console.log("page:", page.url);
 const ws = new WebSocket(page.webSocketDebuggerUrl);

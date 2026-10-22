@@ -44,6 +44,8 @@ export function keyOf(v: unknown): any {
 }
 
 export class EndGame extends Error {}
+/** The players gave up (UIMenuPageController.OnSurrenderConfirmation): the adventure ends as a defeat */
+export class Surrender extends Error {}
 
 export const NODE_KINDS = ["Encounter", "Explore", "Threat", "Terrain", "Darkness", "Difficult", "Fortified"];
 
@@ -1692,7 +1694,10 @@ export class Game {
       }
       this.ended = this.ended || "max_rounds";
     } catch (e) {
-      if (!(e instanceof EndGame)) throw e;
+      if (e instanceof Surrender) {
+        // GameController.SignalEndGame(isVictory: false): the adventure's failure path runs (it may still ask things)
+        try { this.ended = "surrender"; this.signalEnd(false); } catch (e2) { if (!(e2 instanceof EndGame)) throw e2; }
+      } else if (!(e instanceof EndGame)) throw e;
     }
     return this;
   }

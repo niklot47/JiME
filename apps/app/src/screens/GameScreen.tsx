@@ -383,7 +383,8 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
     else if (o.type === "provoke") provokable.set(o.uid, i);
     else if (o.type === "node") {
       const n = view.nodes.find((x) => x.uid === o.uid);
-      if (!n || n.tileId === null || !n.visible || !game.board)
+      // (battleboard tokens are picked on the boards)
+      if (!n || !n.visible || (view.battleboard ? !n.pos : n.tileId === null || !game.board))
         others.push({ i, label: `${tokenName(o.token)}${o.tile ? ` · тайл ${o.tile}` : ""}${labels ? ` (${shortName(o.name)})` : ""}` });
     } else if (o.type === "explore") {
       if (!game.board) others.push({ i, label: `Исследовать тайл ${o.tile}` });
@@ -465,7 +466,7 @@ export function GameScreen({ onBack }: { onBack: () => void }) {
               { label: "Сохранить в файл", onClick: () => download(`jime-${view.adv}-${state.save.setup.seed}.json`, state.save) },
               { label: view3d ? "Доска: 2D" : "Доска: 3D", onClick: () => toggleView(!view3d) },
             ]}
-            onSurrender={() => { setModal(null); setGame(null); }} onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
+            onSurrender={() => { setModal(null); answer({ surrender: true }); }} onQuit={() => { setModal(null); setGame(null); }} onClose={() => setModal(null)} />
         )}
         {modal === "settings" && !uiLayout && (
           <SettingsDialog atlas={atlas} say={say} view3d={view3d} labels={labels} canUndo={!!state.answers && !busy}
