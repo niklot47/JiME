@@ -6,7 +6,7 @@ import { availableXP, canTakeRole, canUpgrade, embark, firstRest, ownedRoles, ro
 import { NguiView, type Bind, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, type UiNode } from "../../ngui/types.ts";
 import { RestScene3D } from "../../board/RestScene3D.tsx";
-import type { TitleUi } from "../title/common.ts";
+import { SLIDE, withEnter, type TitleUi } from "../title/common.ts";
 
 const HERO_STEP = 135;
 const ROLE_ROW = 52.14;
@@ -91,7 +91,8 @@ export function RestPage({ ui, save, onChange, onEmbark, onMap, onQuit }: {
     "Table_Buttons/Button_Continue": { onClick: () => { setMode("roles"); setRoleHero(save.heroes.findIndex((h) => h.role < 0)); } },
     Button_SaveQuit: { onClick: onQuit },
     // ---- heroes
-    Table_Heroes: { at: [-2.1, gridY] },
+    // Table_Heroes' TweenPosition (0.75 s) between the main page and the role selection
+    Table_Heroes: { at: [-2.1, gridY], move: 0.75 },
     // the chosen hero's glow (skills page, or whose role is being picked)
     Offset_Highlight: skillsHero !== null ? { show: true, at: [heroX(skillsHero) - 2.1, gridY] }
       : mode === "roles" && roleHero !== null && roleHero >= 0 ? { show: true, at: [heroX(roleHero) - 2.1, gridY] } : { show: false },
@@ -270,6 +271,19 @@ export function RestPage({ ui, save, onChange, onEmbark, onMap, onQuit }: {
     }
   }
 
+  // the layout's TweenAlphas: UIRestScene.CoroutineRevealFirstMenu (heroes and main page fade in after 0.5 s),
+  // CoroutineToRoleSelection (the role panel after the heroes have moved), the skills / inventory pages (0.25 s), the
+  // upgrade panel and messages (0.5 s), the role popup (0.2 s, rising 20)
+  const anim = withEnter(b, null, {
+    "UI_Rest/Panel_Heroes": SLIDE.fade(0.5, 0.5),
+    "UI_Rest/Panel_Main": SLIDE.fade(0.5, 0.5),
+    "Panel_Heroes/Panel_RoleSelection": SLIDE.fade(0.5, 0.5),
+    "UI_Rest/Panel_Skills": SLIDE.fade(0.25),
+    "UI_Rest/Panel_Inventory": SLIDE.fade(0.25),
+    "Panel_Inventory/Panel_ItemUpgrade": SLIDE.fade(0.5),
+    "UI_Rest/Panel_MessagePopup": SLIDE.fade(0.5),
+    "Panel_RoleSelection/Sprite_Roles": { from: [0, -20], fade: true, dur: 0.2 },
+  });
   return (
     <>
       <RestScene3D area={Number(ui.db.models.AdventureModel?.[String(save.current)]?.RestAreaType ?? 0)} />
@@ -277,7 +291,7 @@ export function RestPage({ ui, save, onChange, onEmbark, onMap, onQuit }: {
         if (inv === "group" && !up) setGroupScroll((v) => Math.max(0, Math.min(Math.max(0, groupRows * GROUP_CELL[1] - 460), v + (e.deltaY > 0 ? GROUP_CELL[1] : -GROUP_CELL[1]))));
         else if (mode === "roles" && roleHero !== null) setRoleScroll((v) => Math.max(0, Math.min(Math.max(0, roles.length * ROLE_ROW - 316), v + (e.deltaY > 0 ? ROLE_ROW : -ROLE_ROW))));
       }}>
-        <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={b} say={ui.say} className="ngui-page" />
+        <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={anim} say={ui.say} className="ngui-page" />
       </div>
     </>
   );

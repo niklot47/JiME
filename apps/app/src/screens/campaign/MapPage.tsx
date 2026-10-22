@@ -1,11 +1,11 @@
 // The travel map between adventures (UI_Map, UIMapScene over the map room): chapter and the coming adventure (or the
 // alternatives to pick from), Continue zooms to its location with its story and art, Confirm goes to the rest.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { adventureChoices, chapterOf, type CampaignSave } from "@jime/engine";
 import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, type UiNode } from "../../ngui/types.ts";
 import { MapRoom3D } from "../../board/MapRoom3D.tsx";
-import type { TitleUi } from "../title/common.ts";
+import { SLIDE, withEnter, type TitleUi } from "../title/common.ts";
 import type { ModelArt } from "../../data/pack.ts";
 
 export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
@@ -18,6 +18,13 @@ export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
   const [sel, setSel] = useState(Math.max(0, choices.indexOf(save.current)));
   const [zoomed, setZoomed] = useState(false);
   const [px, setPx] = useState<[number, number] | null>(null);
+  // UIMapScene.CoroutineDisplayLocationName: "Confirm" 2 s after the zoom, the location marker 1.25 s later
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => {
+    if (!zoomed) return;
+    const t = setTimeout(() => setConfirm(true), 2000);
+    return () => clearTimeout(t);
+  }, [zoomed]);
   const show = useMemo(() => [findNode(ui.layout.root, "UI_Map")].filter(Boolean) as UiNode[], [ui.layout]);
   const adv = choices[sel] ?? save.current;
   const A = ui.db.models.AdventureModel?.[String(adv)] ?? {};
@@ -40,16 +47,23 @@ export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
     Texture_Location: { tex: advArt[String(adv)]?.LocationArt },
     Widget_MapMarker: px && zoomed ? { show: true, atPx: [px[0], px[1] + 30] } : { show: false },
     Label_Location: { html: ui.say(A.LocationKey) },
-    Button_Continue: { html: ui.say(zoomed ? "UI_CONFIRM" : "UI_CONTINUE"), onClick: next },
+    Button_Continue: { html: ui.say(confirm ? "UI_CONFIRM" : "UI_CONTINUE"), onClick: next },
     "Button_Continue/Sprite_Button": { onClick: next },
     "Button_Save&Quit": { onClick: onQuit },
     "Button_Save&Quit/Sprite_Button": { onClick: onQuit },
     Z_InputBlocker: { show: false },
   };
+  // the map's UI fades in over the map room; zooming in (Map_UI_ZoomIn) brings the adventure's details in while the
+  // camera flies, the location marker fades in last (its TweenAlpha, 0.5 s)
+  const anim = withEnter(b, null, {
+    "UI_Map/Widget_TitleCard": SLIDE.fade(0.5, 0.3),
+    "UI_Map/Widget_AdventureDetails": { from: [-60, 0], fade: true, dur: 0.6, delay: 0.6 },
+    "UI_Map/Widget_MapMarker": SLIDE.fade(0.5, 3.25),
+  });
   return (
     <>
       <MapRoom3D view={zoomed ? "zoom" : "map"} focus={adv} completed={save.completed} showRecent={zoomed} onFocusPx={setPx} />
-      <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={b} say={ui.say} className="ngui-page" />
+      <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={anim} say={ui.say} className="ngui-page" />
     </>
   );
 }

@@ -330,6 +330,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
           if (b.enter) Object.assign(st, enterStyle(b.enter));
+          // TweenPosition between two states: glide to the new place
+          if (b.move) st.transition = `left ${b.move}s cubic-bezier(0.65, 0, 0.35, 1), top ${b.move}s cubic-bezier(0.65, 0, 0.35, 1)`;
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;
           // UIButton.disabledColor multiplies the sprite (a plain darkening, the hue is kept)
           const dis = b.bind.disabled && b.node.btn?.disabled;
