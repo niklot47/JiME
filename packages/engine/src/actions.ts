@@ -73,7 +73,7 @@ function addItemFfg(g: Game, id: any): void {
   const m = items[String(id)] ?? {};
   const type = toInt(or(m.Type, 0)); // ItemType: 0 weapon, 1 armor, 2 item, 3 mount
   g.campaign.items.push(id);
-  if (type === 2 && g.campaign.party_skills?.includes(229)) g.addLore(2);
+  if (type === 2 && g.campaign.party_skills?.includes(229)) g.addLore(2, "UI_LORE_COLLECTOR");
   g.emit(type === 3 ? "UI_AWARD_MOUNT_FORMATTED" : "UI_AWARD_ITEM_FORMATTED", gd(m, "NameKey", ""));
   // CheckForAwardTitle: more non-mount items than heroes gives the Luckwearer title (20) to a hero
   const noMounts = g.campaign.items.filter((i: any) => toInt(or(gd(items[String(i)], "Type"), 0)) !== 3).length;

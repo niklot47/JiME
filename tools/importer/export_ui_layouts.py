@@ -182,6 +182,12 @@ def sample(img, uv, env):
     y = np.clip(((1 - v) * h).astype(int), 0, h - 1)
     return img[y, x]
 
+def save_plain(af, env, fn):
+    """a material texture saved as it is (for the app's own animation of it); its pack path"""
+    o = deref(af, env["m_Texture"]["m_FileID"], env["m_Texture"]["m_PathID"])
+    o.read().image.save(os.path.join(TEX, fn))
+    return f"images/ui/tex/{fn}"
+
 def mesh_art(gid, comps):
     """(child node | None) for a GameObject with a MeshFilter + MeshRenderer"""
     mf = next((c for c in comps if c.type.name == "MeshFilter"), None)
@@ -211,6 +217,23 @@ def mesh_art(gid, comps):
         alpha_env = tex_env(md, "_Alpha") or tex_env(md, "_Mask")
         alpha = tex_rgba(maf, alpha_env) if alpha_env else None
         tint = dict(md["m_SavedProperties"].get("m_Colors", [])).get("_TintColor")
+        # the material's animation, played by the app over the still picture:
+        #   FlameDistortion: the picture wobbles by a scrolling noise (strength in UV units, speed)
+        #   ScrollingWithMask: the diffuse texture scrolls sideways under the mask (both exported as they are)
+        shader = ""
+        try:
+            shader = deref(maf, md["m_Shader"]["m_FileID"], md["m_Shader"]["m_PathID"]).read_typetree()["m_ParsedForm"]["m_Name"]
+        except Exception:
+            pass
+        floats = dict(md["m_SavedProperties"].get("m_Floats", []))
+        fx = None
+        if shader.endswith("FlameDistortion"):
+            fx = {"k": "wobble", "s": r3(floats.get("_NoiseStrength", 0)), "v": r3(floats.get("_Speed", 0)), "rev": int(floats.get("_ReverseDirection", 0) or 0)}
+        elif shader.endswith("ScrollingWithMask") and alpha_env is not None:
+            fx = {"k": "scroll", "v": r3(floats.get("_ScrollSpeed", 0)),
+                  "tex": save_plain(maf, main, f"scroll_{mf.assets_file.name.split('.')[0]}_{gid}.png"),
+                  "mask": save_plain(maf, alpha_env, f"mask_{mf.assets_file.name.split('.')[0]}_{gid}.png"),
+                  "sx": r3(main.get("m_Scale", {"x": 1})["x"]), "sy": r3(main.get("m_Scale", {"y": 1})["y"])}
         if meo is not None:
             h = MeshHandler(meo.read()); h.process()
             V = np.array([v[:2] for v in h.m_Vertices], np.float32)
@@ -254,7 +277,7 @@ def mesh_art(gid, comps):
         fn = f"art_{mf.assets_file.name.split('.')[0]}_{gid}.png"
         img.save(os.path.join(TEX, fn))
         _art[key] = {"n": "#art", "id": -gid, "p": [r3((x0 + x1) / 2), r3((y0 + y1) / 2)],
-                     "w": {"k": "texture", "w": r3(bw), "h": r3(bh), "pv": 4, "d": order, "tex": f"images/ui/tex/{fn}"}}
+                     "w": {"k": "texture", "w": r3(bw), "h": r3(bh), "pv": 4, "d": order, "tex": f"images/ui/tex/{fn}", **({"fx": fx} if fx else {})}}
     except Exception as e:
         print("mesh art failed", gid, e)
     return _art[key]

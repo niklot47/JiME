@@ -275,6 +275,10 @@ export function GameScreen({ onBack, campaign }: { onBack: () => void; campaign?
   const [provoking, setProvoking] = useState(false);
   const [calloutPx, setCalloutPx] = useState<[number, number] | null>(null);
   const [loreGain, setLoreGain] = useState<{ key: number; amount: number } | null>(null);
+  // UI_Game.LoreDetailWindow: after the "+N Lore" animation, the gains of that moment with their sources (when one
+  // came from a skill), until closed
+  const [loreDetail, setLoreDetail] = useState<{ amount: number; source: string | null }[] | null>(null);
+  const [loreDetailShown, setLoreDetailShown] = useState(false);
   // GameController / Adventure: "Saving..." (Label_AutoSaving) after ROUND_START, once the round's messages are read
   const [saving, setSaving] = useState(false);
   const idleRound = useRef(-1);
@@ -288,9 +292,9 @@ export function GameScreen({ onBack, campaign }: { onBack: () => void; campaign?
   });
   useEffect(() => {
     if (!loreGain) return;
-    const t = setTimeout(() => setLoreGain(null), 2600);
+    const t = setTimeout(() => { setLoreGain(null); setLoreDetailShown((s) => s || !!loreDetail?.some((l) => l.source)); }, 2600);
     return () => clearTimeout(t);
-  }, [loreGain]);
+  }, [loreGain]); // eslint-disable-line react-hooks/exhaustive-deps
   // the NGUI combat card resolves the hits itself: the attack action is answered, then its damage question
   const attackHits = useRef<{ uid: number; answer: number } | null>(null);
   useEffect(() => {
@@ -313,7 +317,13 @@ export function GameScreen({ onBack, campaign }: { onBack: () => void; campaign?
     const added = next.log.slice(prev.log.length);
     setUnread((u) => [...u, ...added]);
     const lore = next.view.campaign.lore - prev.view.campaign.lore;
-    if (lore) setLoreGain((g) => ({ key: (g?.key ?? 0) + 1, amount: lore }));
+    if (lore) {
+      // a gain while the animation runs adds to it (AnimateLoreGain while _loreTweening), a new one starts the list
+      const gains = (next.view.loreLog ?? []).slice((prev.view.loreLog ?? []).length);
+      setLoreDetail((d) => (loreGain && d ? [...d, ...gains] : gains));
+      setLoreDetailShown(false);
+      setLoreGain((g) => ({ key: (g?.key ?? 0) + 1, amount: (loreGain ? loreGain.amount : 0) + lore }));
+    }
     gameSounds(prev.view, next.view, added);
   }, [game?.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -462,7 +472,7 @@ export function GameScreen({ onBack, campaign }: { onBack: () => void; campaign?
         {uiLayout ? (
           <NguiHud layout={uiLayout} atlas={atlas} art={uiArt} enemyArt={enemyArt} say={say} view={hudView} canEndRound={!!action && !talking && !busy} saving={saving}
             attackable={new Set(attackable.keys())} activating={activating}
-            tileCallout={placing && calloutPx ? { code: placing.code, px: calloutPx } : null} loreGain={loreGain} canInfo={!talking} canProvoke={canProvoke} provoking={provoking && canProvoke}
+            tileCallout={placing && calloutPx ? { code: placing.code, px: calloutPx } : null} loreGain={loreGain} loreDetail={loreDetailShown ? loreDetail : null} onCloseLore={() => setLoreDetailShown(false)} canInfo={!talking} canProvoke={canProvoke} provoking={provoking && canProvoke}
             onProvoke={() => setProvoking((p) => !p)}
             onEnemy={(uid) => {
               if (provoking && canProvoke) { if (provokable.has(uid)) { setProvoking(false); answer(provokable.get(uid)!); } }

@@ -36,13 +36,16 @@ function hudLayout(layout: UiLayoutFile): UiLayoutFile {
   return l;
 }
 
-export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, loreGain, canInfo, tileCallout, saving, onParty, onSettings, onEndRound, onEnemy }: {
+export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndRound, endTitle, attackable, activating, canProvoke, provoking, onProvoke, loreGain, loreDetail, onCloseLore, canInfo, tileCallout, saving, onParty, onSettings, onEndRound, onEnemy }: {
   layout: UiLayoutFile; atlas: Atlas; art: Record<string, string>; enemyArt: Record<string, string>; say: Say; view: GameView;
   canEndRound: boolean; endTitle: string; attackable: Set<number>; activating?: number;
   /** provoke: the button is enabled / provoke mode is on (Dialog_Provoke shown) */
   canProvoke: boolean; provoking: boolean; onProvoke: () => void;
   /** UI_Game.AnimateLoreGain: the last change of lore (key restarts the animation) */
   loreGain?: { key: number; amount: number } | null;
+  /** UI_Game.LoreDetailWindow (Sprite_LoreGain): the gains with their sources, null = closed */
+  loreDetail?: { amount: number; source: string | null }[] | null;
+  onCloseLore?: () => void;
   /** Label_AutoSaving is shown */
   saving?: boolean;
   /** threat markers can be clicked for their info (not while a message is up) */
@@ -140,6 +143,15 @@ export function NguiHud({ layout: base, atlas, art, enemyArt, say, view, canEndR
           html: say("UI_LORE_GAIN", [loreGain.amount >= 0 ? "+" : "", String(loreGain.amount)]) || `${loreGain.amount >= 0 ? "+" : ""}${loreGain.amount} Сведения` }
       : { show: false },
     z_Darkening: { onClick: onProvoke },
+    // "+N Lore (Collector)" lines, closed by the button (OnCloseLoreGainDetail); its TweenAlpha fades it in
+    Sprite_LoreGain: loreDetail ? { show: true, enter: { fade: true, dur: 0.5 } } : { show: false },
+    "Sprite_LoreGain/Sprite_Close": { onClick: onCloseLore },
+    Label_LoreDetails: {
+      html: (loreDetail ?? []).map((l) => {
+        const t = say("UI_LORE_GAIN", [l.amount >= 0 ? "+" : "", String(l.amount)]) || `${l.amount >= 0 ? "+" : ""}${l.amount}`;
+        return l.source ? `${t} (${say(l.source)})` : t;
+      }).join("<br>"),
+    },
     Label_AutoSaving: { show: !!saving },
     // EnemyMiniView per group: portrait (grey when exhausted), elite frame, ranged mark, highlight while attackable
     EnemyMiniView: {

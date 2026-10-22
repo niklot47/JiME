@@ -491,3 +491,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .maproom-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s;
   background: radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(8, 4, 2, 0.75) 100%); }
 .maproom-vignette.on { opacity: 1; }
+
+/* mesh-art animations (NguiView fx): the scrolling texture, the hidden filter definitions */
+@keyframes ng-scroll { from { background-position: 0 0; } to { background-position: var(--ng-tw, -100px) 0; } }
+.ng-fx-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }

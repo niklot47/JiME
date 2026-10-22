@@ -609,6 +609,8 @@ export class Game {
   objective: any = null;
   /** Inserts of the objective message at the time it was set (for UI) */
   objectiveInserts: string[] = [];
+  /** every lore change of the adventure with its source (UI only) */
+  loreLog: { amount: number; source: string | null }[] = [];
   /** AddAdventureRule / RemoveAdventureRule: the adventure's special rules in force (UI_Game.LabelAdventureRules) */
   adventureRules: { key: string; inserts: string[] }[] = [];
   /** The dialog a Player is being asked about (set by dialog actions just before the call; UI only) */
@@ -723,9 +725,11 @@ export class Game {
     }
   }
 
-  /** GameVariables.Lore += n (ffg flow keeps the "Campaign/Lore" global in step) */
-  addLore(n: number): void {
+  /** GameVariables.Lore += n (ffg flow keeps the "Campaign/Lore" global in step); source: the localization key of where
+   *  it came from (UI_Game.AnimateLoreGain's gainedSource: a skill), for the lore details window */
+  addLore(n: number, source: string | null = null): void {
     this.campaign.lore += n;
+    this.loreLog.push({ amount: n, source });
     if (this.flow === "ffg") this.globals["Campaign/Lore"] = this.campaign.lore;
   }
 
@@ -1312,7 +1316,7 @@ export class Game {
     this.ending = true;
     this.result = victory ? "victory" : "defeat";
     // GameController.SignalEndGame: skill 232 (Chronicling) gives 2 lore
-    if (this.flow === "ffg" && this.campaign.party_skills?.includes(232)) this.addLore(2);
+    if (this.flow === "ffg" && this.campaign.party_skills?.includes(232)) this.addLore(2, "UI_LORE_CHRONICLING");
     if (this.advFsm) this.advFsm.send(victory ? "ADVENTURE_END_VICTORY" : "ADVENTURE_END_FAILURE");
     if (!truthy(this.ended)) this.ended = "end_signalled";
     throw new EndGame();

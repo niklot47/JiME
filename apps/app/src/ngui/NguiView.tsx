@@ -315,6 +315,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   // a box gone from the view enters again next time it shows
   const present = new Set(boxes.map((b) => b.key));
   for (const k of entered.current) if (!present.has(k)) entered.current.delete(k);
+  const wobbles = new Map<string, Wobble>();
   const onEnd = (key: string) => (e: React.AnimationEvent) => { if (e.animationName === "ng-enter") entered.current.add(key); };
   const items = boxes.map((b) => {
           const st: CSSProperties = { left: b.left, top: b.top, width: b.width, height: b.autoH ? "auto" : b.height, zIndex: Math.round(b.z * 10) };
@@ -366,7 +367,22 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
               </div>
             );
           }
-          const img = imageStyle(b, atlas);
+          let img = imageStyle(b, atlas);
+          const fx = b.w.fx;
+          if (fx?.k === "scroll") {
+            // ScrollingWithMask: the texture tiled and moving one tile per 1 / v seconds, cut by its mask (a grey image)
+            const tw = b.width / (fx.sx || 1), th = b.height / (fx.sy || 1);
+            img = { backgroundImage: `url("${assetUrl(fx.tex)}")`, backgroundSize: `${tw}px ${th}px`, backgroundRepeat: "repeat",
+              maskImage: `url("${assetUrl(fx.mask)}")`, maskSize: "100% 100%", maskMode: "luminance", WebkitMaskImage: `url("${assetUrl(fx.mask)}")`, WebkitMaskSize: "100% 100%",
+              ["--ng-tw" as string]: `${-tw}px` } as CSSProperties;
+            const scrollAnim = `ng-scroll ${(1 / Math.max(0.005, fx.v)).toFixed(1)}s linear infinite`;
+            st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${scrollAnim}` : scrollAnim;
+          } else if (fx?.k === "wobble" && fx.s > 0) {
+            // FlameDistortion: displaced by a slowly changing noise (an SVG filter, one per strength and speed)
+            const id = wobbleId(fx.s * Math.min(b.width, b.height) * 0.5, fx.v);
+            wobbles.set(id.id, id);
+            st.filter = `${st.filter ? `${st.filter} ` : ""}url(#${id.id})`;
+          }
           if (!img && !click && !b.bind.content) return null;
           return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{b.bind.content}</div>;
         });
@@ -378,8 +394,28 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
       <div className={`ngui-root${complete || shownOnce.current ? "" : " ng-wait"}`} style={{ width: screenW, height: screenH, transform: `scale(${scale})`, visibility: complete || shownOnce.current ? undefined : "hidden" }}>
         {items}
       </div>
+      {wobbles.size > 0 && (
+        <svg className="ng-fx-defs" width="0" height="0" aria-hidden="true">
+          {[...wobbles.values()].map((w) => (
+            <filter key={w.id} id={w.id} x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" result="n">
+                <animate attributeName="baseFrequency" values="0.035;0.042;0.035" dur={`${w.dur}s`} repeatCount="indefinite" />
+              </feTurbulence>
+              <feDisplacementMap in="SourceGraphic" in2="n" scale={w.scale} xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          ))}
+        </svg>
+      )}
     </div>
   );
+}
+
+interface Wobble { id: string; scale: number; dur: number }
+/** a wobble filter for a displacement (px) and a speed, shared by the boxes that need the same */
+function wobbleId(px: number, speed: number): Wobble {
+  const scale = Math.max(1, Math.round(px));
+  const dur = Math.round(Math.min(8, Math.max(0.8, 0.3 / Math.max(0.01, speed))) * 10) / 10;
+  return { id: `ng-wobble-${scale}-${String(dur).replace(".", "_")}`, scale, dur };
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);

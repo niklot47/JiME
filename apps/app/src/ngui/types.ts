@@ -47,6 +47,10 @@ export interface UiWidget {
   lb?: UiLabel;
   /** the component is disabled */
   off?: boolean;
+  /** the material's animation over a mesh-art picture (export_ui_layouts.py mesh_art):
+   *  wobble - Shader Forge FlameDistortion (s: noise strength in UV units, v: speed, rev: reversed);
+   *  scroll - ScrollingWithMask (tex scrolls sideways under mask; v: UV per second, sx / sy: tiling) */
+  fx?: { k: "wobble"; s: number; v: number; rev: number } | { k: "scroll"; v: number; tex: string; mask: string; sx: number; sy: number };
 }
 
 export interface UiTween {
