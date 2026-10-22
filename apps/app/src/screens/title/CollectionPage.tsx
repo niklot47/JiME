@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, type UiNode } from "../../ngui/types.ts";
-import type { TitleUi } from "./common.ts";
+import { SLIDE, withEnter, type TitleUi } from "./common.ts";
 
 const GREEN = [0, 0.75, 0, 1];
 const RED = [0.75, 0, 0, 1];
@@ -67,5 +67,12 @@ export function CollectionPage({ ui, onToggle, onBack, onOptions }: {
     b[`${at}/Sprite_ItemImage`] = { tex: ui.productArt[String(id)]?.Image };
     b[`${at}/Sprite_Highlight`] = { sprite: glow(Number(p.Type ?? 0)), color: p.IsLocked ? WHITE : owned(id) ? GREEN : RED };
   }
-  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={b} say={ui.say} className="ngui-page" />;
+  // CollectionManager.CoroutineShow: the panel fades in, back and title slide in, then the product's details
+  // (ProductView FadeIn); the boxes fade in (CollectionItem.CoroutineFadeInItem)
+  const anim = withEnter(b, show[0] ?? null, {
+    CollectionManager: SLIDE.fade(0.35),
+    "DetailedProductView/Widget_Content": SLIDE.fade(0.35, 0.7),
+    Table_Products: SLIDE.fade(0.35, 0.35),
+  });
+  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={anim} say={ui.say} className="ngui-page" />;
 }

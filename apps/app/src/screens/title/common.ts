@@ -1,7 +1,8 @@
 // Shared bits of the title screen and the new-game pages (Panel_Titlescreen from the exported layout)
 import type { TextDb } from "@jime/content-tools/text";
 import type { AtlasSprite, HeroArt, ModelArt } from "../../data/pack.ts";
-import type { UiLayoutFile } from "../../ngui/types.ts";
+import type { UiLayoutFile, UiNode } from "../../ngui/types.ts";
+import type { Binds, Enter } from "../../ngui/NguiView.tsx";
 
 export type Say = (key: string | null | undefined, ins?: readonly string[]) => string;
 
@@ -51,3 +52,35 @@ export function ownedHeroes(ui: TitleUi): number[] {
 
 export const textOf = (t: TextDb | null, fallback: TextDb | null) => (k: string | null | undefined) =>
   (k && (t?.raw(k) ?? fallback?.raw(k))) || "";
+
+/** SlidingElement's entrances: the offset is where the element starts (minus the slide's direction) */
+export const SLIDE = {
+  left: (farther = false, delay = 0): Enter => ({ from: [farther ? -600 : -300, 0], dur: farther ? 0.7 : 0.35, delay }),
+  right: (delay = 0): Enter => ({ from: [300, 0], delay }),
+  bottom: (delay = 0): Enter => ({ from: [0, -150], delay }),
+  top: (delay = 0): Enter => ({ from: [0, 150], delay }),
+  /** UIWidget / UIPanel.FadeIn */
+  fade: (dur = 0.35, delay = 0): Enter => ({ fade: true, dur, delay, linear: true }),
+};
+
+/**
+ * The binds with entrance animations added: the page's sliding elements (SlidingElement on Button_Back /
+ * Button_Continue / Sprite_Titlebar, as every page controller's CoroutineShow plays them: back from the left, continue
+ * from the right, the title from the top) under `root`, plus `extra` ("Parent/Name" or "Name" keys). A page bind under
+ * the bare name is copied to the "Parent/Name" key so it still applies.
+ */
+export function withEnter(b: Binds, root: UiNode | null, extra: Record<string, Enter> = {}): Binds {
+  const out: Binds = { ...b };
+  const put = (key: string, e: Enter) => {
+    const name = key.split("/").pop()!;
+    out[key] = { ...(out[key] ?? out[name] ?? {}), enter: e };
+  };
+  const dir: Record<string, () => Enter> = { Button_Back: () => SLIDE.left(), Button_Continue: () => SLIDE.right(), Sprite_Titlebar: () => SLIDE.top() };
+  const walk = (n: UiNode, parent: string) => {
+    if (n.mb?.includes("SlidingElement") && dir[n.n]) put(`${parent}/${n.n}`, dir[n.n]!());
+    for (const c of n.ch ?? []) walk(c, n.n);
+  };
+  if (root) walk(root, "");
+  for (const [k, e] of Object.entries(extra)) put(k, e);
+  return out;
+}

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { chapterOf, type CampaignSave } from "@jime/engine";
 import { NguiView, type Bind, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, prefabOf, type UiNode } from "../../ngui/types.ts";
-import type { TitleUi } from "./common.ts";
+import { withEnter, type TitleUi } from "./common.ts";
 
 const DIFF_KEY: Record<string, string> = { normal: "UI_DIFFICULTY_NORMAL", hard: "UI_DIFFICULTY_HARD", adventure: "UI_DIFFICULTY_ADVENTURE" };
 const ROW = 114;
@@ -79,7 +79,7 @@ export function SaveSlotsPage({ ui, saves, onBack, onResume, onDelete, onReset }
   };
   return (
     <div className="ngui-wheel" onWheel={(e) => setFirst((f) => Math.max(0, Math.min(Math.max(0, saves.length - IN_VIEW), f + (e.deltaY > 0 ? 1 : -1))))}>
-      <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={b} say={ui.say} className="ngui-page" />
+      <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={withEnter(b, show[0] ?? null)} say={ui.say} className="ngui-page" />
     </div>
   );
 }

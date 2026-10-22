@@ -38,6 +38,8 @@ export function RestPage({ ui, save, onChange, onEmbark, onMap, onQuit }: {
   const [up, setUp] = useState<ItemPlace | null>(null);
   const [upTo, setUpTo] = useState<number | null>(null);
   const [groupScroll, setGroupScroll] = useState(0);
+  // UIRestScene.CoroutineEmbark: a title earned on the way out (Word Wielder) is announced before setting off
+  const [award, setAward] = useState<{ s: CampaignSave; t: [number, number] } | null>(null);
   const show = useMemo(() => [findNode(ui.layout.root, "UI_Rest")].filter(Boolean) as UiNode[], [ui.layout]);
   const D = ui.db;
   const R = D.models.RoleModel ?? {};
@@ -71,7 +73,10 @@ export function RestPage({ ui, save, onChange, onEmbark, onMap, onQuit }: {
   const b: Binds = {
     UI_Rest: { show: true },
     "UI_Rest/Sprite_Options": { show: false },
-    Panel_MessagePopup: { show: false },
+    // MessagePopup.InitializePlacement (Top): label 750 wide from the top of the popup, background around it
+    Panel_MessagePopup: { show: !!award, at: [0, 216], pin: "top" },
+    "Panel_MessagePopup/Label_Message": { pv: 1, at: [0, 0], w: 750, al: 2, html: award ? ui.say("UI_AWARD_TITLE_FORMATTED", [ui.raw(D.models.TitleModel?.[String(award.t[1])]?.NameKey)]) : "" },
+    "Panel_MessagePopup//Button_Continue": { show: !!award, onClick: () => { if (award) { setAward(null); onEmbark(award.s, award.t); } } },
     Panel_PopupTutorial: { show: false },
 
     "Panel_Heroes/z_InputBlocker": { show: false },
@@ -95,7 +100,7 @@ export function RestPage({ ui, save, onChange, onEmbark, onMap, onQuit }: {
     Panel_RoleSelection: { show: mode === "roles" },
     "Panel_RoleSelection/Label_Title": { html: ui.say(first ? "UI_SELECT_ROLES" : "UI_CHANGE_ROLES") },
     "Panel_RoleSelection/Button_Back": { show: !first, onClick: () => { setMode("main"); setRoleHero(null); } },
-    Button_Embark: { disabled: !allRoles, onClick: () => { const s = structuredClone(save); const t = embark(s); onEmbark(s, t); } },
+    Button_Embark: { disabled: !allRoles, onClick: () => { const s = structuredClone(save); const t = embark(s); if (t) setAward({ s, t }); else onEmbark(s, t); } },
     Label_Embark: { html: ui.say("UI_EMBARK") },
     Button_CloseRoleSelection: { onClick: () => setRoleHero(null) },
     Sprite_Roles: roleHero !== null && roleHero >= 0 ? { show: true, at: [heroX(roleHero) - 2.1, gridY - 245 * 1.1] } : { show: false },

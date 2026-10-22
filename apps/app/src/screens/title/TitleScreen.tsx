@@ -13,7 +13,10 @@ import { setLang, useLang } from "../../data/lang.ts";
 import { textHtml } from "../../text/markup.ts";
 import { sound } from "../../audio/sound.ts";
 import { MAX_SAVES, deleteSave, listSaves, ownedProducts, putSave, setOwnedProducts } from "../../campaign/store.ts";
-import { textOf, type TitleUi } from "./common.ts";
+import { SLIDE, textOf, withEnter, type TitleUi } from "./common.ts";
+
+/** StartUpMenuController: the long animation once per run (CoroutineStartUpAnimation), later a short fade */
+let titleShown = false;
 import { CampaignPage, DifficultyPage, HeroesPage, ItemsPage, PartyNamePage, defaultItems, newDraft, type Draft } from "./NewGamePages.tsx";
 import { SaveSlotsPage } from "./SaveSlotsPage.tsx";
 import { CollectionPage } from "./CollectionPage.tsx";
@@ -134,5 +137,19 @@ function TitleMenu({ ui, hasSaves, onNew, onLoad, onOptions, onCollection }: {
     Sprite_AsmoConnect_BG: { show: false },
     Label_Version: { text: `JiME Reborn ${ENGINE_VERSION}` },
   };
-  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={b} say={ui.say} className="ngui-page" />;
+  // CoroutineAnimateButtons: the menu buttons slide in from the left one after another (0.2 s apart); afterwards
+  // CoroutineShortAnimation fades the whole menu in
+  const [long] = useState(() => !titleShown);
+  useEffect(() => { titleShown = true; }, []);
+  const anim = long
+    ? withEnter(b, null, {
+      "TitleMenu/Widget_Logo": SLIDE.fade(1.0, 0.2),
+      "Table/Button_NewCampaign": SLIDE.left(true, 0.8),
+      "Table/Button_LoadCampaign": SLIDE.left(true, 1.0),
+      "Table/Button_Collection": SLIDE.left(true, 1.2),
+      "Table/Button_Rules": SLIDE.left(true, 1.4),
+      "Menu_BG/Button_Quit": SLIDE.left(true, 1.6),
+    })
+    : withEnter(b, null, { Titlescreen: SLIDE.fade(0.7) });
+  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={anim} say={ui.say} className="ngui-page" />;
 }

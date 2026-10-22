@@ -3,9 +3,9 @@
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { assetUrl, type AtlasSprite } from "../data/pack.ts";
 import type { UiLayoutFile, UiNode } from "./types.ts";
-import { solve, type Binds, type Box, type Measured } from "./solve.ts";
+import { solve, type Binds, type Box, type Enter, type Measured } from "./solve.ts";
 
-export type { Bind, Binds } from "./solve.ts";
+export type { Bind, Binds, Enter } from "./solve.ts";
 type Atlas = Record<string, AtlasSprite>;
 type Say = (key: string | null | undefined, ins?: readonly string[]) => string;
 
@@ -191,6 +191,18 @@ function imageStyle(box: Box, atlas: Atlas): CSSProperties | null {
   return st;
 }
 
+/** CSS of an entrance animation (styles.css @keyframes ng-enter: from the offset / transparent to the box as it is) */
+function enterStyle(e: Enter): CSSProperties {
+  const [dx, dy] = e.from ?? [0, 0];
+  return {
+    // SlidingElement.SlideElement: smoothstep 6t^5 - 15t^4 + 10t^3 (close to this bezier)
+    animation: `ng-enter ${e.dur ?? 0.35}s ${e.linear ? "linear" : "cubic-bezier(0.65, 0, 0.35, 1)"} ${e.delay ?? 0}s both`,
+    ["--ng-x" as string]: `${dx}px`,
+    ["--ng-y" as string]: `${-dy}px`,
+    ["--ng-o" as string]: e.fade ? 0 : 1,
+  };
+}
+
 const ALIGN: Record<number, CSSProperties["textAlign"]> = { 0: "left", 1: "left", 2: "center", 3: "right", 4: "justify" };
 const AUTO: CSSProperties["textAlign"][] = ["left", "center", "right"];
 const css = (c?: number[] | null) => (c ? `rgba(${Math.round(c[0]! * 255)}, ${Math.round(c[1]! * 255)}, ${Math.round(c[2]! * 255)}, ${c[3] ?? 1})` : undefined);
@@ -315,6 +327,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           }
           const color = b.bind.color ?? b.w.c;
           if (color && color[3] !== undefined && color[3] < 1) st.opacity = color[3];
+          if (b.enter) Object.assign(st, enterStyle(b.enter));
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;
           // UIButton.disabledColor multiplies the sprite (a plain darkening, the hue is kept)
           const dis = b.bind.disabled && b.node.btn?.disabled;
@@ -342,7 +355,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   if (complete) shownOnce.current = true;
   return (
     <div ref={host} className={`ngui ${className ?? ""}`}>
-      <div className="ngui-root" style={{ width: screenW, height: screenH, transform: `scale(${scale})`, visibility: complete || shownOnce.current ? undefined : "hidden" }}>
+      <div className={`ngui-root${complete || shownOnce.current ? "" : " ng-wait"}`} style={{ width: screenW, height: screenH, transform: `scale(${scale})`, visibility: complete || shownOnce.current ? undefined : "hidden" }}>
         {items}
       </div>
     </div>

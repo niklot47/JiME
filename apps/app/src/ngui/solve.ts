@@ -4,6 +4,21 @@
 import type { ReactNode } from "react";
 import type { Anchor, UiNode, UiWidget } from "./types.ts";
 
+/**
+ * An entrance animation (SlidingElement.SlidingInAnimation, UIWidget/UIPanel.FadeIn), played when the node appears:
+ * from an offset (UI units, y up) and / or from transparent, over dur seconds after delay. It applies to the node's
+ * whole subtree (a child's own entrance replaces it).
+ */
+export interface Enter {
+  from?: [number, number];
+  fade?: boolean;
+  /** seconds (SlidingElement: 0.35, 0.7 when farther) */
+  dur?: number;
+  delay?: number;
+  /** linear instead of SlideElement's smoothstep */
+  linear?: boolean;
+}
+
 /** What the app changes on a node (matched by node name) */
 export interface Bind {
   /** force the node (and its subtree) shown or hidden */
@@ -54,6 +69,8 @@ export interface Bind {
   /** repeat the node: one copy per entry (binds for that copy's subtree), shifted by step each */
   clones?: Record<string, Bind>[];
   step?: [number, number];
+  /** entrance animation of the subtree when it appears */
+  enter?: Enter;
   /** more children after the saved ones: UI prefabs the game instantiates at runtime (ui.json "prefabs"), e.g. the
    *  campaign cards in Table_CampaignList, hero portraits in the hero scroll view, save slots */
   extra?: UiNode[];
@@ -79,6 +96,8 @@ export interface Box {
   py: number;
   /** the region of the nearest clipping panel (UIPanel softness / alpha clip), same space as left / top */
   clip?: { l: number; t: number; r: number; b: number };
+  /** the entrance animation (own or an ancestor's) */
+  enter?: Enter;
 }
 
 export interface Measured { w: number; h: number }
@@ -104,8 +123,9 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
-      anc: string[], at?: [number, number], clip: Rect | null = null) => {
+      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter) => {
       const b = bindOf(bs, anc, n.n);
+      ent = b.enter ?? ent;
       const entering = !inc && include.has(n.id);
       if (entering) { inc = true; active = true; }
       if (b.clones && !key.endsWith("#")) {
@@ -114,7 +134,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
           // the copy's own bind replaces the one that matched (any of its key forms), so it wins inside the copy
           const own = cb[n.n] ?? {};
           const nb: Binds = { ...bs, ...cb, [bindKeyOf(bs, anc, n.n) ?? n.n]: { ...b, ...own, clones: undefined, dx: (b.dx ?? 0) + step[0] * i + (own.dx ?? 0), dy: (b.dy ?? 0) + step[1] * i + (own.dy ?? 0) } };
-          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip);
+          visit(n, px, py, sx, sy, panel, active, nb, `${key}#${i}#`, inc, anc, at, clip, ent);
         });
         return;
       }
@@ -168,6 +188,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
         if (collect && inc && on && !w.off) {
           boxes.push({ key: k, node: n, w, bind: b, left: rc.l + screenW / 2, top: H / 2 - rc.t, width: rc.r - rc.l, height: rc.t - rc.b,
             z: pd * 10000 + w.d * 10 + (order++ % 10) / 10, autoH, autoW, px: px + screenW / 2, py: H / 2 - py,
+            ...(ent ? { enter: ent } : {}),
             ...(clip ? { clip: { l: clip.l + screenW / 2, r: clip.r + screenW / 2, t: H / 2 - clip.t, b: H / 2 - clip.b } } : {}) });
         }
       } else {
@@ -196,7 +217,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       const kids = b.extra ? [...(n.ch ?? []), ...b.extra] : n.ch ?? [];
       const na = [...anc, n.n];
       const places = n.grid?.k === "grid" ? gridPlaces(n, kids.map((c) => bindOf(bs, na, c.n).show ?? (all && inc ? true : c.on ?? true)), b.cell) : null;
-      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip));
+      kids.forEach((c, i) => visit(c, x, y, nsx, nsy, pd, on, bs, k, inc, na, places?.[i] ?? undefined, clip, ent));
     };
     visit(root, 0, 0, 1, 1, 0, true, binds, "", false, []);
   };

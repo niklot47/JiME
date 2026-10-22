@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, type UiNode } from "../../ngui/types.ts";
 import { sound } from "../../audio/sound.ts";
-import type { TitleUi } from "../title/common.ts";
+import { SLIDE, withEnter, type TitleUi } from "../title/common.ts";
 import type { ModelArt } from "../../data/pack.ts";
 
 /** CampaignModel cutscene id for the end of a campaign: SetNextCutsceneId's override (among CutsceneExtras), else victory / defeat */
@@ -31,5 +31,12 @@ export function CutscenePage({ ui, cutscene, titleKey, isNew, art, onDone }: {
     Label_Continue: { html: ui.say(isNew ? "UI_EMBARK" : "UI_ENDING") },
     "UI_Cutscene/Button_Continue": { onClick: onDone },
   };
-  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={b} say={ui.say} className="ngui-page" />;
+  // CutsceneController: the text panel slides in from the left (farther), its text fades in, then Continue from the right
+  const anim = withEnter(b, null, {
+    "UI_Cutscene/Panel_Art": SLIDE.fade(0.7),
+    "UI_Cutscene/Sprite_Text_BG": SLIDE.left(true, 0.3),
+    "Sprite_Text_BG/WidgetContainer": SLIDE.fade(0.7, 1.0),
+    "UI_Cutscene/Button_Continue": SLIDE.right(1.7),
+  });
+  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={anim} say={ui.say} className="ngui-page" />;
 }

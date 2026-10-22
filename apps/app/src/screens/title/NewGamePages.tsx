@@ -5,7 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { itemCounts, itemSubstitutes, type Difficulty } from "@jime/engine";
 import { NguiView, type Bind, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, prefabOf, type UiNode } from "../../ngui/types.ts";
-import { owns, ownedHeroes, refId, roman, type TitleUi } from "./common.ts";
+import { owns, ownedHeroes, refId, roman, withEnter, type TitleUi } from "./common.ts";
 
 export interface Draft {
   campaign: number | null;
@@ -29,7 +29,8 @@ interface PageProps {
 /** a page: its panel plus the setup's options gear */
 function Page({ ui, panel, binds }: { ui: TitleUi; panel: string; binds: Binds }): ReactNode {
   const show = useMemo(() => [findNode(ui.layout.root, panel), findNode(ui.layout.root, "GameSetup/Sprite_Options")].filter(Boolean) as UiNode[], [ui.layout, panel]);
-  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={{ "GameSetup/Sprite_Options": { show: false }, ...binds }} say={ui.say} className="ngui-page" />;
+  const all = withEnter({ "GameSetup/Sprite_Options": { show: false }, ...binds }, show[0] ?? null);
+  return <NguiView layout={ui.layout} atlas={ui.atlas} show={show} binds={all} say={ui.say} className="ngui-page" />;
 }
 
 // ---------------------------------------------------------------- campaign
