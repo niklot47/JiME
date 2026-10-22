@@ -43,7 +43,11 @@ export function psExtent(ps: UiPS, k: number): number {
  * One particle system drawn around (x, y) (UI units of the view); k: UI units per particle unit (WORLD_UI times the
  * node's own scale for local scaling); mirror: the node is flipped on x.
  */
-export function Particles2D({ ps, x, y, k, z, mirror = false }: { ps: UiPS; x: number; y: number; k: number; z: number; mirror?: boolean }) {
+export function Particles2D({ ps, x, y, k, z, mirror = false, rate = 1, speed = 1 }: {
+  ps: UiPS; x: number; y: number; k: number; z: number; mirror?: boolean;
+  /** emission and speed multipliers (Bind.particles) */
+  rate?: number; speed?: number;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const R = psExtent(ps, k);
   useEffect(() => {
@@ -107,7 +111,7 @@ export function Particles2D({ ps, x, y, k, z, mirror = false }: { ps: UiPS; x: n
         if (sh.sph) { const l = Math.hypot(px, py) || 1; dx = px / l; dy = py / l; }
         if (sh.rnd) { const a = Math.random() * Math.PI * 2; dx = dx * (1 - sh.rnd) + Math.cos(a) * sh.rnd; dy = dy * (1 - sh.rnd) + Math.sin(a) * sh.rnd; }
       }
-      const v = mm(ps.v0, 0, Math.random(), 0);
+      const v = mm(ps.v0, 0, Math.random(), 0) * speed;
       const r = [Math.random(), Math.random(), Math.random(), Math.random(), Math.random()];
       parts.push({ x: px * sx, y: py, vx: dx * v * sx, vy: dy * v, age: 0, life: life0(), size: mm(ps.size, 0, r[0]!, 0.1),
         rot: (mm(ps.rot, 0, r[1]!, 0) * 180) / Math.PI, spin: mm(ps.rol, 0, r[2]!, 0), r });
@@ -115,7 +119,7 @@ export function Particles2D({ ps, x, y, k, z, mirror = false }: { ps: UiPS; x: n
     const step = (dt: number) => {
       const dur = ps.dur || 5;
       if (ps.loop || t < dur) {
-        acc += mm(ps.rate, (t % dur) / dur, 0.5, 0) * dt;
+        acc += mm(ps.rate, (t % dur) / dur, 0.5, 0) * rate * dt;
         while (acc >= 1) { emit(); acc -= 1; }
         for (const [bt, n, cycles, rep] of ps.bursts ?? []) {
           for (let c = 0; c < Math.max(1, cycles); c++) {
@@ -171,6 +175,6 @@ export function Particles2D({ ps, x, y, k, z, mirror = false }: { ps: UiPS; x: n
     };
     raf = requestAnimationFrame(tick);
     return () => { alive = false; cancelAnimationFrame(raf); burstDone = new Set(); };
-  }, [ps, k, R, mirror]);
+  }, [ps, k, R, mirror, rate, speed]);
   return <canvas ref={ref} className="ng-ps" style={{ left: x - R, top: y - R, width: 2 * R, height: 2 * R, zIndex: z }} />;
 }

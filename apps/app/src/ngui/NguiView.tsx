@@ -364,7 +364,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           // a particle system: the player around its point
           if (b.node.ps) {
             if (!b.psK) return null;
-            return <Particles2D key={b.key} ps={b.node.ps} x={b.left} y={b.top} k={b.psK} z={Math.round(b.z * 10)} mirror={b.orient[0]! < 0} />;
+            return <Particles2D key={b.key} ps={b.node.ps} x={b.left} y={b.top} k={b.psK} z={Math.round(b.z * 10)} mirror={b.orient[0]! < 0}
+              rate={b.psPlay?.rate} speed={b.psPlay?.speed} />;
           }
           if (b.bind.originParent) st.transformOrigin = `${b.px - b.left}px ${b.py - b.top}px`;
           // turned / mirrored widgets turn about their pivot; a shaking group turns about its entering node, so the
@@ -389,6 +390,15 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           if (b.enter) {
             Object.assign(st, enterStyle(b.enter));
             if (entered.current.has(b.key)) st.animation = "none";
+            else if (b.clip && b.enter.from && !b.enter.via && !softMask) {
+              // the slide moves the element and its clip-path with it: the clip's insets move the other way, so the
+              // region stays where the panel is
+              const c = b.clip, [dx, dy] = b.enter.from, tx = dx, ty = -dy;
+              const ins = [c.t - b.top, b.left + b.width - c.r, b.top + b.height - c.b, c.l - b.left];
+              const at = (o: number[]) => `inset(${ins.map((v, i) => `${v + o[i]!}px`).join(" ")})`;
+              Object.assign(st, { clipPath: at([0, 0, 0, 0]), ["--ng-clip0" as string]: at([-ty, tx, ty, -tx]), ["--ng-clip1" as string]: at([0, 0, 0, 0]) });
+              st.animation = (st.animation as string).replace(/^ng-enter /, "ng-enter-clip ");
+            }
           }
           if (b.bind.pulse) {
             const [a0, a1, d] = b.bind.pulse;
@@ -426,6 +436,11 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
           }
           let img = imageStyle(b, atlas);
           if (img && st.transform) delete (img as CSSProperties).transform;
+          if (img && softMask && (img as CSSProperties).maskImage) {
+            // a soft clip over a sprite with its own gradient mask: both masks, intersected
+            const both = `${softMask.maskImage}, ${(img as CSSProperties).maskImage}`;
+            softMask = { maskImage: both, WebkitMaskImage: both, maskComposite: "intersect", WebkitMaskComposite: "source-in" } as CSSProperties;
+          }
           const fx = b.w.fx;
           if (fx?.k === "scroll") {
             // ScrollingWithMask: the texture tiled and moving one tile per 1 / v seconds, cut by its mask (a grey image)

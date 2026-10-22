@@ -25,6 +25,8 @@ export interface Enter {
   holdTo?: number;
 }
 
+export interface PsPlay { rate?: number; speed?: number; behind?: boolean }
+
 /** What the app changes on a node (matched by node name) */
 export interface Bind {
   /** force the node (and its subtree) shown or hidden */
@@ -80,8 +82,9 @@ export interface Bind {
   /** make the node a clipping panel (a scroll view the layout does not have): region [cx, cy, w, h] around the node,
    *  off: the clip offset (minus the scroll, so the region stays while the contents move), soft: fading edges */
   clipPanel?: { clip: [number, number, number, number]; off?: [number, number]; soft?: [number, number] };
-  /** play the particle systems of the subtree (most UI systems are started by code, so none plays unless asked) */
-  particles?: boolean;
+  /** play the particle systems of the subtree (most UI systems are started by code, so none plays unless asked);
+   *  rate / speed: multipliers, behind: drawn under the widgets of their panel (sparks around a picture) */
+  particles?: boolean | PsPlay;
   /** the node's own scale (both axes; its mirroring is kept), e.g. a chosen difficulty grown by its TweenScale */
   scale?: number;
   /** a new value replays the subtree's entrance (its boxes are new elements), e.g. the campaign shown changed */
@@ -126,6 +129,8 @@ export interface Box {
   eo?: [number, number];
   /** UI units per particle unit for a particle system node (its box is a point at the node) */
   psK?: number;
+  /** how the particle system plays (Bind.particles) */
+  psPlay?: PsPlay;
   /** the entrance animation (own or an ancestor's) */
   enter?: Enter;
   /** the gliding time of place changes (own or an ancestor's) */
@@ -155,10 +160,10 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
-      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, o: number[] = ID, eo?: [number, number], pso = false) => {
+      anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, o: number[] = ID, eo?: [number, number], pso: PsPlay | null = null) => {
       const b = bindOf(bs, anc, n.n);
       const ownEnter = !!b.enter;
-      pso = b.particles ?? pso;
+      if (b.particles !== undefined) pso = b.particles === false ? null : b.particles === true ? {} : b.particles;
       if (b.enterKey !== undefined) key = `${key}~${b.enterKey}`;
       ent = b.enter ?? ent;
       mv = b.move ?? mv;
@@ -271,7 +276,7 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
       // a particle system: a point box at the node, drawn by the view's particle player (above its panel's widgets)
       if (n.ps && pso && collect && inc && on) {
         boxes.push({ key: k, node: n, w: PS_WIDGET, bind: b, left: x + screenW / 2, top: H / 2 - y, width: 0, height: 0,
-          z: pd * 10000 + 9990, autoH: false, autoW: false, px: px + screenW / 2, py: H / 2 - py, orient: no,
+          z: pd * 10000 + (pso.behind ? 5 : 9990), psPlay: pso, autoH: false, autoW: false, px: px + screenW / 2, py: H / 2 - py, orient: no,
           // ParticleSystemScalingMode: hierarchy (0) takes the whole scale, local (1) its own, shape (2) none
           psK: n.ps.scaling === 0 ? Math.abs(nsx) : n.ps.scaling === 1 ? 360 * Math.abs(s0x || 1) : 360 });
       }

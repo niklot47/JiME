@@ -45,10 +45,12 @@ interface Props {
 const TILT = THREE.MathUtils.degToRad(75);
 /** the zoom (MapZoom animation): the camera lower and more level, the ground under it the same spot as before */
 const ZOOM_TILT = THREE.MathUtils.degToRad(42);
+/** the whole map on the desk with the candle and the books around it (the travel map, and behind the new-game pages) */
+const OVERVIEW = new THREE.Vector3(0, 37, 0.89 - 37 / Math.tan(TILT));
 const ZOOM_H = 5.2;
 const ZOOM_Z = 0.6 - ZOOM_H / Math.tan(ZOOM_TILT);
-const HEMI_DAY = new THREE.Color(0xfff0dc), HEMI_NIGHT = new THREE.Color(0xffb070);
-const KEY_DAY = new THREE.Color(0xffe2b8), KEY_NIGHT = new THREE.Color(0xff9a4a);
+const HEMI_DAY = new THREE.Color(0xfff0dc), HEMI_NIGHT = new THREE.Color(0xff9a50);
+const KEY_DAY = new THREE.Color(0xffe2b8), KEY_NIGHT = new THREE.Color(0xff8030);
 /** MapRoomVisuals.ZoomCamera / MoveCameraTo: the rig stops this far from the location (Unity x mirrored) */
 const RIG_OFFSET = new THREE.Vector3(2.25, 0, -3);
 
@@ -103,8 +105,11 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
           // the map is four quarters (Map0..3) side by side: no wrap-around at their edges (it showed as seams)
           if (/^(Main)?Map\d?/.test(nameOf(o))) {
             for (const mat of ([] as THREE.Material[]).concat(m.material)) {
-              const t = (mat as THREE.MeshStandardMaterial).map;
+              const sm = mat as THREE.MeshStandardMaterial;
+              const t = sm.map;
               if (t) { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true; }
+              // matte paper: no specular sheen
+              if ("roughness" in sm) { sm.roughness = 1; sm.metalness = 0; sm.envMapIntensity = 0; sm.needsUpdate = true; }
             }
           }
         }
@@ -162,10 +167,10 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         const a = t / 4;
         rigTo.set(-Math.sin(a) * 0.25, -10.125 * aspect + 15.25, Math.cos(a) * -0.25 + 0.25);
         if (v === "title") { localTo.set(0, 21.6, -4.9); tiltTo = TILT; }
-        else { localTo.set(0, 11.25 * aspect + 1, -11); tiltTo = THREE.MathUtils.degToRad(60); }
+        else { rigTo.set(-Math.sin(a) * 0.12, 0, Math.cos(a) * -0.12 + 0.12); localTo.copy(OVERVIEW); tiltTo = TILT; }
       } else if (v === "map") {
         rigTo.set(0, 0, 0);
-        localTo.set(0, 21.6, -4.9); tiltTo = TILT;
+        localTo.copy(OVERVIEW); tiltTo = TILT;
       } else {
         // ZoomCamera: the rig to the location, the camera down (the MapZoom animation)
         if (lp) rigTo.copy(lp).add(RIG_OFFSET).setY(0);
@@ -179,18 +184,20 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       camera.position.copy(rig).add(local);
       camera.lookAt(camera.position.clone().add(new THREE.Vector3(0, -Math.sin(tilt), Math.cos(tilt))));
       // lights by view (eased like the camera): bright for the title pages, the dark room for the travel map
-      const dark = v === "map" || v === "zoom" ? 1 : 0;
+      const dark = v === "title" ? 0 : 1;
       const lk = 1 - Math.exp(-dt * 2);
       // (tuned by eye against the original's travel map: warm orange candlelight, dim edges, bluish shadows)
-      hemi.intensity += ((1 - dark) * 1.15 + dark * 0.75 - hemi.intensity) * lk;
-      key.intensity += ((1 - dark) * 1.4 + dark * 0.9 - key.intensity) * lk;
-      ambient.intensity += (dark * 0.3 - ambient.intensity) * lk;
+      // (the original's travel map: high contrast, orange, the light falling off towards the edges - little fill light,
+      // the candles and lamps doing the work)
+      hemi.intensity += ((1 - dark) * 1.15 + dark * 0.5 - hemi.intensity) * lk;
+      key.intensity += ((1 - dark) * 1.4 + dark * 0.7 - key.intensity) * lk;
+      ambient.intensity += (dark * 0.12 - ambient.intensity) * lk;
       hemi.color.lerpColors(HEMI_DAY, HEMI_NIGHT, hemiMix += (dark - hemiMix) * lk);
       key.color.lerpColors(KEY_DAY, KEY_NIGHT, hemiMix);
       for (const l of sceneLights) {
         const base = (l.userData.base as number | undefined) ?? l.intensity;
         l.userData.base = base;
-        l.intensity = base * (1 + dark * 1.6);
+        l.intensity = base * (1 + dark * 3);
       }
       // depth of field on the location when zoomed in
       dof = v === "zoom" && !!lp;
@@ -296,8 +303,8 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
 
   // the travel map's darkened edges (the original's camera vignette)
   return (
-    <div ref={host} className={`maproom ${className ?? ""}`}>
-      <div className={`maproom-vignette${view === "map" || view === "zoom" ? " on" : ""}`} />
+    <div ref={host} className={`maproom${view !== "title" ? " maproom-dark" : ""}${view === "setup" ? " maproom-blur" : ""} ${className ?? ""}`}>
+      <div className={`maproom-vignette${view !== "title" ? " on" : ""}`} />
     </div>
   );
 }

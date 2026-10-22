@@ -1,7 +1,7 @@
 // The new-game pages of the original (GameSetupController): campaign -> difficulty -> heroes -> starting items -> party
 // name, each drawn from its panel in the exported layout and driven like its controller (CampaignSelectController,
 // CampaignDifficultySelection, HeroSelectController, StartingItemController, PartyNameController).
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { itemCounts, itemSubstitutes, type Difficulty } from "@jime/engine";
 import { NguiView, type Bind, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, prefabOf, type UiNode } from "../../ngui/types.ts";
@@ -68,7 +68,7 @@ export function CampaignPage({ ui, draft, setDraft, onBack, onNext, savesFull }:
           Sprite_New: { show: false }, Sprite_Debug: { show: false }, Sprite_Locked: { show: false },
           Sprite_Tutorial: { show: !!Number(C[String(id)]?.HasTutorial ?? 0) },
           // the chosen card: its glows pulse, the sparks of the interior glow's particle system fly off its edges
-          Sprite_Highlight_Interior: { show: on, pulse: [1, 0.45, 0.8], particles: true }, Sprite_Highlight_Exterior: { show: on, pulse: [1, 0.35, 0.8] },
+          Sprite_Highlight_Interior: { show: on, pulse: [1, 0.65, 1.15], particles: SPARKS }, Sprite_Highlight_Exterior: { show: on, pulse: [1, 0.6, 1.15] },
         };
       }),
     },
@@ -104,13 +104,21 @@ const DIFF: { d: Difficulty; node: string; key: string }[] = [
 
 /** CoroutineShow's entrances: where each comes from and where it meets the others (offsets from its place) */
 const ENTRY: Record<Difficulty, { from: [number, number]; via: [number, number] }> = {
-  normal: { from: [-665, 0], via: [95, 50] },
-  hard: { from: [665, 0], via: [-95, 50] },
-  adventure: { from: [0, 670], via: [0, -95] },
+  // the two below come straight across and meet edge to edge, the top one comes down onto them
+  normal: { from: [-665, 0], via: [16, 0] },
+  hard: { from: [665, 0], via: [-16, 0] },
+  adventure: { from: [0, 670], via: [0, -40] },
 };
+/** the sparks around a chosen campaign / difficulty: a little sparser and slower than the system's own numbers, behind
+ *  the picture */
+const SPARKS = { rate: 0.8, speed: 0.6, behind: true };
+/** the difficulties' entrance (CoroutineShow), the effects stay hidden until it is over */
+const ENTRY_S = 1.5;
 
 export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
   const d = draft.difficulty;
+  const [landed, setLanded] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setLanded(true), ENTRY_S * 1000); return () => clearTimeout(t); }, []);
   const cur = DIFF.find((x) => x.d === d);
   // clicking the chosen one again unselects it (CampaignDifficultySelection.OnNormalClicked ...)
   const pick = (x: Difficulty) => setDraft((s) => ({ ...s, difficulty: s.difficulty === x ? null : x }));
@@ -130,7 +138,7 @@ export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProp
     b[x.node] = { depth: on ? 9 : x.d === "normal" ? 8 : 7, scale: on ? 1.75 : 1.6, move: 0.35,
       enter: { from: e.from, via: e.via, viaAt: 0.4, holdTo: 0.62, dur: 1.4, delay: 0.1, shake: { deg: 3, delay: 0.56, dur: 0.4 } } };
     b[`${x.node}//#art`] = { onClick: () => pick(x.d) };
-    b[`${x.node}/Effects`] = { show: on, enter: { fade: true, dur: 0.35, linear: true }, particles: true };
+    b[`${x.node}/Effects`] = { show: on && landed, enter: { fade: true, dur: 0.35, linear: true }, particles: x.d === "hard" ? true : SPARKS };
   }
   // the materials' motion: the light behind the orc falls through its mask (down, a little to the left), the clouds
   // drift left and a little down, lighter
@@ -159,7 +167,7 @@ export function HeroesPage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
       clones: heroes.slice(first, first + IN_VIEW).map((id, i): Record<string, Bind> => ({
         // UICenterOnChild keeps the portraits around the middle of the view (the prefab's art sits 93 left of its root)
         // the slot's root sits 93 right of its art and overlaps the next portrait: the frame and portrait take the clicks
-        HeroSelectionSlot: { dx: (i - (IN_VIEW - 1) / 2) * 186 + 93 },
+        HeroSelectionSlot: { dx: (i - (IN_VIEW - 1) / 2) * 186 + 93, dy: 45 },
         Sprite_Border: { onClick: () => toggle(id) },
         Label_HeroName: { html: ui.say(H[String(id)]?.NameKey) },
         Hero_Image: { tex: ui.heroArt[String(id)]?.portrait, onClick: () => toggle(id) },

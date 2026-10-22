@@ -454,7 +454,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 /* title screen and new-game pages (screens/title) */
 .title-screen { position: fixed; inset: 0; background: #1b1612 center / cover no-repeat; overflow: hidden; }
 .title-screen .ngui { z-index: 2; }
-.title-dim { position: absolute; inset: 0; background: rgba(12, 9, 6, 0.72); z-index: 1; }
+.title-dim { position: absolute; inset: 0; background: rgba(12, 9, 6, 0.4); z-index: 1; }
 .ngui-wheel { position: absolute; inset: 0; z-index: 2; }
 .ngui .ng-input { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; background: transparent; border: 0; outline: 0;
   pointer-events: auto; font: inherit; color: inherit; text-align: center; text-shadow: inherit; padding: 0 8px; }
@@ -489,7 +489,12 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 
 /* the travel map's vignette (MapRoom3D) */
 .maproom-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s;
-  background: radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(8, 4, 2, 0.75) 100%); }
+  background: radial-gradient(ellipse at 45% 42%, transparent 25%, rgba(8, 3, 0, 0.55) 62%, rgba(4, 2, 0, 0.92) 100%); }
+/* the candle-lit room: the picture graded warmer and with more contrast (the original's orange, deep shadows) */
+.maproom canvas { transition: filter 1s; }
+.maproom-dark canvas { filter: sepia(0.6) saturate(2.2) contrast(1.15) brightness(1.08); }
+/* behind the new-game pages the room is out of focus (MapRoomVisuals.SetBlur) */
+.maproom-blur canvas { filter: sepia(0.6) saturate(2.2) contrast(1.15) brightness(1.08) blur(5px); }
 .maproom-vignette.on { opacity: 1; }
 
 /* mesh-art animations (NguiView fx): the scrolling texture, the hidden filter definitions */
@@ -503,3 +508,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 @keyframes ng-pulse { from { opacity: var(--ng-a0, 1); } to { opacity: var(--ng-a1, 0.2); } }
 /* particle systems in the interface (Particles2D) */
 .ngui .ng-ps { position: absolute; pointer-events: none; }
+
+/* an entrance under a clipping panel: the clip stays (NguiView moves its insets against the slide) */
+@keyframes ng-enter-clip { from { translate: var(--ng-x, 0) var(--ng-y, 0); opacity: var(--ng-o, 1); clip-path: var(--ng-clip0); }
+  to { clip-path: var(--ng-clip1); } }
