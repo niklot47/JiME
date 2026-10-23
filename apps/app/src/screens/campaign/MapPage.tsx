@@ -8,6 +8,17 @@ import { MapRoom3D } from "../../board/MapRoom3D.tsx";
 import { SLIDE, withEnter, type TitleUi } from "../title/common.ts";
 import { assetUrl, type ModelArt } from "../../data/pack.ts";
 
+/** pictures loaded and decoded ahead, kept (an unreferenced Image may be dropped before it is ever shown) */
+const warm = new Map<string, HTMLImageElement>();
+function preload(src: string): void {
+  if (warm.has(src)) return;
+  const i = new Image();
+  i.decoding = "async";
+  i.src = src;
+  warm.set(src, i);
+  void i.decode?.().catch(() => {});
+}
+
 export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
   ui: TitleUi; save: CampaignSave; advArt: ModelArt;
   /** the chosen adventure (UIMapScene.SwapMainUpcomingAdventure is the caller's) */
@@ -29,7 +40,7 @@ export function MapPage({ ui, save, advArt, onConfirm, onQuit }: {
   useEffect(() => {
     for (const a of choices) {
       const t = advArt[String(a)]?.LocationArt;
-      if (t) new Image().src = assetUrl(t);
+      if (t) preload(assetUrl(t));
     }
   }, [choices.join(","), advArt]); // eslint-disable-line react-hooks/exhaustive-deps
   const show = useMemo(() => [findNode(ui.layout.root, "UI_Map")].filter(Boolean) as UiNode[], [ui.layout]);

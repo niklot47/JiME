@@ -10,7 +10,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { applyActive, loadGltf, nameOf, smoothCutout } from "./Battleboard3D.tsx";
-import { attachEmitters, Emitter } from "./particles.ts";
+import { attachEmitters, renderComposedWithParticles, Emitter } from "./particles.ts";
 import { packText } from "../data/pack.ts";
 
 interface Track { path: string; prop: string; n: number; v: number[] }
@@ -72,8 +72,21 @@ export function TitleScene3D({ shown = true, className }: { shown?: boolean; cla
       scene.background = new THREE.Color().setRGB(c[0] ?? 0, c[1] ?? 0, c[2] ?? 0, THREE.SRGBColorSpace);
       camera.near = info.camera.near;
       camera.far = info.camera.far;
+      // (the scene's one system of light shafts: in the close-ups it went out because the depth of field's composer
+      // dropped the particles - they are drawn over the composed frame now, renderComposedWithParticles)
       // the particle systems first (they read their shaders - additive light shafts - from the template materials)
       emitters = attachEmitters(root);
+      for (const e of emitters) {
+        let dim = 1;
+        for (let p: THREE.Object3D | null = e; p; p = p.parent) if (typeof p.userData.dim === "number") dim = p.userData.dim;
+        if (dim === 1) continue;
+        e.traverse((o) => {
+          const u = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms?.uTint;
+          if (u) { u.value = (u.value as THREE.Vector4).clone(); (u.value as THREE.Vector4).multiplyScalar(dim); }
+          const mc = ((o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined);
+          if (mc && !(mc as any).uniforms && mc.color) { (o as THREE.Mesh).material = mc.clone(); ((o as THREE.Mesh).material as THREE.MeshBasicMaterial).color.multiplyScalar(dim); }
+        });
+      }
       // the whole scene is painted and unlit (Unlit-DepthTextureWrite, Shader Forge cutouts): its own colours as they
       // are, each figure with its own material for the flashes (_ColorAdd added to the colour)
       root.traverse((o) => {
@@ -194,11 +207,11 @@ export function TitleScene3D({ shown = true, className }: { shown?: boolean; cla
         if (vis) e.step(dt, camera);
         return !e.done;
       });
-      if (dof) composer.render(dt);
+      if (dof) renderComposedWithParticles(composer, renderer, scene, camera, dt, 0.45);
       else renderer.render(scene, camera);
     };
     tick();
-    (window as any).__title = { scene, camera };
+    (window as any).__title = { scene, camera, composer, bokeh };
     return () => {
       alive = false;
       cancelAnimationFrame(raf);

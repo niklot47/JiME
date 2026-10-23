@@ -10,6 +10,11 @@ import { withEnter, type TitleUi } from "./common.ts";
 const DIFF_KEY: Record<string, string> = { normal: "UI_DIFFICULTY_NORMAL", hard: "UI_DIFFICULTY_HARD", adventure: "UI_DIFFICULTY_ADVENTURE" };
 const ROW = 114;
 const IN_VIEW = 4;
+/** the first slot's place under the title (where the layout keeps Sprite_Selected, the selection's frame) */
+const TOP = 193.5;
+/** the list's region (the scroll view's clipping in the game): the slots' width, from above the first to below the
+ *  last row - the tabs waiting beside a slot stay hidden */
+const CLIP: [number, number, number, number] = [0, TOP - (ROW * (IN_VIEW - 1)) / 2, 870, ROW * (IN_VIEW - 1) + 104];
 
 function when(iso: string, lang: string): string {
   const d = new Date(iso);
@@ -33,14 +38,14 @@ export function SaveSlotsPage({ ui, saves, onBack, onResume, onDelete, onReset }
   const b: Binds = {
     Panel_SaveSlots: { show: true },
     Label_SelectSaveSlot: { html: ui.say("UI_SAVESLOT_LOAD") },
-    Grid_SaveSlots: slot ? { extra: [slot] } : {},
+    Grid_SaveSlots: slot ? { extra: [slot], clipPanel: { clip: CLIP } } : {},
     SaveSlotItem: {
       dy: 0,
       clones: visible.map((s, i): Record<string, Bind> => {
         const on = s.slot === sel;
         const camp = C[String(s.campaign)];
         const out: Record<string, Bind> = {
-          SaveSlotItem: { onClick: () => setSel(on ? null : s.slot), dy: -ROW * i },
+          SaveSlotItem: { onClick: () => setSel(on ? null : s.slot), dy: TOP - ROW * i },
           Label_Empty: { show: false },
           TweenHighlightInterior: { show: on },
           TweenDarkener: { show: on },
@@ -53,9 +58,9 @@ export function SaveSlotsPage({ ui, saves, onBack, onResume, onDelete, onReset }
           "Label_SlotNum (0)": { show: false },
           MiddleContent: { show: true },
           // the tabs wait outside the slot (cut off by the list's clipping) and slide in over the selected one
-          Button_ResumeTab: on ? { onClick: () => onResume(s) } : { at: [489, 0] },
-          Button_DeleteTab: on ? { onClick: () => setAsk("delete") } : { at: [-489, 0] },
-          Button_ResetTab: { show: !!s.game, ...(on ? { onClick: () => setAsk("reset") } : { at: [-489, 0] }) },
+          Button_ResumeTab: on ? { onClick: () => onResume(s) } : { at: [600, 0] },
+          Button_DeleteTab: on ? { onClick: () => setAsk("delete") } : { at: [-600, 0] },
+          Button_ResetTab: { show: !!s.game, ...(on ? { onClick: () => setAsk("reset") } : { at: [-600, 0] }) },
         };
         for (let k = 0; k < 5; k++) {
           const name = k ? `HeroMiniView (${k})` : "HeroMiniView";

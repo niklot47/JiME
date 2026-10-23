@@ -13,7 +13,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { applyActive, loadGltf, nameOf, smoothCutout } from "./Battleboard3D.tsx";
-import { attachEmitters, type Emitter } from "./particles.ts";
+import { attachEmitters, renderComposedWithParticles, type Emitter } from "./particles.ts";
 import { assetUrl, packText } from "../data/pack.ts";
 
 export type MapRoomView = "title" | "setup" | "map" | "zoom";
@@ -157,9 +157,10 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         const m = o as THREE.Mesh;
         if (m.isMesh) {
           smoothCutout(m);
-          // the map's back (LotRMapBack, under the map's quarters): seen from below only - drawn from both sides it
-          // covered the east of the map (Rhûn, the compass) and the south (Near Harad) with blank parchment
-          for (const mat of ([] as THREE.Material[]).concat(m.material)) if (mat.name === "LotRMapBack") { mat.side = THREE.BackSide; mat.needsUpdate = true; }
+          // the map's back (LotRMapBack, under the map's quarters): the camera never looks under the map - drawn from
+          // both sides it covered the east and the south of the map with blank parchment, from below only it still
+          // fought the quarters' depth at the curled edges (dark hatching that flickered)
+          if (([] as THREE.Material[]).concat(m.material).some((mat) => mat.name === "LotRMapBack")) m.visible = false;
           // the map is four quarters (Map0..3) side by side: no wrap-around at their edges (it showed as seams)
           if (/^(Main)?Map\d?/.test(nameOf(o))) {
             for (const mat of ([] as THREE.Material[]).concat(m.material)) {
@@ -357,7 +358,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         if (shown) e.step(dt, camera);
         return !e.done;
       });
-      if (dof) composer.render(dt);
+      if (dof) renderComposedWithParticles(composer, renderer, scene, camera, dt);
       else renderer.render(scene, camera);
     };
     tick();

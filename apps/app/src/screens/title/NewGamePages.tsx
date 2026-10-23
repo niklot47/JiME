@@ -24,6 +24,8 @@ interface PageProps {
   setDraft: (f: (d: Draft) => Draft) => void;
   onBack: () => void;
   onNext: () => void;
+  /** the page is leaving (its elements sliding out) */
+  leaving?: boolean;
 }
 
 /** a page: its panel plus the setup's options gear */
@@ -115,7 +117,7 @@ const SPARKS = { rate: 0.8, speed: 0.6, behind: true };
 /** the difficulties' entrance (CoroutineShow), the effects stay hidden until it is over */
 const ENTRY_S = 1.5;
 
-export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProps) {
+export function DifficultyPage({ ui, draft, setDraft, onBack, onNext, leaving }: PageProps) {
   const d = draft.difficulty;
   const [landed, setLanded] = useState(false);
   useEffect(() => { const t = setTimeout(() => setLanded(true), ENTRY_S * 1000); return () => clearTimeout(t); }, []);
@@ -139,7 +141,8 @@ export function DifficultyPage({ ui, draft, setDraft, onBack, onNext }: PageProp
       enter: { from: e.from, via: e.via, viaAt: 0.4, holdTo: 0.62, dur: 1.4, delay: 0.1, shake: { deg: 3, delay: 0.56, dur: 0.4 } } };
     // the pictures are layered pieces: no hover tint (one piece lighting up at a time looks like flicker)
     b[`${x.node}//#art`] = { onClick: () => pick(x.d), className: "ng-nohover" };
-    b[`${x.node}/Effects`] = { show: on && landed, enter: { fade: true, dur: 0.35, linear: true }, particles: x.d === "hard" ? true : SPARKS };
+    // (the selection's glow and sparks go as soon as the page starts to leave)
+    b[`${x.node}/Effects`] = { show: on && landed && !leaving, enter: { fade: true, dur: 0.35, linear: true }, particles: x.d === "hard" ? true : SPARKS };
   }
   // the materials' motion: the light behind the orc falls through its mask (down, a little to the left), the clouds
   // drift left and a little down, lighter

@@ -51,7 +51,8 @@ export function RestScene3D({ area = 0 }: { area?: number }) {
     scene.background = new THREE.Color().setRGB(0.032, 0.04, 0.118, THREE.SRGBColorSpace);
     const camera = new THREE.PerspectiveCamera(28.9, 1, 0.01, 100);
     // RenderSettings: flat ambient light 0.77 grey (it lights the moonlit forest behind the camp), the fire's lights on top
-    scene.add(new THREE.AmbientLight(new THREE.Color().setRGB(0.772, 0.772, 0.772, THREE.SRGBColorSpace), 0.65));
+    // (a little moonlit blue in it: the trees away from the fire stay readable, blue, as in the original)
+    scene.add(new THREE.AmbientLight(new THREE.Color().setRGB(0.62, 0.72, 0.98, THREE.SRGBColorSpace), 0.8));
     let emitters: Emitter[] = [];
     const fires: { light: THREE.PointLight; base: number; at: THREE.Object3D; range: number; glow: THREE.Sprite | null }[] = [];
     let alive = true;
@@ -69,7 +70,7 @@ export function RestScene3D({ area = 0 }: { area?: number }) {
           if (!Array.isArray(m.material) && /-BG$/.test(mat.name ?? "")) {
             // (a little dimmer than the full picture: the camp should stay a night scene)
             // (the moonlight on it a little bluer, as in the original)
-            m.material = new THREE.MeshBasicMaterial({ map: mat.map, color: mat.color.clone().multiply(new THREE.Color(0.62, 0.76, 1.0)), transparent: mat.transparent, alphaTest: mat.alphaTest, side: mat.side });
+            m.material = new THREE.MeshBasicMaterial({ map: mat.map, color: mat.color.clone().multiply(new THREE.Color(0.8, 0.98, 1.35)), transparent: mat.transparent, alphaTest: mat.alphaTest, side: mat.side });
           }
         }
         const L = o.userData?.light as { type: number; color: number[]; intensity: number; range: number } | undefined;

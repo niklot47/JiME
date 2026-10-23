@@ -161,8 +161,8 @@ function indexOf(root: UiNode): TreeIndex {
   return ix;
 }
 const needCache = new WeakMap<UiNode, Map<string, Set<number>>>();
-function neededNodes(root: UiNode, include: Set<number>): Set<number> {
-  const key = [...include].sort((a, b) => a - b).join(",");
+function neededNodes(root: UiNode, include: Set<number>, extras: UiNode[]): Set<number> {
+  const key = [...include].sort((a, b) => a - b).join(",") + "|" + extras.map((e) => e.id).join(",");
   let byKey = needCache.get(root);
   if (!byKey) { byKey = new Map(); needCache.set(root, byKey); }
   const hit = byKey.get(key);
@@ -173,6 +173,12 @@ function neededNodes(root: UiNode, include: Set<number>): Set<number> {
   const add = (n: UiNode | null | undefined) => { if (n && !need.has(n.id)) { need.add(n.id); todo.push(n); } };
   const addSubtree = (n: UiNode) => { add(n); for (const c of n.ch ?? []) addSubtree(c); };
   for (const id of include) { const n = ix.byId.get(id); if (n) addSubtree(n); }
+  // prefabs added at runtime (not in the tree) anchor to the tree too: their targets are needed as well
+  const anchorsOf = (n: UiNode) => {
+    for (const a of [...(n.w?.an ?? []), ...(n.panel?.an ?? [])]) if (a && a[0]) add(ix.byTr.get(a[0]) ?? ix.byId.get(a[0]));
+    for (const c of n.ch ?? []) anchorsOf(c);
+  };
+  for (const e of extras) anchorsOf(e);
   while (todo.length) {
     const n = todo.pop()!;
     add(ix.parent.get(n.id));
@@ -202,7 +208,15 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const rects = new Map<number, Rect>();
   const boxes: Box[] = [];
   // (the layout preview draws everything: no pruning)
-  const need = all ? null : neededNodes(root, include);
+  const extras: UiNode[] = [];
+  const collect = (bs: Binds) => {
+    for (const b of Object.values(bs)) {
+      if (b.extra) extras.push(...b.extra);
+      for (const c of b.clones ?? []) collect(c);
+    }
+  };
+  if (!all) collect(binds);
+  const need = all ? null : neededNodes(root, include, extras);
   const known = indexOf(root).byId;
   let order = 0;
 

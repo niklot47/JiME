@@ -101,7 +101,7 @@ void main() {
   gl_Position = projectionMatrix * mv;
   float f = floor(iMisc.z + 0.5);
   float fx = mod(f, uSheet.x), fy = floor(f / uSheet.x);
-  vUv = (vec2(fx, uSheet.y - 1.0 - fy) + uv) / uSheet;
+  vUv = (vec2(fx, uSheet.y - 1.0 - fy) + vec2(1.0 - uv.x, uv.y)) / uSheet; // (mirrored like the scene: x flipped)
   vColor = iColor;
 }`;
 const FRAG = /* glsl */ `
@@ -381,6 +381,48 @@ export class Emitter extends THREE.Object3D {
 }
 
 /** Emitters for every node carrying "ps" extras under root; material / mesh from its ":psmat" / ":psmesh" children */
+/** the layer the particles move to while a post-processed frame is drawn (renderComposedWithParticles) */
+const PARTICLE_LAYER = 5;
+
+/**
+ * Draw a frame through a composer (depth of field) with the particle systems drawn straight onto the canvas after it.
+ * In the composer's linear float target their additive light nearly vanished (the game blends in gamma space, as a
+ * direct render does), and the depth of field's depth pass took their quads for opaque surfaces in front of the camera.
+ * The particles are not depth tested against the composed picture (soft light and smoke in front of the scene).
+ */
+export function renderComposedWithParticles(composer: { render: (dt?: number) => void }, renderer: THREE.WebGLRenderer,
+  scene: THREE.Object3D, camera: THREE.Camera, dt: number, k = 1): void {
+  const moved: THREE.Object3D[] = [];
+  scene.traverse((o) => {
+    if (!(o instanceof Emitter) || !o.visible) return;
+    o.traverse((x) => { if (x.layers.mask === 1) { x.layers.set(PARTICLE_LAYER); moved.push(x); } });
+  });
+  composer.render(dt);
+  if (!moved.length) return;
+  const mask = camera.layers.mask, clear = renderer.autoClear;
+  camera.layers.set(PARTICLE_LAYER);
+  renderer.autoClear = false;
+  renderer.clearDepth();
+  // k: their strength here (drawn over everything, not hidden behind the figures, they light more than in the scene)
+  const saved: [THREE.Color | THREE.Vector4, THREE.Color | THREE.Vector4][] = [];
+  if (k !== 1) {
+    for (const x of moved) {
+      const m = (x as THREE.Mesh).material as (THREE.ShaderMaterial & THREE.MeshBasicMaterial) | undefined;
+      const c = m?.uniforms?.uTint?.value as THREE.Vector4 | undefined ?? m?.color;
+      if (c) { saved.push([c, c.clone()]); c.multiplyScalar(k); }
+    }
+  }
+  // (no background over the composed picture)
+  const sc = scene as THREE.Scene, bg = sc.background;
+  sc.background = null;
+  renderer.render(sc, camera);
+  sc.background = bg;
+  for (const [c, v] of saved) (c as THREE.Vector4).copy(v as THREE.Vector4);
+  renderer.autoClear = clear;
+  camera.layers.mask = mask;
+  for (const x of moved) x.layers.set(0);
+}
+
 export function attachEmitters(root: THREE.Object3D, filter: (name: string, ps: PS) => boolean = () => true): Emitter[] {
   const out: Emitter[] = [];
   const nodes: THREE.Object3D[] = [];

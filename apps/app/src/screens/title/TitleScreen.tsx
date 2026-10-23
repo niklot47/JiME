@@ -99,7 +99,7 @@ export function TitleScreen({ onPlay, onTools }: {
   let body;
   const props = { ui, draft, setDraft };
   if (shown === "campaign") body = <CampaignPage {...props} savesFull={saves.length >= MAX_SAVES} onBack={() => go("title")} onNext={() => go("difficulty")} />;
-  else if (shown === "difficulty") body = <DifficultyPage {...props} onBack={() => go("campaign")} onNext={() => go("heroes")} />;
+  else if (shown === "difficulty") body = <DifficultyPage {...props} leaving={leaving} onBack={() => go("campaign")} onNext={() => go("heroes")} />;
   else if (shown === "heroes") body = <HeroesPage {...props} onBack={() => go("difficulty")} onNext={() => { setDraft((d) => ({ ...d, items: defaultItems(ui, d.heroes) })); go("items"); }} />;
   else if (shown === "items") body = <ItemsPage {...props} onBack={() => go("heroes")} onNext={() => go("party")} />;
   else if (shown === "party") body = <PartyNamePage {...props} onBack={() => go("items")} onNext={start} />;

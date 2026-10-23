@@ -472,17 +472,24 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             const scrollAnim = `ng-scroll ${(fs?.dur ?? 1 / Math.max(0.005, fx.v)).toFixed(1)}s linear infinite`;
             st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${scrollAnim}` : scrollAnim;
           } else if (fx?.k === "wobble" && fx.s > 0) {
-            // FlameDistortion: displaced by a noise flowing one way (up, or down when reversed) through the picture
-            // (the shader moves the picture's UVs by the noise times the strength: a large share of the picture - the
-            // flames' tongues streak and lick, they do not just shimmer)
-            const id = wobbleId(b.width, b.height, fx.s * Math.min(b.width, b.height) * 1.1, fx.v, !!fx.rev);
+            // FlameDistortion: displaced by a noise flowing one way (up, or down when reversed) through the picture.
+            // The flames laid over a picture (the Balrog's sword, whip, the fire on his path) lighten it. The strongest of
+            // them (the sword, _NoiseStrength 0.4) also burns: the same flowing noise eats its thin outer parts into
+            // tongues that rise and break off, the solid core stays; and its soft halo pulses (half to full)
+            const over = b.w.d >= 6;
+            const burn = over && fx.s > 0.35;
+            const id = wobbleId(b.width, b.height, fx.s * Math.min(b.width, b.height) * 0.5, fx.v, !!fx.rev, burn);
             wobbles.set(id.id, id);
             st.filter = `${st.filter ? `${st.filter} ` : ""}url(#${id.id})`;
-            // the flames over a picture glow: lightened onto it, with a warm halo, as the additive shader does (a flame
-            // laid behind its picture - the hard difficulty's highlight - would light the picture's edges)
-            if (b.w.d >= 6) {
-              st.filter += ` drop-shadow(0 0 ${Math.max(2, Math.round(Math.min(b.width, b.height) * 0.03))}px rgba(255, 120, 30, 0.6))`;
-              st.mixBlendMode = "screen";
+            if (over) st.mixBlendMode = "screen";
+            if (burn && img) {
+              const blur = Math.max(3, Math.round(Math.min(b.width, b.height) * 0.06));
+              const halo: CSSProperties = { ...st, ...img, ...softMask, filter: `blur(${blur}px)`, mixBlendMode: "screen",
+                animation: `ng-pulse 0.9s ease-in-out infinite alternate`, ["--ng-a0" as string]: 0.35, ["--ng-a1" as string]: 0.7 };
+              return [
+                <div key={`${b.key}~halo`} className="ng ng-fx-halo" style={halo} />,
+                <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{b.bind.content}</div>,
+              ];
             }
           }
           if (b.w.glow) {
@@ -508,7 +515,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             // without turning back
             <filter key={w.id} id={w.id} filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse"
               x={-w.pad} y={-w.pad} width={w.w + 2 * w.pad} height={w.h + 2 * w.pad}>
-              <feTurbulence type="fractalNoise" baseFrequency={`${(3 / w.w).toFixed(4)} ${(3 / w.h).toFixed(4)}`} numOctaves="2" seed="3"
+              <feTurbulence type="fractalNoise" baseFrequency={w.burn ? `${(7 / w.w).toFixed(4)} ${(2.5 / w.h).toFixed(4)}` : `${(3 / w.w).toFixed(4)} ${(3 / w.h).toFixed(4)}`} numOctaves="2" seed="3"
                 stitchTiles="stitch" x="0" y="0" width={w.w} height={w.h} result="n" />
               <feTile in="n" x={-w.w} y={-w.h} width={3 * w.w} height={3 * w.h} result="t" />
               <feOffset in="t" dx="0" dy="0" result="o">
@@ -517,7 +524,15 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
               <feDisplacementMap in="SourceGraphic" in2="o" scale={w.scale} xChannelSelector="R" yChannelSelector="G" result="d" />
               {/* the dynamic flame colour: the same flowing noise makes the fire brighter and dimmer as it rises */}
               <feColorMatrix in="o" type="matrix" values="0 0 1 0 0  0 0 1 0 0  0 0 1 0 0  0 0 0 0 1" result="g" />
-              <feComposite in="d" in2="g" operator="arithmetic" k1="1.25" k2="0.5" k3="0" k4="0" />
+              <feComposite in="d" in2="g" operator="arithmetic" k1="1.25" k2="0.5" k3="0" k4="0" result="lit" />
+              {w.burn && <>
+                {/* burning: alpha = 1.5 A + 0.9 noise - 0.95 - the core (A = 1) stays, thin parts show only where the
+                    noise is high, as tongues flowing with it */}
+                <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="da" />
+                <feColorMatrix in="o" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="ga" />
+                <feComposite in="da" in2="ga" operator="arithmetic" k1="0" k2="1.5" k3="0.9" k4="-0.95" result="m" />
+                <feComposite in="lit" in2="m" operator="in" />
+              </>}
             </filter>
           ))}
         </svg>
@@ -526,14 +541,14 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   );
 }
 
-interface Wobble { id: string; w: number; h: number; pad: number; scale: number; dur: number; rev: boolean }
+interface Wobble { id: string; w: number; h: number; pad: number; scale: number; dur: number; rev: boolean; burn: boolean }
 /** a flowing-noise filter for a picture's size, a displacement (px), a speed (_Speed: picture heights per second)
  *  and a direction, shared by the boxes that need the same */
-function wobbleId(width: number, height: number, px: number, speed: number, rev: boolean): Wobble {
+function wobbleId(width: number, height: number, px: number, speed: number, rev: boolean, burn = false): Wobble {
   const w = Math.max(4, Math.round(width)), h = Math.max(4, Math.round(height));
   const scale = Math.max(1, Math.round(px));
   const dur = Math.round(Math.min(30, Math.max(1.5, 1 / Math.max(0.01, speed))) * 10) / 10;
-  return { id: `ng-wobble-${w}-${h}-${scale}-${String(dur).replace(".", "_")}${rev ? "r" : ""}`, w, h, pad: scale + 2, scale, dur, rev };
+  return { id: `ng-wobble-${w}-${h}-${scale}-${String(dur).replace(".", "_")}${rev ? "r" : ""}${burn ? "b" : ""}`, w, h, pad: scale + 2, scale, dur, rev, burn };
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
