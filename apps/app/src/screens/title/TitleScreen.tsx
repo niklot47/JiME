@@ -40,7 +40,6 @@ export function TitleScreen({ onPlay, onTools }: {
   const [english, setEnglish] = useState<TextDb | null>(null);
   const [heroArt, setHeroArt] = useState<Record<string, HeroArt>>({});
   const [art, setArt] = useState<{ campaigns: ModelArt; items: ModelArt; products: ModelArt }>({ campaigns: {}, items: {}, products: {} });
-  const [bg, setBg] = useState<string | undefined>();
   const [langs, setLangs] = useState(["ru", "en", "it"]);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<Page>("title");
@@ -54,8 +53,8 @@ export function TitleScreen({ onPlay, onTools }: {
 
   useEffect(() => {
     void installFonts();
-    Promise.all([loadUiLayout(), loadUiAtlas(), loadDb(), loadHeroArt(), loadModelArt("campaigns"), loadModelArt("items"), loadModelArt("products"), loadUiArt()])
-      .then(([l, a, d, h, c, i, p, u]) => { setLayout(l); setAtlas(a); setDb(d); setHeroArt(h); setArt({ campaigns: c, items: i, products: p }); setBg(u.map); })
+    Promise.all([loadUiLayout(), loadUiAtlas(), loadDb(), loadHeroArt(), loadModelArt("campaigns"), loadModelArt("items"), loadModelArt("products")])
+      .then(([l, a, d, h, c, i, p]) => { setLayout(l); setAtlas(a); setDb(d); setHeroArt(h); setArt({ campaigns: c, items: i, products: p }); })
       .catch((e) => setError(String(e)));
     loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {});
     loadText("en").then(setEnglish).catch(() => setEnglish(null));
@@ -75,10 +74,13 @@ export function TitleScreen({ onPlay, onTools }: {
   }, [layout, atlas, db, text, english, heroArt, art, lang, owned]);
 
   if (error) return <div className="shell"><p className="error">{error}</p><button onClick={onTools}>Инструменты</button></div>;
-  if (!ui) return <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined} />;
+  // (dark while loading: the original opens on black, then its scene)
+  if (!ui) return <div className="title-screen" />;
 
   // the page's elements leave (SlidingElement forward: false), then the next page comes in
   const go = (p: Page) => (p === "options" || page === "options" ? setPage(p) : leave(() => setPage(p)));
+  // the title's own scene on these pages, the map room on the new-game ones (each fades through the dark)
+  const titlePage = page === "title" || page === "options" || page === "load" || page === "collection";
   // what is drawn under the options: the page they were opened from
   const shown: Page = page === "options" ? back : page;
   const start = () => {
@@ -113,11 +115,11 @@ export function TitleScreen({ onPlay, onTools }: {
       onOptions={() => { setBack("title"); go("options"); }} onCollection={() => go("collection")} />;
   }
   return (
-    <div className="title-screen" style={bg ? { backgroundImage: `url("${assetUrl(bg)}")` } : undefined}>
+    <div className="title-screen">
       {/* the map room behind the new-game pages (MenuTransitioner.MapSceneVisibility: MapVisual + SetBlur); the title's
           own scene over it on the title pages (TitlescreenVisuals), fading out to the map room */}
-      <MapRoom3D view="setup" />
-      <TitleScene3D shown={page === "title" || page === "options" || page === "load" || page === "collection"} />
+      <MapRoom3D view="setup" className={titlePage ? "maproom-off" : "maproom-on"} />
+      <TitleScene3D shown={titlePage} />
       {shown !== "title" && <div className="title-dim" />}
       <div className={leaving ? "ng-leaving" : undefined} style={{ display: "contents" }}>{body}</div>
       {page === "options" && (

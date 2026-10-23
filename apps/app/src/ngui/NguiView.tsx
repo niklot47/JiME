@@ -462,6 +462,12 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             const id = wobbleId(b.width, b.height, fx.s * Math.min(b.width, b.height) * 0.5, fx.v, !!fx.rev);
             wobbles.set(id.id, id);
             st.filter = `${st.filter ? `${st.filter} ` : ""}url(#${id.id})`;
+            // the flames over a picture glow: lightened onto it, with a warm halo, as the additive shader does (a flame
+            // laid behind its picture - the hard difficulty's highlight - would light the picture's edges)
+            if (b.w.d >= 6) {
+              st.filter += ` drop-shadow(0 0 ${Math.max(2, Math.round(Math.min(b.width, b.height) * 0.03))}px rgba(255, 120, 30, 0.6))`;
+              st.mixBlendMode = "screen";
+            }
           }
           if (!img && !click && !b.bind.content) return null;
           return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{b.bind.content}</div>;
@@ -487,7 +493,10 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
               <feOffset in="t" dx="0" dy="0" result="o">
                 <animate attributeName="dy" from="0" to={w.rev ? w.h : -w.h} dur={`${w.dur}s`} repeatCount="indefinite" />
               </feOffset>
-              <feDisplacementMap in="SourceGraphic" in2="o" scale={w.scale} xChannelSelector="R" yChannelSelector="G" />
+              <feDisplacementMap in="SourceGraphic" in2="o" scale={w.scale} xChannelSelector="R" yChannelSelector="G" result="d" />
+              {/* the dynamic flame colour: the same flowing noise makes the fire brighter and dimmer as it rises */}
+              <feColorMatrix in="o" type="matrix" values="0 0 1 0 0  0 0 1 0 0  0 0 1 0 0  0 0 0 0 1" result="g" />
+              <feComposite in="d" in2="g" operator="arithmetic" k1="1.25" k2="0.5" k3="0" k4="0" />
             </filter>
           ))}
         </svg>

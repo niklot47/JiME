@@ -139,6 +139,52 @@ export interface Box {
 
 export interface Measured { w: number; h: number }
 
+// ---------------------------------------------------------------- the part of the tree a view needs
+// The whole interface is one tree of thousands of nodes; a view draws a few subtrees. Laid out are only those subtrees,
+// the chains from the root down to them, and the nodes their anchors point at (with their own chains and anchors) -
+// everything else cannot change what the view draws. (Laying out the whole tree twice for every view and every render
+// made each dialog take a noticeable moment to appear.)
+interface TreeIndex { parent: Map<number, UiNode | null>; byId: Map<number, UiNode>; byTr: Map<number, UiNode> }
+const indexes = new WeakMap<UiNode, TreeIndex>();
+function indexOf(root: UiNode): TreeIndex {
+  let ix = indexes.get(root);
+  if (ix) return ix;
+  ix = { parent: new Map(), byId: new Map(), byTr: new Map() };
+  const walk = (n: UiNode, p: UiNode | null) => {
+    ix!.parent.set(n.id, p);
+    ix!.byId.set(n.id, n);
+    if (n.tr) ix!.byTr.set(n.tr, n);
+    for (const c of n.ch ?? []) walk(c, n);
+  };
+  walk(root, null);
+  indexes.set(root, ix);
+  return ix;
+}
+const needCache = new WeakMap<UiNode, Map<string, Set<number>>>();
+function neededNodes(root: UiNode, include: Set<number>): Set<number> {
+  const key = [...include].sort((a, b) => a - b).join(",");
+  let byKey = needCache.get(root);
+  if (!byKey) { byKey = new Map(); needCache.set(root, byKey); }
+  const hit = byKey.get(key);
+  if (hit) return hit;
+  const ix = indexOf(root);
+  const need = new Set<number>();
+  const todo: UiNode[] = [];
+  const add = (n: UiNode | null | undefined) => { if (n && !need.has(n.id)) { need.add(n.id); todo.push(n); } };
+  const addSubtree = (n: UiNode) => { add(n); for (const c of n.ch ?? []) addSubtree(c); };
+  for (const id of include) { const n = ix.byId.get(id); if (n) addSubtree(n); }
+  while (todo.length) {
+    const n = todo.pop()!;
+    add(ix.parent.get(n.id));
+    for (const a of [...(n.w?.an ?? []), ...(n.panel?.an ?? [])]) {
+      if (!a || !a[0]) continue;
+      add(ix.byTr.get(a[0]) ?? ix.byId.get(a[0]));
+    }
+  }
+  byKey.set(key, need);
+  return need;
+}
+
 const PIVOT: Record<number, [number, number]> = { 0: [0, 1], 1: [0.5, 1], 2: [1, 1], 3: [0, 0.5], 4: [0.5, 0.5], 5: [1, 0.5], 6: [0, 0], 7: [0.5, 0], 8: [1, 0] };
 type Rect = { l: number; r: number; b: number; t: number; sx?: number; sy?: number };
 
@@ -155,12 +201,17 @@ export function solve(root: UiNode, binds: Binds, screenW: number, measured: Map
   const screen: Rect = { l: -screenW / 2, r: screenW / 2, b: -H / 2, t: H / 2 };
   const rects = new Map<number, Rect>();
   const boxes: Box[] = [];
+  // (the layout preview draws everything: no pruning)
+  const need = all ? null : neededNodes(root, include);
+  const known = indexOf(root).byId;
   let order = 0;
 
   const run = (collect: boolean) => {
     order = 0;
     const visit = (n: UiNode, px: number, py: number, sx: number, sy: number, panel: number, active: boolean, bs: Binds, key: string, inc: boolean,
       anc: string[], at?: [number, number], clip: Rect | null = null, ent?: Enter, mv?: number, o: number[] = ID, eo?: [number, number], pso: PsPlay | null = null) => {
+      // (nodes added at runtime - prefabs, clones' extras - are not in the index: always laid out)
+      if (need && !need.has(n.id) && known.get(n.id) === n) return;
       const b = bindOf(bs, anc, n.n);
       const ownEnter = !!b.enter;
       if (b.particles !== undefined) pso = b.particles === false ? null : b.particles === true ? {} : b.particles;

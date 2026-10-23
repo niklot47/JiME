@@ -456,7 +456,7 @@ html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui
 @keyframes ng-callout-pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
 
 /* title screen and new-game pages (screens/title) */
-.title-screen { position: fixed; inset: 0; background: #1b1612 center / cover no-repeat; overflow: hidden; }
+.title-screen { position: fixed; inset: 0; background: #000; overflow: hidden; }
 .title-screen .ngui { z-index: 2; }
 .title-dim { position: absolute; inset: 0; background: rgba(12, 9, 6, 0.4); z-index: 1; }
 .ngui-wheel { position: absolute; inset: 0; z-index: 2; }
@@ -467,8 +467,12 @@ html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui
 .maproom { position: absolute; inset: 0; }
 .title-screen .maproom { z-index: 0; }
 /* the title's battle scene over the map room: fades in when loaded, out to the map room for the new-game pages */
-.title-screen .title-scene { z-index: 0; opacity: 0; transition: opacity 0.9s ease-in-out; }
-.title-screen .title-scene.on { opacity: 1; }
+/* (MenuTransitioner: the scenes change through the dark - one fades out, then the other in; the title scene keeps
+   playing while it fades) */
+.title-screen .title-scene { z-index: 0; opacity: 0; transition: opacity 0.6s ease-in; }
+.title-screen .title-scene.on { opacity: 1; transition: opacity 0.9s ease-out 0.5s; }
+.title-screen .maproom-off { opacity: 0; transition: opacity 0.6s ease-in; }
+.title-screen .maproom-on { opacity: 1; transition: opacity 0.9s ease-out 0.5s; }
 
 /* the collection: the picked product's box grows (CollectionItem.TweenScaleItem) */
 .ngui .ng-picked { scale: 1.15; transition: scale 0.2s; }
@@ -499,13 +503,19 @@ html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui
 
 /* the travel map's vignette (MapRoom3D) */
 .maproom-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s;
-  background: radial-gradient(ellipse at 45% 42%, transparent 18%, rgba(8, 3, 0, 0.6) 55%, rgba(3, 1, 0, 0.97) 100%),
-    linear-gradient(to right, rgba(3, 1, 0, 0.55), transparent 22%, transparent 78%, rgba(3, 1, 0, 0.55)); }
+  background: radial-gradient(ellipse at 45% 42%, transparent 25%, rgba(6, 6, 14, 0.45) 60%, rgba(2, 4, 14, 0.88) 100%),
+    linear-gradient(to right, rgba(2, 4, 14, 0.4), transparent 20%, transparent 80%, rgba(2, 4, 14, 0.4)); }
+/* the candles' warm light pooled in the middle of the map (the original's orange heart, blue night at the edges) */
+.maproom-vignette::after { content: ""; position: absolute; inset: 0; mix-blend-mode: screen;
+  background: radial-gradient(ellipse 45% 50% at 42% 42%, rgba(255, 130, 40, 0.28), rgba(255, 100, 20, 0.1) 55%, transparent 80%); }
 /* the candle-lit room: the picture graded warmer and with more contrast (the original's orange, deep shadows) */
 .maproom canvas { transition: filter 1s; }
-.maproom-dark canvas { filter: sepia(0.6) saturate(2.2) contrast(1.15) brightness(1.08); }
+/* the camp: the original's stronger contrast and colour */
+.maproom.rest-scene canvas { filter: contrast(1.2) brightness(0.88); }
+/* (a light grade only: the night's blue stays in the shadows, the candles make the orange) */
+.maproom-dark canvas { filter: sepia(0.42) saturate(1.85) contrast(1.15) brightness(1.1); }
 /* behind the new-game pages the room is out of focus (MapRoomVisuals.SetBlur) */
-.maproom-blur canvas { filter: sepia(0.6) saturate(2.2) contrast(1.15) brightness(1.08) blur(5px); }
+.maproom-blur canvas { filter: sepia(0.42) saturate(1.85) contrast(1.15) brightness(1.1) blur(5px); }
 .maproom-vignette.on { opacity: 1; }
 
 /* mesh-art animations (NguiView fx): the scrolling texture, the hidden filter definitions */

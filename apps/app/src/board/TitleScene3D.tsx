@@ -20,6 +20,9 @@ interface TitleInfo { camera: { fov: number; near: number; far: number; clear: n
 /** the clip the title plays (CameraWiggle hands over to TitleArtSequence at once: exit time 0) */
 const CLIP = "TitleArt";
 const DEG = Math.PI / 180;
+/** the focused figure's lift (_ColorAdd): the shader's own use of it is unknown; at full strength it washes the figure
+ *  out, the original shows only a faint brightening */
+const ADD_K = 0.3;
 
 /** Unity euler angles (degrees, applied z, x, y) as a mirrored three.js quaternion */
 function unityEuler(x: number, y: number, z: number, out: THREE.Quaternion): THREE.Quaternion {
@@ -84,7 +87,8 @@ export function TitleScene3D({ shown = true, className }: { shown?: boolean; cla
           sh.uniforms.uAdd = add;
           sh.fragmentShader = sh.fragmentShader.replace("void main() {", "uniform vec3 uAdd;\nvoid main() {")
             // (added in the game's gamma space: in linear light the same number would wash the figure out)
-            .replace("#include <dithering_fragment>", "gl_FragColor.rgb = pow(pow(max(gl_FragColor.rgb, 0.0), vec3(1.0 / 2.2)) + uAdd, vec3(2.2));\n#include <dithering_fragment>");
+            .replace("#include <dithering_fragment>", "gl_FragColor.rgb = pow(pow(max(gl_FragColor.rgb, 0.0), vec3(1.0 / 2.2)) + uAdd * ADD_K, vec3(2.2));\n#include <dithering_fragment>")
+            .replace("uniform vec3 uAdd;", `uniform vec3 uAdd;\nconst float ADD_K = ${ADD_K.toFixed(2)};`);
         };
         m.material = mat;
       });
@@ -146,14 +150,16 @@ export function TitleScene3D({ shown = true, className }: { shown?: boolean; cla
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(el);
-    let raf = 0, last = performance.now(), t = 0;
+    let raf = 0, last = performance.now(), t = 0, hiddenAt = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const now = performance.now();
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      // hidden behind the new-game pages: nothing to draw
-      if (!shownRef.current || !play) return;
+      // hidden behind the new-game pages: nothing to draw (once it has faded out, still playing while it fades)
+      if (shownRef.current) hiddenAt = 0;
+      else if (!hiddenAt) hiddenAt = now;
+      if (!play || (hiddenAt && now - hiddenAt > 900)) return;
       t += dt;
       play(t);
       scene.updateMatrixWorld(true);

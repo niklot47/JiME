@@ -46,7 +46,10 @@ const TILT = THREE.MathUtils.degToRad(75);
 /** the zoom (MapZoom animation): the camera lower and more level, the ground under it the same spot as before */
 const ZOOM_TILT = THREE.MathUtils.degToRad(42);
 /** the whole map on the desk with the candle and the books around it (the travel map, and behind the new-game pages) */
-const OVERVIEW = new THREE.Vector3(0, 37, 0.89 - 37 / Math.tan(TILT));
+// (a little less steep than the title's view: the original's map narrows towards its far edge)
+const OVERVIEW_TILT = THREE.MathUtils.degToRad(66);
+const OVERVIEW_H = 35.5;
+const OVERVIEW = new THREE.Vector3(0, OVERVIEW_H, 1.4 - OVERVIEW_H / Math.tan(OVERVIEW_TILT));
 const ZOOM_H = 5.2;
 const ZOOM_Z = 0.6 - ZOOM_H / Math.tan(ZOOM_TILT);
 const HEMI_DAY = new THREE.Color(0xfff0dc), HEMI_NIGHT = new THREE.Color(0xff9a50);
@@ -103,6 +106,9 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         const m = o as THREE.Mesh;
         if (m.isMesh) {
           smoothCutout(m);
+          // the map's back (LotRMapBack, under the map's quarters): seen from below only - drawn from both sides it
+          // covered the east of the map (Rhûn, the compass) and the south (Near Harad) with blank parchment
+          for (const mat of ([] as THREE.Material[]).concat(m.material)) if (mat.name === "LotRMapBack") { mat.side = THREE.BackSide; mat.needsUpdate = true; }
           // the map is four quarters (Map0..3) side by side: no wrap-around at their edges (it showed as seams)
           if (/^(Main)?Map\d?/.test(nameOf(o))) {
             for (const mat of ([] as THREE.Material[]).concat(m.material)) {
@@ -201,10 +207,10 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         const a = t / 4;
         rigTo.set(-Math.sin(a) * 0.25, -10.125 * aspect + 15.25, Math.cos(a) * -0.25 + 0.25);
         if (v === "title") { localTo.set(0, 21.6, -4.9); tiltTo = TILT; }
-        else { rigTo.set(-Math.sin(a) * 0.12, 0, Math.cos(a) * -0.12 + 0.12); localTo.copy(OVERVIEW); tiltTo = TILT; }
+        else { rigTo.set(-Math.sin(a) * 0.12, 0, Math.cos(a) * -0.12 + 0.12); localTo.copy(OVERVIEW); tiltTo = OVERVIEW_TILT; }
       } else if (v === "map") {
         rigTo.set(0, 0, 0);
-        localTo.copy(OVERVIEW); tiltTo = TILT;
+        localTo.copy(OVERVIEW); tiltTo = OVERVIEW_TILT;
       } else {
         // ZoomCamera: the rig to the location, the camera down (the MapZoom animation)
         if (lp) rigTo.copy(lp).add(RIG_OFFSET).setY(0);
@@ -225,7 +231,8 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       // the candles and lamps doing the work)
       hemi.intensity += ((1 - dark) * 1.15 + dark * 0.42 - hemi.intensity) * lk;
       key.intensity += ((1 - dark) * 1.4 + dark * 0.6 - key.intensity) * lk;
-      ambient.intensity += (dark * 0.12 - ambient.intensity) * lk;
+      // (the room's blue night light in the shadows: the books, the inkwell and the papers stay readable)
+      ambient.intensity += (dark * 0.3 - ambient.intensity) * lk;
       hemi.color.lerpColors(HEMI_DAY, HEMI_NIGHT, hemiMix += (dark - hemiMix) * lk);
       key.color.lerpColors(KEY_DAY, KEY_NIGHT, hemiMix);
       for (const l of sceneLights) {
