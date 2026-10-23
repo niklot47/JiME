@@ -361,7 +361,9 @@ export class Emitter extends THREE.Object3D {
       this.iPos.setXYZ(i, p.pos.x, p.pos.y, p.pos.z);
       this.iVel.setXYZ(i, p.vel.x, p.vel.y, p.vel.z);
       this.iColor.setXYZW(i, c0[0]! * col[0]!, c0[1]! * col[1]!, c0[2]! * col[2]!, c0[3]! * col[3]!);
-      const frame = ps.sheet ? Math.floor((p.frame0 + mm(ps.sheet.frame, (u * (ps.sheet.cycles || 1)) % 1, p.r[4]!)) % frames) : 0;
+      // (Unity keeps the start frame and the frame over time as fractions of the sheet: 0..1 = all its frames - read as
+      // frame numbers they stayed on the first one, the camp's flames stood still)
+      const frame = ps.sheet ? Math.floor((p.frame0 + mm(ps.sheet.frame, (u * (ps.sheet.cycles || 1)) % 1, p.r[4]!)) * frames) % frames : 0;
       this.iMisc.setXYZ(i, p.size * mm(ps.sol, u, p.r[2]!, 1), -p.rot, frame);
     });
     const g = this.mesh.geometry as unknown as THREE.InstancedBufferGeometry;

@@ -17,8 +17,12 @@ interface Track { path: string; prop: string; n: number; v: number[] }
 interface Clip { dur: number; fps: number; loop: boolean; tracks: Track[] }
 interface TitleInfo { camera: { fov: number; near: number; far: number; clear: number[] }; states: string[]; clips: Record<string, Clip> }
 
-/** the clip the title plays (CameraWiggle hands over to TitleArtSequence at once: exit time 0) */
-const CLIP = "TitleArt";
+/** the Animator's states: CameraWiggle plays once (the flat "painting", the camera drifting slowly to show the
+ *  parallax), its transition (exit time 0, taken when the loop comes round) then hands over to TitleArtSequence, which
+ *  loops (the flight between the figures) */
+const FIRST = "CameraWiggle", MAIN = "TitleArt";
+/** the whole sequence a quarter slower than the clips' own speed */
+const RATE = 0.75;
 const DEG = Math.PI / 180;
 /** the focused figure's lift (_ColorAdd): the shader's own use of it is unknown; at full strength it washes the figure
  *  out, the original shows only a faint brightening */
@@ -106,15 +110,19 @@ export function TitleScene3D({ shown = true, className }: { shown?: boolean; cla
       }
       camNode = byPath.get("Camera/Main Camera") ?? null;
       focusNode = byPath.get("Camera/Main Camera/FocusObject") ?? null;
-      const clip = info.clips[CLIP] ?? Object.values(info.clips)[0];
-      if (!clip) return;
+      const main = info.clips[MAIN] ?? Object.values(info.clips)[0];
+      const first = info.clips[FIRST] ?? null;
+      if (!main) return;
       const meshOf = (o: THREE.Object3D): THREE.Mesh | null => {
         let m: THREE.Mesh | null = null;
         o.traverse((x) => { if (!m && (x as THREE.Mesh).isMesh) m = x as THREE.Mesh; });
         return m;
       };
       const q = new THREE.Quaternion();
-      play = (t: number) => {
+      play = (time: number) => {
+        const tt = time * RATE;
+        const clip = first && tt < first.dur ? first : main;
+        const t = clip === first ? tt : tt - (first ? first.dur : 0);
         const f = (t % clip.dur) * clip.fps;
         const frames = Math.floor(clip.tracks[0] ? clip.tracks[0].v.length / clip.tracks[0].n : 1);
         const i0 = Math.min(frames - 1, Math.floor(f)), i1 = Math.min(frames - 1, i0 + 1), k = f - Math.floor(f);

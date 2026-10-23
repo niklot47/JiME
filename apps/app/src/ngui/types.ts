@@ -51,6 +51,8 @@ export interface UiWidget {
    *  wobble - Shader Forge FlameDistortion (s: noise strength in UV units, v: speed, rev: reversed);
    *  scroll - ScrollingWithMask (tex scrolls sideways under mask; v: UV per second, sx / sy: tiling) */
   fx?: { k: "wobble"; s: number; v: number; rev: number } | { k: "scroll"; v: number; tex: string; mask: string; sx: number; sy: number };
+  /** an Animator playing the picture's tint (the Balrog's highlights): brightness over one loop of dur seconds */
+  glow?: { dur: number; k: number[] };
 }
 
 export interface UiTween {

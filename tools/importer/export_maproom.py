@@ -16,6 +16,29 @@ OUT = os.path.join(PACK, "maproom")
 INFO = {}
 
 
+def export_lightmaps(af, prefix):
+    """the scene's baked lightmaps (LightmapSettings) as images: RGBM decoded (gamma space, 5 * a * rgb) and halved,
+    so 0..2 fits a PNG -> [pack paths] (the app multiplies by 2 in gamma space)"""
+    from PIL import Image
+    ls = next((o for o in af.objects.values() if o.type.name == "LightmapSettings"), None)
+    if ls is None:
+        return []
+    out = []
+    for i, e in enumerate(ls.read_typetree().get("m_Lightmaps", [])):
+        pp = e.get("lightmap") or e.get("m_Lightmap") or {}
+        o = deref(af, pp.get("m_FileID", 0), pp.get("m_PathID", 0)) if pp.get("m_PathID") else None
+        if o is None:
+            out.append(None)
+            continue
+        a = np.asarray(o.read().image.convert("RGBA"), np.float32) / 255.0
+        L = a[..., :3] * a[..., 3:4] * 5.0
+        img = Image.fromarray((np.clip(L / 2.0, 0, 1) * 255 + 0.5).astype(np.uint8), "RGB")
+        fn = f"{prefix}-lightmap-{i}.png"
+        img.save(os.path.join(OUT, fn))
+        out.append(f"maproom/{fn}")
+    return out
+
+
 class SceneExporter(Exporter):
     """Exporter that tags every node with its GameObject path id and the map scripts' data"""
     def go(self, go_obj, parent=None, world=np.eye(4), extra=None):
@@ -82,10 +105,11 @@ def export_maproom():
         data["campfire"] = go_of(af, d.get("MapCampfire"))
         data["camera"] = go_of(af, d.get("MapCameraParent"))
         data["map"] = go_of(af, d.get("MapParent"))
-    ex = SceneExporter()
+    os.makedirs(OUT, exist_ok=True)
+    data["lightmaps"] = export_lightmaps(af, "maproom")
+    ex = SceneExporter(lightmaps=len(data["lightmaps"]))
     for r in roots(af):
         ex.go(r)
-    os.makedirs(OUT, exist_ok=True)
     ex.save(os.path.join(OUT, "maproom.glb"))
     with open(os.path.join(OUT, "maproom.json"), "w", encoding="utf-8") as fp:
         json.dump(data, fp, indent=1)

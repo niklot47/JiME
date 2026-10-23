@@ -40,9 +40,12 @@ def props(mat):
 
 
 class Exporter:
-    def __init__(self):
+    def __init__(self, lightmaps=0):
         self.g = Glb()
         self.meshes, self.mats, self.texs, self.prims = {}, {}, {}, {}
+        # baked lightmaps of the scene (their count): lightmapped renderers get a material variant naming theirs
+        self.lightmaps = lightmaps
+        self.lm_mats = {}
 
     def used(self, ext):
         u = self.g.j.setdefault("extensionsUsed", [])
@@ -112,6 +115,20 @@ class Exporter:
         self.mats[key] = len(self.g.j["materials"]) - 1
         return self.mats[key]
 
+    def lm_variant(self, mi, li, st):
+        """the material mi with a baked lightmap: extras.lightmap = [index, scale x, scale y, offset x, offset y]
+        (Unity's lightmapScaleOffset on uv2, v up)"""
+        if mi is None:
+            return None
+        key = (mi, li, tuple(round(float(v), 6) for v in st))
+        if key not in self.lm_mats:
+            import copy
+            m = copy.deepcopy(self.g.j["materials"][mi])
+            m.setdefault("extras", {})["lightmap"] = [li] + [float(v) for v in st]
+            self.g.j["materials"].append(m)
+            self.lm_mats[key] = len(self.g.j["materials"]) - 1
+        return self.lm_mats[key]
+
     def mesh(self, af, pptr):
         o = obj_of(af, pptr)
         if o is None:
@@ -136,6 +153,11 @@ class Exporter:
             U = np.array([u[:2] for u in h.m_UV0], np.float32)
             U[:, 1] = 1 - U[:, 1]
             attrs["TEXCOORD_0"] = self.g.accessor(U, "VEC2")
+        if self.lightmaps and h.m_UV1 and len(h.m_UV1) == len(V):
+            # the lightmap UVs (Unity's uv2), v flipped like the first set
+            U1 = np.array([u[:2] for u in h.m_UV1], np.float32)
+            U1[:, 1] = 1 - U1[:, 1]
+            attrs["TEXCOORD_1"] = self.g.accessor(U1, "VEC2")
         if h.m_Colors and len(h.m_Colors) == len(V):
             C = np.array([c[:4] for c in h.m_Colors], np.float32)
             if C.max() > 1.001:
@@ -162,6 +184,12 @@ class Exporter:
         batched = sb.subMeshCount > 0
         first, count = (sb.firstSubMesh, sb.subMeshCount) if batched else (0, len(subs))
         mats = [self.material(af, p) for p in mr.m_Materials]
+        li = int(getattr(mr, "m_LightmapIndex", 0xFFFF))
+        if self.lightmaps and li < self.lightmaps and "TEXCOORD_1" in attrs:
+            st = mr.m_LightmapTilingOffset
+            # (static batching wrote the scale / offset into the combined mesh's uv2 already)
+            sto = [1.0, 1.0, 0.0, 0.0] if mr.m_StaticBatchInfo.subMeshCount > 0 else [st.x, st.y, st.z, st.w]
+            mats = [self.lm_variant(mi, li, sto) for mi in mats]
         key = (id(md), first, count, tuple(mats))
         if key in self.prims:
             return self.prims[key], batched

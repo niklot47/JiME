@@ -14,7 +14,7 @@ import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { applyActive, loadGltf, nameOf, smoothCutout } from "./Battleboard3D.tsx";
 import { attachEmitters, type Emitter } from "./particles.ts";
-import { packText } from "../data/pack.ts";
+import { assetUrl, packText } from "../data/pack.ts";
 
 export type MapRoomView = "title" | "setup" | "map" | "zoom";
 
@@ -24,6 +24,56 @@ export interface MapRoomInfo {
   campfire?: number;
   camera?: number;
   map?: number;
+  /** the scene's baked lightmaps (export_maproom.py: RGBM decoded in gamma space, halved) */
+  lightmaps?: (string | null)[];
+}
+
+/** the lightmaps' scale: stored halved and gamma encoded (x 2 in gamma = x 2^2.2 in linear light), and three.js divides
+ *  a basic material's light map by pi */
+const LM_K = Math.pow(2, 2.2) * Math.PI;
+
+/**
+ * The room as the game shows it: lit by its baked lightmaps (the candles' light and the shadows of the books, the
+ * inkwell and the candle tray), the materials unlit as in Unity (Mobile/Unlit (Supports Lightmap), Shader Forge
+ * lightmapped). A material with extras.lightmap = [index, scale x, scale y, offset x, offset y] gets its lightmap on uv2.
+ */
+function applyLightmaps(root: THREE.Object3D, paths: (string | null)[]): THREE.MeshBasicMaterial[] {
+  const loader = new THREE.TextureLoader();
+  const maps = paths.map((p) => {
+    if (!p) return null;
+    const t = loader.load(assetUrl(p));
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  });
+  const out: THREE.MeshBasicMaterial[] = [];
+  const done = new Map<THREE.Material, THREE.Material>();
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const swap = (mat: THREE.Material): THREE.Material => {
+      const lm = mat.userData?.lightmap as number[] | undefined;
+      const base = lm ? maps[lm[0]!] : null;
+      if (!lm || !base) return mat;
+      const hit = done.get(mat);
+      if (hit) return hit;
+      const t = base.clone();
+      t.channel = 1;
+      // Unity: uv2 * scale + offset with v up; the exported uv2 has v flipped (1 - v)
+      t.repeat.set(lm[1]!, -lm[2]!);
+      t.offset.set(lm[3]!, lm[2]! + lm[4]!);
+      t.needsUpdate = true;
+      const sm = mat as THREE.MeshStandardMaterial;
+      const b = new THREE.MeshBasicMaterial({ map: sm.map, color: sm.color, transparent: sm.transparent, alphaTest: sm.alphaTest, side: sm.side,
+        opacity: sm.opacity, depthWrite: sm.depthWrite, vertexColors: sm.vertexColors, lightMap: t, lightMapIntensity: LM_K });
+      b.name = sm.name;
+      b.userData = { ...sm.userData, lmBase: LM_K };
+      done.set(mat, b);
+      out.push(b);
+      return b;
+    };
+    m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
+  });
+  return out;
 }
 
 let infoP: Promise<MapRoomInfo> | null = null;
@@ -94,6 +144,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
     st.current = s;
     let emitters: Emitter[] = [];
     const flicker: THREE.Object3D[] = [];
+    let lightmapped: THREE.MeshBasicMaterial[] = [];
     let alive = true;
     void Promise.all([loadGltf("maproom/maproom.glb"), loadInfo()]).then(([g, info]) => {
       if (!alive) return;
@@ -171,6 +222,8 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
           o.updateMatrixWorld(true);
         }
       });
+      // the baked light of the room (its look in the game); the candle's flicker breathes through it a little
+      lightmapped = applyLightmaps(root, info.lightmaps ?? []);
       // the camera rig of the scene is ours
       for (const n of ["CameraParent", "PlayMakerGUI"]) root.children.find((c) => nameOf(c) === n)?.removeFromParent();
       // MapRoomVisuals.HideAllPaths
@@ -241,6 +294,10 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         l.intensity = base * (1 + dark * ((l.userData.boost as number | undefined) ?? 3));
         // a candle flame: two slow waves and a quick one (never fully steady, never jumping)
         if (l.userData.flicker) l.intensity *= 1 + 0.1 * Math.sin(t * 7.3) * Math.sin(t * 2.1) + 0.05 * Math.sin(t * 23.7 + Math.sin(t * 3.1) * 2);
+      }
+      if (lightmapped.length) {
+        const k = 1 + 0.035 * Math.sin(t * 7.3) * Math.sin(t * 2.1) + 0.015 * Math.sin(t * 23.7);
+        for (const b of lightmapped) b.lightMapIntensity = (b.userData.lmBase as number) * k;
       }
       for (const f of flicker) {
         const s0 = f.userData.flicker as THREE.Vector3;

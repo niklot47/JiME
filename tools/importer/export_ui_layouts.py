@@ -220,6 +220,30 @@ def save_plain(af, env, fn):
     o.read().image.save(os.path.join(TEX, fn))
     return f"images/ui/tex/{fn}"
 
+def art_glow(comps, tint):
+    """an Animator on a piece of the art playing its material's tint (the hard difficulty's highlights on the Balrog,
+    HardGlow: _TintColor 0.27..0.72 over 5 s): the brightness over one loop against the baked tint, 24 samples"""
+    an = next((c for c in comps if c.type.name == "Animator"), None)
+    if an is None: return None
+    try:
+        from export_title import clip_tracks, names_of_hash
+        ref = an.read_typetree()["m_Controller"]
+        ctrl = deref(an.assets_file, ref["m_FileID"], ref["m_PathID"])
+        if ctrl is None: return None
+        ct = ctrl.read_typetree()
+        for x in ct["m_AnimationClips"]:
+            clip = deref(ctrl.assets_file, x["m_FileID"], x["m_PathID"]).read_typetree()
+            c = clip_tracks(clip, {0: ""}, names_of_hash())
+            tr = next((t for t in c["tracks"] if t["path"] == "" and t["prop"] == "color.r"), None)
+            if tr is None or c["dur"] <= 0: continue
+            base = (tint or {}).get("r") or 0.5
+            v = tr["v"]
+            k = [r3(v[min(len(v) - 1, int(i / 24 * (len(v) - 1)))] / base) for i in range(25)]
+            return {"dur": r3(c["dur"]), "k": k}
+    except Exception as e:
+        print("art glow failed", e)
+    return None
+
 def mesh_art(gid, comps):
     """(child node | None) for a GameObject with a MeshFilter + MeshRenderer"""
     mf = next((c for c in comps if c.type.name == "MeshFilter"), None)
@@ -331,6 +355,8 @@ def mesh_art(gid, comps):
         img.save(os.path.join(TEX, fn))
         _art[key] = {"n": "#art", "id": -gid, "p": [r3((x0 + x1) / 2), r3((y0 + y1) / 2)],
                      "w": {"k": "texture", "w": r3(bw), "h": r3(bh), "pv": 4, "d": order, "tex": f"images/ui/tex/{fn}", **({"fx": fx} if fx else {})}}
+        g = art_glow(comps, tint)
+        if g: _art[key]["w"]["glow"] = g
     except Exception as e:
         print("mesh art failed", gid, e)
     return _art[key]

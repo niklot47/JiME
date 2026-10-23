@@ -221,6 +221,20 @@ function enterStyle(e: Enter): CSSProperties {
   };
 }
 
+const glowDone = new Map<string, string>();
+/** keyframes of a brightness curve (evenly spaced samples of one loop); its name */
+function glowKeyframes(k: number[]): string {
+  const key = k.join(",");
+  let name = glowDone.get(key);
+  if (name) return name;
+  name = `ng-glow-${glowDone.size}`;
+  glowDone.set(key, name);
+  const st = document.createElement("style");
+  st.textContent = `@keyframes ${name} { ${k.map((v, i) => `${((i / Math.max(1, k.length - 1)) * 100).toFixed(2)}% { filter: brightness(${v}); }`).join(" ")} }`;
+  document.head.appendChild(st);
+  return name;
+}
+
 const viaDone = new Set<string>();
 /** keyframes for an entrance with a stop: from the offset to the stop by `at`, held until `hold`, then to the place */
 function ensureViaKeyframes(name: string, at: number, hold: number): void {
@@ -459,7 +473,9 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${scrollAnim}` : scrollAnim;
           } else if (fx?.k === "wobble" && fx.s > 0) {
             // FlameDistortion: displaced by a noise flowing one way (up, or down when reversed) through the picture
-            const id = wobbleId(b.width, b.height, fx.s * Math.min(b.width, b.height) * 0.5, fx.v, !!fx.rev);
+            // (the shader moves the picture's UVs by the noise times the strength: a large share of the picture - the
+            // flames' tongues streak and lick, they do not just shimmer)
+            const id = wobbleId(b.width, b.height, fx.s * Math.min(b.width, b.height) * 1.1, fx.v, !!fx.rev);
             wobbles.set(id.id, id);
             st.filter = `${st.filter ? `${st.filter} ` : ""}url(#${id.id})`;
             // the flames over a picture glow: lightened onto it, with a warm halo, as the additive shader does (a flame
@@ -468,6 +484,11 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
               st.filter += ` drop-shadow(0 0 ${Math.max(2, Math.round(Math.min(b.width, b.height) * 0.03))}px rgba(255, 120, 30, 0.6))`;
               st.mixBlendMode = "screen";
             }
+          }
+          if (b.w.glow) {
+            // the picture's own animator: its tint (brightness) looping
+            const anim = `${glowKeyframes(b.w.glow.k)} ${b.w.glow.dur}s linear infinite`;
+            st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${anim}` : anim;
           }
           if (!img && !click && !b.bind.content) return null;
           return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{b.bind.content}</div>;
