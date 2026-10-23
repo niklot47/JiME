@@ -8,7 +8,7 @@ import argparse, importlib, os, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 # import name -> pip name (requirements.txt)
 PACKAGES = {"UnityPy": "UnityPy", "dnfile": "dnfile", "TypeTreeGeneratorAPI": "TypeTreeGeneratorAPI",
-            "numpy": "numpy", "PIL": "Pillow", "attrs": "attrs"}
+            "numpy": "numpy", "PIL": "Pillow", "attrs": "attrs", "soundfile": "soundfile"}
 
 
 def say(*a):
@@ -52,6 +52,7 @@ def main():
     if not data:
         say(f"@@fail game: no JiME_Data/resources.assets in {a.game}")
         return 2
+    data = os.path.abspath(data)  # the steps run in other working directories
     work = os.path.abspath(a.work)
     os.makedirs(os.path.join(work, "out"), exist_ok=True)
     # PYTHONUTF8: open() defaults to UTF-8 on Windows too (the scripts write JSON with non-ASCII text)

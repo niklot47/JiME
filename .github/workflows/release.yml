@@ -1,6 +1,6 @@
-# Windows installers (NSIS .exe + MSI) built by GitHub Actions.
-# - push a tag "v*" (e.g. git tag v0.1.0 && git push origin v0.1.0) -> draft GitHub Release with the installers attached;
-# - "Run workflow" by hand (Actions tab) -> installers as a workflow artifact only.
+# Windows and Linux installers built by GitHub Actions.
+# - push a tag "v*" (e.g. git tag v1.0.0 && git push origin v1.0.0) -> draft GitHub Release with the installers attached;
+# - "Run workflow" by hand (Actions tab) -> installers as workflow artifacts only.
 # The installers contain the app and the importer scripts only: FFG content is imported on the user's machine.
 name: Release
 
@@ -17,12 +17,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  windows:
-    name: Windows installers
-    runs-on: windows-latest
-    timeout-minutes: 45
+  build:
+    name: Installers (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            bundles: |
+              apps/app/src-tauri/target/release/bundle/nsis/*.exe
+              apps/app/src-tauri/target/release/bundle/msi/*.msi
+          # 22.04: the oldest supported glibc, so the AppImage / .deb run on more distributions
+          - name: linux
+            os: ubuntu-22.04
+            bundles: |
+              apps/app/src-tauri/target/release/bundle/appimage/*.AppImage
+              apps/app/src-tauri/target/release/bundle/deb/*.deb
+              apps/app/src-tauri/target/release/bundle/rpm/*.rpm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: Linux system libraries (WebKitGTK etc.)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
       - uses: pnpm/action-setup@v4   # version taken from "packageManager" in package.json
 
@@ -58,15 +80,14 @@ jobs:
           releaseBody: |
             Фанатский компаньон для «Властелин колец: Путешествия по Средиземью».
             Контент игры в установщик не входит: при первом запуске мастер импортирует его из вашей копии игры (нужен Python 3).
-            Установщик не подписан — Windows SmartScreen может показать предупреждение («Подробнее» → «Выполнить в любом случае»).
+            Windows: установщик не подписан — SmartScreen может показать предупреждение («Подробнее» → «Выполнить в любом случае»).
+            Linux: AppImage (сделать исполняемым: chmod +x), .deb или .rpm. Игру из Steam (через Proton) мастер находит сам.
           releaseDraft: true
-          prerelease: true
+          prerelease: false
 
       - name: Upload installers as an artifact
         uses: actions/upload-artifact@v4
         with:
-          name: jime-reborn-windows
-          path: |
-            apps/app/src-tauri/target/release/bundle/nsis/*.exe
-            apps/app/src-tauri/target/release/bundle/msi/*.msi
+          name: jime-reborn-${{ matrix.name }}
+          path: ${{ matrix.bundles }}
           if-no-files-found: error

@@ -1,7 +1,7 @@
 {
   "name": "jime-reborn",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Fan-made companion engine for Journeys in Middle-earth (FFG content is imported locally, never shipped)",
   "license": "MIT",
   "type": "module",
