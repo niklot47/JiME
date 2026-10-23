@@ -1298,6 +1298,11 @@ export class Game {
         if (!truthy(v)) v = this.get(fsm, gd(i, "VariableString"));
         if (!truthy(v)) v = this.get(fsm, gd(i, "VariableInt"));
         if (!truthy(v)) v = "";
+        // LocalizationFilterType.TileCode: the int is a tile's HashId, shown as its code (UserCollectionManager.GetTile)
+        if (gd(i, "filter") === 11 && typeof v === "number" && v !== -1) {
+          const TM = this.D.models.TileModel ?? {};
+          for (const c of Object.keys(TM)) if (TM[c]?.HashId === v) { v = TM[c].m_Name ?? c; break; }
+        }
         return v;
       });
       return [k, ins];

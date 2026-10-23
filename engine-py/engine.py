@@ -571,7 +571,14 @@ class Game:
             ins = []
             for i in msg["inserts"]:
                 v = i.get("LocalizationKey")
-                ins.append(key_of(v) or i.get("RawText") or self.get(fsm, i.get("VariableString")) or self.get(fsm, i.get("VariableInt")) or "")
+                v = key_of(v) or i.get("RawText") or self.get(fsm, i.get("VariableString")) or self.get(fsm, i.get("VariableInt")) or ""
+                # LocalizationFilterType.TileCode: the int is a tile's HashId, shown as its code
+                if i.get("filter") == 11 and isinstance(v, int) and not isinstance(v, bool) and v != -1:
+                    for c, t in self.D["models"]["TileModel"].items():
+                        if t.get("HashId") == v:
+                            v = t.get("m_Name") or c
+                            break
+                ins.append(v)
             return k, ins
         return k, []
 

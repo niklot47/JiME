@@ -645,7 +645,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
         mat.emissive.set(0x4c2016);
         mat.emissiveMap = t;
         mat.transparent = !!tableMap;
-        mat.opacity = tableMap ? 0.93 : 1;
+        // (the map shows through more: 0.93 hid it almost wholly)
+        mat.opacity = tableMap ? 0.82 : 1;
         mat.depthWrite = !tableMap;
       } else {
         mat.map = tableTexture();
