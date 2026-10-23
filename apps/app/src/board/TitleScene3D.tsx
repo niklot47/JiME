@@ -24,6 +24,8 @@ const FIRST = "CameraWiggle", MAIN = "TitleArt";
 /** the whole sequence a quarter slower than the clips' own speed */
 const RATE = 0.75;
 const DEG = Math.PI / 180;
+/** the light shafts fade out over this distance in front of the camera (scene units) */
+const SHAFT_FADE: [number, number] = [4, 16];
 /** the focused figure's lift (_ColorAdd): the shader's own use of it is unknown; at full strength it washes the figure
  *  out, the original shows only a faint brightening */
 const ADD_K = 0.3;
@@ -76,6 +78,28 @@ export function TitleScene3D({ shown = true, className }: { shown?: boolean; cla
       // dropped the particles - they are drawn over the composed frame now, renderComposedWithParticles)
       // the particle systems first (they read their shaders - additive light shafts - from the template materials)
       emitters = attachEmitters(root);
+      // the light shafts dissolve as the camera comes near them (flying into one they cut off at once): their light fades
+      // with the distance in front of the camera, out between SHAFT_FADE[1] and [0]
+      for (const e of emitters) {
+        let isShaft = false;
+        for (let p: THREE.Object3D | null = e; p; p = p.parent) if (/Lightshaft/.test(nameOf(p))) isShaft = true;
+        if (!isShaft) continue;
+        e.traverse((o) => {
+          const mat = (o as THREE.Mesh).material as THREE.Material | undefined;
+          if (!mat || (o as THREE.Mesh).isMesh !== true) return;
+          mat.onBeforeCompile = (sh) => {
+            sh.vertexShader = sh.vertexShader.replace("void main() {", "varying float vShaftDepth;\nvoid main() {")
+              .replace("#include <project_vertex>", "#include <project_vertex>\nvShaftDepth = -mvPosition.z;");
+            sh.fragmentShader = sh.fragmentShader.replace("void main() {", "varying float vShaftDepth;\nvoid main() {")
+              .replace("#include <dithering_fragment>", `gl_FragColor *= smoothstep(${SHAFT_FADE[0].toFixed(1)}, ${SHAFT_FADE[1].toFixed(1)}, vShaftDepth);\n#include <dithering_fragment>`);
+            if (!/vShaftDepth/.test(sh.fragmentShader.split("void main")[1] ?? "")) {
+              // (a shader without the dithering chunk: fade at its end)
+              sh.fragmentShader = sh.fragmentShader.replace(/}\s*$/, `gl_FragColor *= smoothstep(${SHAFT_FADE[0].toFixed(1)}, ${SHAFT_FADE[1].toFixed(1)}, vShaftDepth);\n}`);
+            }
+          };
+          mat.needsUpdate = true;
+        });
+      }
       for (const e of emitters) {
         let dim = 1;
         for (let p: THREE.Object3D | null = e; p; p = p.parent) if (typeof p.userData.dim === "number") dim = p.userData.dim;

@@ -433,7 +433,9 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             Object.assign(st, { ["--ng-a0" as string]: t.from * a, ["--ng-a1" as string]: t.to * a });
           }
           // TweenPosition / TweenScale between two states: glide to the new place and size
-          if (b.move) st.transition = ["left", "top", "width", "height"].map((p) => `${p} ${b.move}s cubic-bezier(0.65, 0, 0.35, 1)`).join(", ");
+          // (the transform and its origin too: a turned piece's matrix carries its pivot offset - jumping to the new size
+          // while the box glides split the picture into layers)
+          if (b.move) st.transition = ["left", "top", "width", "height", "transform", "transform-origin"].map((p) => `${p} ${b.move}s cubic-bezier(0.65, 0, 0.35, 1)`).join(", ");
           const click = b.bind.onClick && !b.bind.disabled ? b.bind.onClick : undefined;
           // UIButton.disabledColor multiplies the sprite (a plain darkening, the hue is kept)
           const dis = b.bind.disabled && b.node.btn?.disabled;
@@ -460,6 +462,7 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             softMask = { maskImage: both, WebkitMaskImage: both, maskComposite: "intersect", WebkitMaskComposite: "source-in" } as CSSProperties;
           }
           const fx = b.w.fx;
+          let content: React.ReactNode = null;
           if (fx?.k === "scroll") {
             // ScrollingWithMask: the texture tiled and moving one tile per 1 / v seconds, cut by its mask (a grey image)
             const fs = b.bind.fxScroll;
@@ -478,17 +481,24 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             // tongues that rise and break off, the solid core stays; and its soft halo pulses (half to full)
             const over = b.w.d >= 6;
             const burn = over && fx.s > 0.35;
-            const id = wobbleId(b.width, b.height, fx.s * Math.min(b.width, b.height) * 0.5, fx.v, !!fx.rev, burn);
+            // the filter works at the element's own pixels, which the interface's scale then enlarges (the flames looked
+            // pixelated): it runs on an inner picture WOBBLE_RES times larger, shown shrunk back
+            const K = WOBBLE_RES;
+            const full = img;
+            const id = wobbleId(b.width * K, b.height * K, fx.s * Math.min(b.width, b.height) * 0.5 * K, fx.v, !!fx.rev, burn);
             wobbles.set(id.id, id);
-            st.filter = `${st.filter ? `${st.filter} ` : ""}url(#${id.id})`;
+            const inner: CSSProperties = { ...img, position: "absolute", left: 0, top: 0, width: `${K * 100}%`, height: `${K * 100}%`,
+              transform: `scale(${1 / K})`, transformOrigin: "0 0", filter: `url(#${id.id})` };
+            img = { maskImage: (img as CSSProperties | null)?.maskImage, WebkitMaskImage: (img as CSSProperties | null)?.WebkitMaskImage } as CSSProperties;
+            content = <div style={inner} />;
             if (over) st.mixBlendMode = "screen";
-            if (burn && img) {
+            if (burn && full) {
               const blur = Math.max(3, Math.round(Math.min(b.width, b.height) * 0.06));
-              const halo: CSSProperties = { ...st, ...img, ...softMask, filter: `blur(${blur}px)`, mixBlendMode: "screen",
-                animation: `ng-pulse 0.9s ease-in-out infinite alternate`, ["--ng-a0" as string]: 0.35, ["--ng-a1" as string]: 0.7 };
+              const halo: CSSProperties = { ...st, ...full, ...softMask, filter: `blur(${blur}px)`, mixBlendMode: "screen",
+                animation: `ng-pulse 0.9s ease-in-out infinite alternate`, ["--ng-a0" as string]: 0.28, ["--ng-a1" as string]: 0.56 };
               return [
                 <div key={`${b.key}~halo`} className="ng ng-fx-halo" style={halo} />,
-                <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{b.bind.content}</div>,
+                <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{content}{b.bind.content}</div>,
               ];
             }
           }
@@ -497,8 +507,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
             const anim = `${glowKeyframes(b.w.glow.k)} ${b.w.glow.dur}s linear infinite`;
             st.animation = st.animation && st.animation !== "none" ? `${st.animation}, ${anim}` : anim;
           }
-          if (!img && !click && !b.bind.content) return null;
-          return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{b.bind.content}</div>;
+          if (!img && !content && !click && !b.bind.content) return null;
+          return <div key={b.key} data-n={b.node.n} className={cls} style={{ ...st, ...img, ...softMask }} title={b.bind.title} onClick={click} onAnimationEnd={b.enter ? onEnd(b.key) : undefined}>{content}{b.bind.content}</div>;
         });
   // hidden only until it has been complete once (a later new image must not blank a view that is already up)
   const complete = pendingImages === 0;
@@ -541,6 +551,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
   );
 }
 
+/** the flame filters' working resolution (times the element's size) */
+const WOBBLE_RES = 2;
 interface Wobble { id: string; w: number; h: number; pad: number; scale: number; dur: number; rev: boolean; burn: boolean }
 /** a flowing-noise filter for a picture's size, a displacement (px), a speed (_Speed: picture heights per second)
  *  and a direction, shared by the boxes that need the same */

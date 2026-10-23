@@ -314,6 +314,22 @@ def mesh_art(gid, comps):
         uspan = max(1e-3, float(U[:, 0].max() - U[:, 0].min())); vspan = max(1e-3, float(U[:, 1].max() - U[:, 1].min()))
         W = int(min(2048, max(16, tw * uspan * abs(main.get("m_Scale", {"x": 1})["x"]))))
         H = int(min(2048, max(16, th * vspan * abs(main.get("m_Scale", {"y": 1})["y"]))))
+        # (a mesh may map the texture turned - the Balrog's whip runs along v: the density along the picture's own x and
+        # y comes from the UV gradient of its triangles, not from the texture's width and height)
+        try:
+            ka = []
+            for a, b, c in tris[:64]:
+                M = np.array([[V[b][0] - V[a][0], V[c][0] - V[a][0]], [V[b][1] - V[a][1], V[c][1] - V[a][1]]], np.float64)
+                if abs(np.linalg.det(M)) < 1e-9: continue
+                D = np.array([[U[b][0] - U[a][0], U[c][0] - U[a][0]], [U[b][1] - U[a][1], U[c][1] - U[a][1]]], np.float64)
+                ka.append(D @ np.linalg.inv(M))
+            if ka:
+                G = np.median(np.array(ka), axis=0)
+                su = abs(main.get("m_Scale", {"x": 1})["x"]); sv = abs(main.get("m_Scale", {"y": 1})["y"])
+                W = int(min(2048, max(16, bw * np.hypot(G[0, 0] * tw * su, G[1, 0] * th * sv))))
+                H = int(min(2048, max(16, bh * np.hypot(G[0, 1] * tw * su, G[1, 1] * th * sv))))
+        except Exception:
+            pass
         if fx and fx["k"] == "scroll":
             # the scrolling texture's UV span over the quad (its tiles' size on screen)
             fx["uv"] = [r3(uspan), r3(vspan)]
