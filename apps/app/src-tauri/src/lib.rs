@@ -17,6 +17,7 @@ use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{AppHandle, Manager, Runtime, State, UriSchemeContext};
 
 mod importer;
+mod packzip;
 
 const SCHEME: &str = "jime-pack";
 
@@ -213,7 +214,8 @@ fn info(d: &PacksDir) -> PacksInfo {
     let mut packs = Vec::new();
     if let Ok(rd) = fs::read_dir(&d.path) {
         for e in rd.flatten() {
-            if !e.path().is_dir() {
+            // hidden folders: work folders of a zip import (".<pack>.part" / ".<pack>.old")
+            if !e.path().is_dir() || e.file_name().to_string_lossy().starts_with('.') {
                 continue;
             }
             let manifest = fs::read_to_string(e.path().join("pack.json")).ok().and_then(|s| serde_json::from_str(&s).ok());
@@ -250,22 +252,21 @@ fn set_packs_dir(app: AppHandle, state: State<'_, AppState>, path: Option<String
 
 /// Open a web page in the system browser (Application.OpenURL: the rules, a product's store page); http(s) only
 #[tauri::command]
-fn open_url(url: String) -> Result<(), String> {
+fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err(format!("not a web address: {url}"));
     }
-    #[cfg(target_os = "windows")]
-    let r = std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", &url]).spawn();
-    #[cfg(target_os = "macos")]
-    let r = std::process::Command::new("open").arg(&url).spawn();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let r = std::process::Command::new("xdg-open").arg(&url).spawn();
-    r.map(|_| ()).map_err(|e| e.to_string())
+    // the opener plugin: the default browser on desktop, an intent on Android
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let d = resolve_packs_dir(app.handle());
             app.manage(AppState { packs: Mutex::new(d) });
@@ -277,6 +278,8 @@ pub fn run() {
             packs_info,
             set_packs_dir,
             open_url,
+            packzip::export_pack,
+            packzip::import_pack,
             importer::detect_game,
             importer::check_game,
             importer::python_info,

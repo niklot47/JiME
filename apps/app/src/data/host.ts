@@ -39,6 +39,31 @@ export const onImportLog = (f: (line: string) => void): Promise<UnlistenFn> =>
 export const onImportDone = (f: (d: { ok: boolean; code: number | null; task: "pip" | "import" }) => void): Promise<UnlistenFn> =>
   listen<{ ok: boolean; code: number | null; task: "pip" | "import" }>("import-done", (e) => f(e.payload));
 
+// ---------------------------------------------------------------- packs as zip files (src-tauri/src/packzip.rs)
+/** Phones and tablets: no game install and no Python there, packs come as zip files */
+export const isMobile = (): boolean => /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+export interface PackZipProgress { task: "export" | "import"; done: number; total: number }
+export const onPackZip = (f: (p: PackZipProgress) => void): Promise<UnlistenFn> =>
+  listen<PackZipProgress>("pack-zip", (e) => f(e.payload));
+
+/** Ask where to save and export the pack folder `dir` there; null if the dialog was cancelled */
+export async function exportPackZip(dir: string): Promise<string | null> {
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const dest = await save({ defaultPath: `${dir}.zip`, filters: [{ name: "Пак JiME", extensions: ["zip"] }] });
+  if (!dest) return null;
+  return invoke<string>("export_pack", { dir, dest: /\.zip$/i.test(dest) ? dest : `${dest}.zip` });
+}
+
+/** Pick a pack zip and unpack it into the packs folder; null if the dialog was cancelled */
+export async function importPackZip(): Promise<PacksInfo | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  // Android's picker filters by MIME type: an extension filter there can hide the file, so no filter
+  const src = await open({ multiple: false, directory: false, filters: isMobile() ? undefined : [{ name: "Пак JiME", extensions: ["zip"] }] });
+  if (!src) return null;
+  return invoke<PacksInfo>("import_pack", { src });
+}
+
 /** Application.OpenURL: a web page in the system browser (a new tab outside Tauri) */
 export async function openUrl(url: string): Promise<void> {
   if (!/^https?:\/\//.test(url)) return;

@@ -1,9 +1,11 @@
 // First-run wizard (Tauri): find the game -> check Python and the importer's packages -> import -> done.
+// Or load a ready pack zip exported on another machine (the only way on phones: no game install, no Python).
 // Opens by itself when the packs folder has no core-ffg; also reachable from the Packs screen.
 import { useEffect, useRef, useState } from "react";
-import { checkGame, detectGame, installRequirements, onImportDone, onImportLog, packsInfo, pythonInfo, runImport,
+import { checkGame, detectGame, importPackZip, installRequirements, isMobile, onImportDone, onImportLog, packsInfo, pythonInfo, runImport,
   type GameCandidate, type PacksInfo, type PythonInfo } from "../data/host.ts";
 import { clearPackCache } from "../data/pack.ts";
+import { PackZipBar, usePackZipProgress } from "./PackZip.tsx";
 
 type Step = "game" | "python" | "import" | "done";
 const STEP_NAMES: Record<string, string> = {
@@ -20,7 +22,9 @@ export function SetupScreen({ onDone, onSkip }: { onDone: () => void; onSkip: ()
   const [packs, setPacks] = useState<PacksInfo | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [progress, setProgress] = useState<{ i: number; n: number; name: string } | null>(null);
-  const [running, setRunning] = useState<null | "pip" | "import">(null);
+  const [running, setRunning] = useState<null | "pip" | "import" | "zip">(null);
+  const zipProgress = usePackZipProgress(running === "zip");
+  const mobile = isMobile();
   const [error, setError] = useState<string | null>(null);
   const logEnd = useRef<HTMLDivElement>(null);
 
@@ -45,9 +49,31 @@ export function SetupScreen({ onDone, onSkip }: { onDone: () => void; onSkip: ()
   useEffect(() => { logEnd.current?.scrollIntoView({ block: "end" }); }, [log.length]);
 
   useEffect(() => {
+    if (mobile) { packsInfo().then(setPacks).catch(() => {}); return; }
     detectGame().then((c) => { setFound(c); if (c[0]) { setGame(c[0].path); setGameOk(c[0].dataDir); } }).catch((e) => setError(String(e)));
     packsInfo().then(setPacks).catch(() => {});
   }, []);
+
+  async function loadZip() {
+    setError(null);
+    setRunning("zip");
+    try {
+      const i = await importPackZip();
+      if (i) { clearPackCache(); setPacks(i); setStep("done"); }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  const zipBlock = (
+    <>
+      {running === "zip"
+        ? <PackZipBar p={zipProgress} label="Распаковка пака" />
+        : <div className="row wrap"><button className={mobile ? "primary" : ""} disabled={!!running} onClick={loadZip}>Загрузить пак из файла…</button></div>}
+    </>
+  );
 
   async function verifyGame() {
     try {
@@ -94,9 +120,18 @@ export function SetupScreen({ onDone, onSkip }: { onDone: () => void; onSkip: ()
   return (
     <div className="shell">
       <h2 className="title">Первый запуск</h2>
-      {stepper}
+      {!mobile && stepper}
       <div className="form wide">
-        {step === "game" && (
+        {step === "game" && mobile && (
+          <>
+            <p>JiME Reborn не содержит контента игры. На телефоне его не собрать: импорт из игры работает на компьютере
+              (Windows, macOS, Linux). Соберите пак там, экспортируйте его в zip (экран «Паки» → «Экспорт в zip…»),
+              перенесите файл на это устройство и загрузите его.</p>
+            {zipBlock}
+          </>
+        )}
+
+        {step === "game" && !mobile && (
           <>
             <p>JiME Reborn не содержит контента игры. Он берёт тексты, сценарии и графику из вашей установленной копии
               «Journeys in Middle-earth» и собирает из них локальный пак. Файлы игры не изменяются.</p>
@@ -112,6 +147,9 @@ export function SetupScreen({ onDone, onSkip }: { onDone: () => void; onSkip: ()
               <button className="primary" disabled={!gameOk} onClick={() => { setStep("python"); void refreshPython(); }}>Дальше</button>
             </div>
             {gameOk && <p className="muted">Данные игры: {gameOk}</p>}
+            <h3>Или готовый пак</h3>
+            <p className="muted">Если игры на этом компьютере нет: соберите пак на другом (экран «Паки» → «Экспорт в zip…») и загрузите файл.</p>
+            {zipBlock}
           </>
         )}
 
@@ -161,7 +199,7 @@ export function SetupScreen({ onDone, onSkip }: { onDone: () => void; onSkip: ()
 
         {step === "done" && (
           <>
-            <p>Готово. Пак «core-ffg» собран{packs ? <> в <b className="path">{packs.dir}</b></> : null}.</p>
+            <p>Готово. Пак на месте{packs ? <>: <b className="path">{packs.dir}</b></> : null}.</p>
             <button className="primary" onClick={onDone}>В меню</button>
           </>
         )}

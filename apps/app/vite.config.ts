@@ -17,7 +17,7 @@ function servePacks(): Plugin {
         const rel = normalize(decodeURIComponent((req.url ?? "/").split("?")[0]!)).replace(/^([/\\])+/, "");
         const json = (data: unknown) => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(data)); };
         if (rel === "__list.json") {
-          const dirs = existsSync(packsDir) ? readdirSync(packsDir).filter((d) => statSync(join(packsDir, d)).isDirectory()).sort() : [];
+          const dirs = existsSync(packsDir) ? readdirSync(packsDir).filter((d) => !d.startsWith(".") && statSync(join(packsDir, d)).isDirectory()).sort() : [];
           return json(dirs.map((dir) => {
             let manifest = null;
             try { manifest = JSON.parse(readFileSync(join(packsDir, dir, "pack.json"), "utf8")); } catch { /* no or bad pack.json */ }
@@ -45,8 +45,12 @@ function servePacks(): Plugin {
 }
 
 // Tauri expects a fixed port and no screen clearing
+// app version for the title screen (package.json, kept equal to tauri.conf.json)
+const APP_VERSION = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf8")).version as string;
+
 export default defineConfig({
   plugins: [react(), servePacks()],
+  define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
   clearScreen: false,
   server: { port: 1420, strictPort: true },
   envPrefix: ["VITE_", "TAURI_ENV_"],

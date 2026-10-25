@@ -1,6 +1,7 @@
 // Packs screen: where packs are read from (Tauri), which are on, and how they layer
 import { useEffect, useState } from "react";
-import { inTauri, packsInfo, setPacksDir, type PacksInfo } from "../data/host.ts";
+import { exportPackZip, importPackZip, inTauri, isMobile, packsInfo, setPacksDir, type PacksInfo } from "../data/host.ts";
+import { PackZipBar, usePackZipProgress } from "./PackZip.tsx";
 import { sound } from "../audio/sound.ts";
 import { PACK_ID, clearPackCache, loadPackSet, packConfig, setDisabledPacks, type PackSet } from "../data/pack.ts";
 
@@ -37,6 +38,11 @@ export function PacksScreen({ onBack, onImport }: { onBack: () => void; onImport
   const [path, setPath] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // zip export / import in progress: what it is, for the progress label
+  const [zip, setZip] = useState<string | null>(null);
+  const zipProgress = usePackZipProgress(zip !== null);
+  const [note, setNote] = useState<string | null>(null);
+  const mobile = isMobile();
 
   async function reloadLayers() {
     clearPackCache();
@@ -70,6 +76,27 @@ export function PacksScreen({ onBack, onImport }: { onBack: () => void; onImport
     else void reloadLayers();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function loadZip() {
+    setNote(null);
+    setZip("Распаковка пака");
+    await run(async () => (await importPackZip()) ?? (await packsInfo()));
+    setZip(null);
+  }
+
+  async function exportZip(dir: string) {
+    setNote(null);
+    setError(null);
+    setZip(`Экспорт ${dir}`);
+    try {
+      const dest = await exportPackZip(dir);
+      if (dest) setNote(`Пак ${dir} сохранён: ${dest}`);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setZip(null);
+    }
+  }
+
   function toggle(dir: string, on: boolean) {
     const d = new Set(packConfig().disabled);
     if (on) d.delete(dir);
@@ -97,16 +124,21 @@ export function PacksScreen({ onBack, onImport }: { onBack: () => void; onImport
               <p>Папка паков: <b className="path">{info.dir}</b><br />
                 <span className="muted">{SOURCE[info.source] ?? info.source}{info.exists ? "" : " — папка не найдена"}</span></p>
             )}
-            <label>Другая папка
-              <input type="text" value={path} spellCheck={false} onChange={(e) => setPath(e.target.value)}
-                placeholder="например D:\JiME_Claude\data\packs" />
-            </label>
+            {!mobile && (
+              <label>Другая папка
+                <input type="text" value={path} spellCheck={false} onChange={(e) => setPath(e.target.value)}
+                  placeholder="например D:\JiME_Claude\data\packs" />
+              </label>
+            )}
             <div className="row wrap">
-              <button className="primary" disabled={busy || !path.trim() || path === info?.dir} onClick={() => run(() => setPacksDir(path))}>Использовать эту папку</button>
-              <button disabled={busy || info?.source !== "settings"} onClick={() => run(() => setPacksDir(null))}>По умолчанию</button>
+              {!mobile && <button className="primary" disabled={busy || !path.trim() || path === info?.dir} onClick={() => run(() => setPacksDir(path))}>Использовать эту папку</button>}
+              {!mobile && <button disabled={busy || info?.source !== "settings"} onClick={() => run(() => setPacksDir(null))}>По умолчанию</button>}
               <button disabled={busy} onClick={() => run(packsInfo)}>Обновить</button>
-              <button disabled={busy} onClick={onImport}>Импорт из игры…</button>
+              {!mobile && <button disabled={busy || !!zip} onClick={onImport}>Импорт из игры…</button>}
+              <button disabled={busy || !!zip} onClick={loadZip}>Загрузить пак из zip…</button>
             </div>
+            {zip && <PackZipBar p={zipProgress} label={zip} />}
+            {note && <p className="muted">{note}</p>}
             {info?.source === "env" && <p className="muted">Пока задана JIME_PACKS, она важнее выбранной папки.</p>}
           </>
         ) : (
@@ -147,6 +179,9 @@ export function PacksScreen({ onBack, onImport }: { onBack: () => void; onImport
                         {err && <><br /><span className="error">{err}</span></>}
                       </span>
                     </label>
+                    {inTauri() && !mobile && m && (
+                      <button className="link" disabled={!!zip} onClick={() => exportZip(p.dir)}>Экспорт в zip…</button>
+                    )}
                   </li>
                 );
               })}

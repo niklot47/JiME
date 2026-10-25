@@ -2,7 +2,7 @@
 // new-game pages (GameSetupController), the saved games (SavedGameController) and the options. A new campaign is
 // written to a save slot and handed to the app to play.
 import { useEffect, useMemo, useState } from "react";
-import { ENGINE_VERSION, newCampaignSave, resetAdventure, type CampaignSave, type ContentSource } from "@jime/engine";
+import { newCampaignSave, resetAdventure, type CampaignSave, type ContentSource } from "@jime/engine";
 import type { TextDb } from "@jime/content-tools/text";
 import { NguiView, type Binds } from "../../ngui/NguiView.tsx";
 import { findNode, type UiLayoutFile, type UiNode } from "../../ngui/types.ts";
@@ -150,7 +150,7 @@ function TitleMenu({ ui, hasSaves, onNew, onLoad, onOptions, onCollection }: {
     Sprite_FFGLogo: { show: false },
     Sprite_MELogo: { color: [1, 1, 1, 0] },
     Label_License: { show: false },
-    Label_Version: { text: `JiME Reborn ${ENGINE_VERSION}` },
+    Label_Version: { text: `JiME Reborn ${__APP_VERSION__}` },
   };
   // CoroutineAnimateButtons: the menu buttons slide in from the left one after another (0.2 s apart); afterwards
   // CoroutineShortAnimation fades the whole menu in
