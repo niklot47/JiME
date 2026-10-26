@@ -81,6 +81,8 @@ let infoP: Promise<MapRoomInfo> | null = null;
 const loadInfo = () => (infoP ??= packText("maproom/maproom.json").then((t) => JSON.parse(t) as MapRoomInfo));
 
 interface Props {
+  /** false: hidden behind something else (the title scene) - stops drawing after the fade */
+  shown?: boolean;
   view: MapRoomView;
   /** the adventure the camera and the campfire are on */
   focus?: number | null;
@@ -108,12 +110,12 @@ const KEY_DAY = new THREE.Color(0xffe2b8), KEY_NIGHT = new THREE.Color(0xff8030)
 /** MapRoomVisuals.ZoomCamera / MoveCameraTo: the rig stops this far from the location (Unity x mirrored) */
 const RIG_OFFSET = new THREE.Vector3(2.25, 0, -3);
 
-export function MapRoom3D({ view, focus = null, completed = [], showRecent = false, onFocusPx, className }: Props) {
+export function MapRoom3D({ view, focus = null, completed = [], showRecent = false, onFocusPx, className, shown = true }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const st = useRef<{ root: THREE.Object3D | null; info: MapRoomInfo | null; byGoid: Map<number, THREE.Object3D>; grow: { o: THREE.Object3D; t: number; delay: number }[] } | null>(null);
   const [ready, setReady] = useState(false);
-  const props = useRef({ view, focus, onFocusPx });
-  props.current = { view, focus, onFocusPx };
+  const props = useRef({ view, focus, onFocusPx, shown });
+  props.current = { view, focus, onFocusPx, shown };
 
   useEffect(() => {
     const el = host.current!;
@@ -335,11 +337,15 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(el);
-    let raf = 0, last = performance.now();
+    let raf = 0, last = performance.now(), hiddenAt = 0;
     const t0 = last;
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const now = performance.now();
+      // covered by the title scene: nothing to draw once it has faded out (it still plays while it fades)
+      if (props.current.shown) hiddenAt = 0;
+      else if (!hiddenAt) hiddenAt = now;
+      if (hiddenAt && now - hiddenAt > 900) { last = now; return; }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       target(dt, (now - t0) / 1000);

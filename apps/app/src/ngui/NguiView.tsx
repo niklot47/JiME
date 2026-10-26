@@ -33,11 +33,49 @@ export function setUiScale(v: number): void {
 // appears complete instead of flashing through its unfinished parts (plain sprites, then tinted / sliced ones)
 let pendingImages = 0;
 
+// tinted / sliced sprites are made by a worker (spriteWorker.ts) where OffscreenCanvas exists: the pixel loops and
+// the PNG encoding on the main thread stalled animations on phones; the main-thread code below is the fallback
+let spriteWorker: Worker | null | undefined;
+let workerSeq = 0;
+const workerWaiting = new Map<number, (b: Blob | null) => void>();
+function workerMake(msg: Record<string, unknown>): Promise<Blob | null> | null {
+  if (spriteWorker === undefined) {
+    spriteWorker = null;
+    if (typeof OffscreenCanvas !== "undefined" && typeof Worker !== "undefined") {
+      try {
+        spriteWorker = new Worker(new URL("./spriteWorker.ts", import.meta.url), { type: "module" });
+        spriteWorker.onmessage = (e: MessageEvent<{ id: number; blob: Blob | null }>) => {
+          workerWaiting.get(e.data.id)?.(e.data.blob);
+          workerWaiting.delete(e.data.id);
+        };
+      } catch {
+        spriteWorker = null;
+      }
+    }
+  }
+  if (!spriteWorker) return null;
+  const w = spriteWorker;
+  return new Promise((ok) => {
+    const id = ++workerSeq;
+    workerWaiting.set(id, ok);
+    w.postMessage({ id, ...msg });
+  });
+}
+/** absolute URL (the worker resolves relative ones against its own script) */
+const absUrl = (src: string) => new URL(src, location.href).href;
+function settle(cache: Map<string, string | null>, key: string, b: Blob | null) {
+  cache.set(key, b ? URL.createObjectURL(b) : "");
+  version++;
+  for (const f of listeners) f();
+}
+
 /** URL of `src` multiplied by colour c (cached; null while it is being made, "" if it failed) */
 function tintUrl(src: string, c: number[]): string | null {
   const key = `${src}|${c.join(",")}`;
   if (tinted.has(key)) return tinted.get(key)!;
   tinted.set(key, null);
+  const job = workerMake({ op: "tint", src: absUrl(src), c: c.slice(0, 3) });
+  if (job) { void job.then((b) => settle(tinted, key, b)); return null; }
   const img = new Image();
   img.crossOrigin = "anonymous";
   img.onload = () => {
@@ -79,6 +117,8 @@ function slicedUrl(src: string, border: [number, number, number, number], w: num
   const key = `${src}|${W}x${H}`;
   if (sliced.has(key)) return sliced.get(key)!;
   sliced.set(key, null);
+  const job = workerMake({ op: "slice", src: absUrl(src), border, w, h, W, H, scale: SLICE_SCALE });
+  if (job) { void job.then((bl) => settle(sliced, key, bl)); return null; }
   void loadImage(src).then((img) => {
     const iw = img.naturalWidth, ih = img.naturalHeight;
     const [l, r, t, b] = border;

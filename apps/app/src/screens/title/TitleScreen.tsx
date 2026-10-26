@@ -118,7 +118,7 @@ export function TitleScreen({ onPlay, onTools }: {
     <div className="title-screen">
       {/* the map room behind the new-game pages (MenuTransitioner.MapSceneVisibility: MapVisual + SetBlur); the title's
           own scene over it on the title pages (TitlescreenVisuals), fading out to the map room */}
-      <MapRoom3D view="setup" className={titlePage ? "maproom-off" : "maproom-on"} />
+      <MapRoom3D view="setup" className={titlePage ? "maproom-off" : "maproom-on"} shown={!titlePage} />
       <TitleScene3D shown={titlePage} />
       {shown !== "title" && <div className="title-dim" />}
       <div className={leaving ? "ng-leaving" : undefined} style={{ display: "contents" }}>{body}</div>
