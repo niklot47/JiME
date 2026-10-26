@@ -8,12 +8,13 @@ import { UiPreviewScreen } from "./screens/UiPreviewScreen.tsx";
 import { BattleboardPreviewScreen } from "./screens/BattleboardPreviewScreen.tsx";
 import { TitleScreen } from "./screens/title/TitleScreen.tsx";
 import { CampaignScreen } from "./screens/CampaignScreen.tsx";
+import { EditorScreen } from "./screens/editor/EditorScreen.tsx";
 import { inTauri, packsInfo } from "./data/host.ts";
 import { PACK_ID, installTheme, themeChoice } from "./data/pack.ts";
 import { sound } from "./audio/sound.ts";
 import { SoundPanel } from "./audio/SoundPanel.tsx";
 
-type Screen = "title" | "tools" | "campaign" | "map" | "game" | "packs" | "setup" | "ui" | "bb";
+type Screen = "title" | "tools" | "campaign" | "map" | "game" | "packs" | "setup" | "ui" | "bb" | "editor";
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("title");
@@ -34,6 +35,7 @@ export function App() {
   if (screen === "game") return <GameScreen onBack={tools} />;
   if (screen === "ui") return <UiPreviewScreen onBack={tools} />;
   if (screen === "bb") return <BattleboardPreviewScreen onBack={tools} />;
+  if (screen === "editor") return <EditorScreen onBack={tools} />;
   if (screen === "packs") return <PacksScreen onBack={tools} onImport={() => setScreen("setup")} />;
   return (
     <main className="shell">
@@ -51,7 +53,7 @@ export function App() {
         <button className="card" onClick={() => setScreen("game")}>Одно приключение <span className="muted">— партия без кампании</span></button>
         <button className="card" onClick={() => setScreen("map")}>Карта <span className="muted">— генератор как в оригинале</span></button>
         <button className="card" onClick={() => setScreen("packs")}>Паки <span className="muted">— папка с контентом</span></button>
-        <button className="card" disabled>Редактор</button>
+        <button className="card" onClick={() => setScreen("editor")}>Редактор <span className="muted">— кампании и сценарии как графы</span></button>
         <button className="card" onClick={() => setScreen("ui")}>Интерфейс <span className="muted">— образцы из файлов игры</span></button>
         <button className="card" onClick={() => setScreen("bb")}>Поле боя <span className="muted">— 3D-доски из файлов игры</span></button>
       </section>
