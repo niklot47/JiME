@@ -3,7 +3,7 @@
 // with an EditApi the texts, simple parameters and the actions' on/off switches can be changed there.
 import { useEffect, useMemo, useState } from "react";
 import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { scenarioFsms, type FsmGraph, type FsmStateNode } from "@jime/engine";
+import { keysOf, ORDER, scenarioFsms, type FsmGraph, type FsmStateNode } from "@jime/engine";
 import type { TextDb } from "@jime/content-tools/text";
 import { layout } from "./layout.ts";
 import { keyIn, say } from "./text.ts";
@@ -21,6 +21,48 @@ export interface EditApi {
   setText(key: string, value: string): void;
   /** the key's text was changed in this draft */
   textChanged(key: string): boolean;
+  /** change one state of the draft (transitions); the FSM graphs are rebuilt */
+  mutateState(fsm: string, state: string, f: (st: any) => void): void;
+  /** the merged db (model lists for references) */
+  db: any;
+}
+
+/** A model entry's name for lists: its localized name key when there is one, else m_Name */
+function modelLabel(m: any, texts: TextDb | null): string {
+  for (const k of ["NameKey", "TitleKey", "Name", "Key"]) {
+    const key = m?.[k];
+    if (typeof key === "string" && key) { const t = say(texts, key); if (t && t !== key) return `${t} (${m.m_Name})`; }
+  }
+  return m?.m_Name ?? String(m?._id);
+}
+
+/** A reference to a db model: a list of all entries of that model */
+function ModelSelect({ v, db, texts, onChange }: { v: any; db: any; texts: TextDb | null; onChange: (v: unknown) => void }) {
+  const opts = useMemo(() => Object.values<any>(db?.models?.[v.ref] ?? {}).map((m) => ({ id: Number(m._id), name: m.m_Name, label: modelLabel(m, texts) }))
+    .sort((a, b) => a.id - b.id), [db, v.ref, texts]);
+  if (!opts.length) return <ParamValue v={v} texts={texts} />;
+  return (
+    <span className="ed-ref">{v.ref}
+      <select className="ed-input" value={String(v.id)} onChange={(e) => { const o = opts.find((x) => String(x.id) === e.target.value)!; onChange({ ...v, name: o.name, id: o.id }); }}>
+        {!opts.some((o) => o.id === Number(v.id)) && <option value={String(v.id)}>#{v.id} {v.name ?? ""} (нет в базе)</option>}
+        {opts.map((o) => <option key={o.id} value={String(o.id)}>{o.id} · {o.label}</option>)}
+      </select>
+    </span>
+  );
+}
+
+/** A reference to a game object of this scenario: a list of the prefab's objects */
+function ObjectSelect({ v, prefab, onChange }: { v: any; prefab: any; onChange: (v: unknown) => void }) {
+  const opts = useMemo(() => Object.entries<any>(prefab?.gameObjects ?? {}).map(([id, go]) => ({ id: Number(id), name: go.name as string }))
+    .sort((a, b) => a.name.localeCompare(b.name)), [prefab]);
+  return (
+    <span className="ed-ref">{v.kind ?? "объект"}
+      <select className="ed-input" value={String(v.go)} onChange={(e) => onChange({ ...v, go: Number(e.target.value) })}>
+        {!opts.some((o) => o.id === Number(v.go)) && <option value={String(v.go)}>#{v.go} (нет в сцене)</option>}
+        {opts.map((o) => <option key={o.id} value={String(o.id)}>{o.name} · #{o.id}</option>)}
+      </select>
+    </span>
+  );
 }
 
 type StateData = { st: FsmStateNode; selected: boolean };
@@ -98,8 +140,8 @@ function ParamValue({ v, texts }: { v: unknown; texts: TextDb | null }) {
   return <code>{typeof v === "string" ? v : JSON.stringify(v)}</code>;
 }
 
-/** One parameter in edit mode: a text key -> its text; numbers, strings, booleans -> inputs; references stay read only */
-function ParamEdit({ v, texts, edit, onChange }: { v: unknown; texts: TextDb | null; edit: EditApi; onChange: (v: unknown) => void }) {
+/** One parameter in edit mode: a text key -> its text; numbers, strings, booleans -> inputs; references -> lists */
+function ParamEdit({ v, texts, edit, prefab, onChange }: { v: unknown; texts: TextDb | null; edit: EditApi; prefab: any; onChange: (v: unknown) => void }) {
   const k = keyIn(v);
   if (k) {
     return (
@@ -118,10 +160,59 @@ function ParamEdit({ v, texts, edit, onChange }: { v: unknown; texts: TextDb | n
     return <input className="ed-input" type="text" defaultValue={v} key={v} spellCheck={false}
       onBlur={(e) => { if (e.target.value !== v) onChange(e.target.value); }} />;
   }
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Record<string, any>;
+    if (o.ref === "go" || (o.go !== undefined && !o.ref)) return <ObjectSelect v={o} prefab={prefab} onChange={onChange} />;
+    if (typeof o.ref === "string" && o.id !== undefined) return <ModelSelect v={o} db={edit.db} texts={texts} onChange={onChange} />;
+  }
   return <ParamValue v={v} texts={texts} />;
 }
 
-function StatePanel({ g, name, texts, onSelect, edit }: { g: FsmGraph; name: string; texts: TextDb | null; onSelect: (s: string) => void; edit?: EditApi }) {
+/** Transitions of a state in edit mode: event name, target state, remove; a row to add one */
+function TransitionsEdit({ g, s, edit }: { g: FsmGraph; s: FsmStateNode; edit: EditApi }) {
+  const out = g.edges.filter((e) => e.from === s.name);
+  const names = g.states.map((x) => x.name);
+  const [ev, setEv] = useState(out.length ? "" : "FINISHED");
+  const [to, setTo] = useState(names[0] ?? "");
+  // transitions is an object keyed by event: rebuild it to rename one in place. Events may be integer-like ("0", "1"
+  // from multiple-choice actions): the file order is kept in ORDER like parseOrdered does
+  const rebuild = (f: (pairs: [string, string][]) => [string, string][]) =>
+    edit.mutateState(g.index, s.name, (st) => {
+      const old = st.transitions ?? {};
+      const pairs = f(keysOf(old).map((k) => [k, old[k] as string]));
+      const o: Record<string, string> = {};
+      for (const [k, t] of pairs) o[k] = t;
+      Object.defineProperty(o, ORDER, { value: pairs.map(([k]) => k) });
+      st.transitions = o;
+    });
+  return (
+    <>
+      {out.length === 0 && <p className="muted">Нет: здесь цепочка заканчивается</p>}
+      <ul className="ed-trans">
+        {out.map((e) => (
+          <li key={e.event}>
+            <input className="ed-input ev" defaultValue={e.event} key={e.event} spellCheck={false}
+              onBlur={(x) => { const n = x.target.value.trim(); if (n && n !== e.event && !out.some((o) => o.event === n)) rebuild((p) => p.map(([k, t]) => [k === e.event ? n : k, t])); }} />
+            <span>→</span>
+            <select className="ed-input" value={e.to} onChange={(x) => rebuild((p) => p.map(([k, t]) => [k, k === e.event ? x.target.value : t]))}>
+              {names.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <button className="link" title="Убрать переход" onClick={() => rebuild((p) => p.filter(([k]) => k !== e.event))}>✕</button>
+          </li>
+        ))}
+        <li className="add">
+          <input className="ed-input ev" placeholder="событие" value={ev} spellCheck={false} onChange={(x) => setEv(x.target.value)} />
+          <span>→</span>
+          <select className="ed-input" value={to} onChange={(x) => setTo(x.target.value)}>{names.map((n) => <option key={n} value={n}>{n}</option>)}</select>
+          <button className="link" disabled={!ev.trim() || out.some((o) => o.event === ev.trim())}
+            onClick={() => { rebuild((p) => [...p, [ev.trim(), to]]); setEv(""); }}>+ добавить</button>
+        </li>
+      </ul>
+    </>
+  );
+}
+
+function StatePanel({ g, name, texts, onSelect, edit, prefab }: { g: FsmGraph; name: string; texts: TextDb | null; onSelect: (s: string) => void; edit?: EditApi; prefab: any }) {
   const s = g.states.find((x) => x.name === name);
   if (!s) return null;
   const out = g.edges.filter((e) => e.from === name);
@@ -139,15 +230,18 @@ function StatePanel({ g, name, texts, onSelect, edit }: { g: FsmGraph; name: str
             <b>{a.action}</b>{a.enabled ? "" : " (выключено)"}
             {Object.keys(a.params).length > 0 && (
               <dl>{Object.entries(a.params).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>
-                {edit ? <ParamEdit v={v} texts={texts} edit={edit} onChange={(nv) => edit.setParam(g.index, s.name, i, k, nv)} /> : <ParamValue v={v} texts={texts} />}
+                {edit ? <ParamEdit v={v} texts={texts} edit={edit} prefab={prefab} onChange={(nv) => edit.setParam(g.index, s.name, i, k, nv)} /> : <ParamValue v={v} texts={texts} />}
               </dd></div>)}</dl>
             )}
           </li>
         ))}
       </ol>
       <h4>Переходы</h4>
-      {out.length === 0 && <p className="muted">Нет: здесь цепочка заканчивается</p>}
-      <ul className="ed-links">{out.map((e, i) => <li key={i}><span className="ed-chip">{e.event}</span> → <button className="link" onClick={() => onSelect(e.to)}>{e.to}</button></li>)}</ul>
+      {edit ? <TransitionsEdit key={s.name} g={g} s={s} edit={edit} /> : <>
+        {out.length === 0 && <p className="muted">Нет: здесь цепочка заканчивается</p>}
+        <ul className="ed-links">{out.map((e, i) => <li key={i}><span className="ed-chip">{e.event}</span> → <button className="link" onClick={() => onSelect(e.to)}>{e.to}</button></li>)}</ul>
+      </>}
+      {edit && out.length > 0 && <p className="ed-goto">Перейти: {out.map((e) => <button key={e.event} className="link" onClick={() => onSelect(e.to)}>{e.to}</button>)}</p>}
       {inn.length > 0 && <>
         <h4>Сюда ведут</h4>
         <ul className="ed-links">{inn.map((e, i) => <li key={i}><button className="link" onClick={() => onSelect(e.from)}>{e.from}</button> <span className="ed-chip">{e.event}</span></li>)}</ul>
@@ -183,7 +277,7 @@ export function FsmView({ prefab, rev = 0, title, texts, focus, edit }: {
       </aside>
       <div className="ed-canvas"><FsmGraphView g={g} selected={state} onSelect={setState} /></div>
       <aside className="ed-panel">
-        {state ? <StatePanel g={g} name={state} texts={texts} onSelect={setState} edit={edit} />
+        {state ? <StatePanel g={g} name={state} texts={texts} onSelect={setState} edit={edit} prefab={prefab} />
           : <div className="ed-panel-body"><p className="muted">Выберите состояние на графе.</p>
             <p className="muted">Пунктир от золотых меток — глобальные события, которые переводят автомат прямо в состояние
               (например, ADVENTURE_END_VICTORY). Зелёная рамка — состояние, которое завершает приключение или выбирает следующее.</p></div>}

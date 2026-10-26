@@ -34,7 +34,7 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
   const [art, setArt] = useState<ModelArt>({});
   const [campaign, setCampaign] = useState<number | null>(null);
   const [prefabs, setPrefabs] = useState<Map<number, any>>(new Map());
-  const [graph, setGraph] = useState<CampaignGraph | null>(null);
+  const [loaded, setLoaded] = useState<CampaignGraph | null>(null);
   const [sel, setSel] = useState<{ adv?: number; link?: string }>({});
   const [open, setOpen] = useState<{ adv: number; focus?: { fsm: string; state: string } } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (!db || campaign === null) return;
     let live = true;
-    setGraph(null); setSel({}); setOpen(null);
+    setLoaded(null); setSel({}); setOpen(null);
     (async () => {
       const cache = new Map(prefabs);
       const get = async (id: number) => {
@@ -59,12 +59,23 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
       for (let round = 0; round < 10; round++) {
         const g = campaignGraph(db, campaign, (id) => cache.get(id) ?? null);
         const want = g.adventures.map((a) => a.id).filter((id) => !cache.has(id));
-        if (!want.length) { if (live) { setPrefabs(cache); setGraph(g); } return; }
+        if (!want.length) { if (live) { setPrefabs(cache); setLoaded(g); } return; }
         await Promise.all(want.map(get));
       }
     })().catch((e) => { if (live) setError(String(e)); });
     return () => { live = false; };
   }, [db, campaign]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // the graph as the draft has it (a changed SetNextAdventure moves its arrow at once); an adventure only the draft
+  // leads to is loaded by the effect below
+  const graph = useMemo(() => (loaded && db && campaign !== null
+    ? campaignGraph(db, campaign, (id) => draft.current.adv.get(id) ?? prefabs.get(id) ?? null) : null), [loaded, prefabs, rev]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const want = (graph?.missing ?? []).filter((id) => !prefabs.has(id));
+    if (!want.length) return;
+    void Promise.all(want.map(async (id) => [id, await loadAdventure(id).catch(() => null)] as const))
+      .then((got) => setPrefabs((p) => { const m = new Map(p); for (const [id, v] of got) m.set(id, v); return m; }));
+  }, [graph]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const campaigns = useMemo(() => (db ? Object.values<any>(db.models.CampaignModel) : []), [db]);
   const groups = useMemo(() => (graph ? groupLinks(graph.links) : []), [graph]);
@@ -97,6 +108,8 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
       text(key) { const d = draft.current.texts.get(getLang())?.get(full(key)); return fromCsv(d ?? texts?.raw(key) ?? ""); },
       setText(key, value) { langMap().set(full(key), toCsv(value)); setRev((r) => r + 1); },
       textChanged(key) { return !!draft.current.texts.get(getLang())?.has(full(key)); },
+      mutateState(fsm, state, f) { f(prefab().fsms[fsm].states.find((x: any) => x.name === state)); setRev((r) => r + 1); },
+      db,
     };
   };
 

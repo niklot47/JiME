@@ -1,6 +1,7 @@
 // Static views of scenarios for the editor (no game is run): an adventure's PlayMaker FSMs as graphs of states, and a
 // campaign as a graph of adventures. The campaign links come from the adventures' own scripts: SetNextAdventure /
 // AddAlternativeAdventure / EndCampaign, with the way the FSM gets there (which end of the adventure, which choices).
+import { keysOf } from "./ojson.ts";
 
 export interface FsmAction {
   action: string;
@@ -62,7 +63,9 @@ export function fsmGraph(index: string, fsm: any, owner: string | null = null): 
       start: s.name === fsm.start,
       entries: entries.get(s.name) ?? [],
     });
-    for (const [event, to] of Object.entries<string>(s.transitions ?? {})) edges.push({ from: s.name, to, event });
+    // file order (multiple-choice events are "0", "1", ...: Object.entries would sort them)
+    const tr = s.transitions ?? {};
+    for (const event of keysOf(tr)) edges.push({ from: s.name, to: tr[event], event });
   }
   return { index, name: fsm.name ?? `FSM ${index}`, owner, states, edges };
 }
