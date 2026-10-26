@@ -1,13 +1,16 @@
-// Campaign editor, step 1: viewing. A campaign as a graph of adventures (links from the scripts), and each adventure's
-// scenario as FSM graphs. Nothing is changed yet; editing comes on top of these views.
-import { useEffect, useMemo, useState } from "react";
+// Campaign editor. A campaign as a graph of adventures (links from the scripts), and each adventure's scenario as FSM
+// graphs. Texts, simple action parameters and actions' on/off can be changed: the changes are a draft until saved
+// into the user pack my-edits (data/editPack.ts), which lies over core-ffg.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { campaignGraph, type CampaignGraph, type FsmPath } from "@jime/engine";
+import { campaignGraph, cloneOrdered, type CampaignGraph, type FsmPath } from "@jime/engine";
 import { loadAdventure, loadDb, loadModelArt, type ModelArt } from "../../data/pack.ts";
 import { CampaignGraphView, groupLinks, OUTCOME_COLOR, OUTCOME_NAME } from "./CampaignGraphView.tsx";
-import { FsmView } from "./FsmView.tsx";
-import { say, useTexts } from "./text.ts";
+import { FsmView, type EditApi } from "./FsmView.tsx";
+import { fromCsv, say, toCsv, useTexts } from "./text.ts";
+import { EDIT_PACK, saveEdits } from "../../data/editPack.ts";
+import { getLang } from "../../data/lang.ts";
 
 const ENTRY_NAME: Record<string, string> = { start: "старт сценария", ADVENTURE_END_VICTORY: "победа в приключении", ADVENTURE_END_FAILURE: "поражение в приключении" };
 
@@ -21,7 +24,12 @@ function PathText({ p }: { p: FsmPath }) {
 }
 
 export function EditorScreen({ onBack }: { onBack: () => void }) {
-  const texts = useTexts();
+  const [textsRev, setTextsRev] = useState(0);
+  const texts = useTexts(textsRev);
+  // the draft: changed adventure prefabs (copies, changed in place) and texts (lang -> full key -> CSV text)
+  const draft = useRef<{ adv: Map<number, any>; texts: Map<string, Map<string, string>> }>({ adv: new Map(), texts: new Map() });
+  const [rev, setRev] = useState(0);
+  const [saving, setSaving] = useState<string | null>(null);
   const [db, setDb] = useState<any>(null);
   const [art, setArt] = useState<ModelArt>({});
   const [campaign, setCampaign] = useState<number | null>(null);
@@ -66,7 +74,54 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
     return a ? say(texts, a.nameKey) || a.name : `#${id}`;
   };
 
-  const openAdv = open && prefabs.get(open.adv);
+  const openAdv = open && (draft.current.adv.get(open.adv) ?? prefabs.get(open.adv));
+  const dirtyTexts = [...draft.current.texts.values()].reduce((n, m) => n + m.size, 0);
+  const dirty = draft.current.adv.size + dirtyTexts;
+
+  const editApi = (advId: number): EditApi => {
+    const prefab = () => {
+      let d = draft.current.adv.get(advId);
+      if (!d) { d = cloneOrdered(prefabs.get(advId)); draft.current.adv.set(advId, d); }
+      return d;
+    };
+    const action = (fsm: string, state: string, i: number) => prefab().fsms[fsm].states.find((x: any) => x.name === state).actions[i];
+    const langMap = () => {
+      const l = getLang();
+      if (!draft.current.texts.has(l)) draft.current.texts.set(l, new Map());
+      return draft.current.texts.get(l)!;
+    };
+    const full = (key: string) => texts?.fullKey(key) ?? key;
+    return {
+      setParam(fsm, state, i, key, value) { const a = action(fsm, state, i); a.params ??= {}; a.params[key] = value; setRev((r) => r + 1); },
+      setEnabled(fsm, state, i, on) { action(fsm, state, i).enabled = on; setRev((r) => r + 1); },
+      text(key) { const d = draft.current.texts.get(getLang())?.get(full(key)); return fromCsv(d ?? texts?.raw(key) ?? ""); },
+      setText(key, value) { langMap().set(full(key), toCsv(value)); setRev((r) => r + 1); },
+      textChanged(key) { return !!draft.current.texts.get(getLang())?.has(full(key)); },
+    };
+  };
+
+  async function save() {
+    setSaving("Сохраняю…");
+    try {
+      await saveEdits({ adventures: draft.current.adv, texts: draft.current.texts });
+      const saved = new Map(prefabs);
+      for (const [id, p] of draft.current.adv) saved.set(id, p);
+      setPrefabs(saved);
+      draft.current = { adv: new Map(), texts: new Map() };
+      setTextsRev((r) => r + 1);
+      setRev((r) => r + 1);
+      setSaving(`Сохранено в пак «${EDIT_PACK}»`);
+    } catch (e) {
+      setSaving(null);
+      setError(String(e));
+    }
+  }
+
+  function discard() {
+    draft.current = { adv: new Map(), texts: new Map() };
+    setRev((r) => r + 1);
+    setSaving(null);
+  }
   return (
     <div className="editor">
       <header className="ed-top">
@@ -78,6 +133,13 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
           </select>
         )}
         {!open && graph && <span className="muted">{graph.adventures.length} приключений · {graph.links.length} переходов</span>}
+        {dirty > 0 ? (
+          <span className="ed-save">
+            <span>Не сохранено: {draft.current.adv.size ? `сценариев ${draft.current.adv.size}` : ""}{draft.current.adv.size && dirtyTexts ? ", " : ""}{dirtyTexts ? `текстов ${dirtyTexts}` : ""}</span>
+            <button className="primary" onClick={() => void save()}>Сохранить</button>
+            <button className="link" onClick={discard}>Отменить</button>
+          </span>
+        ) : saving && <span className="muted">{saving}</span>}
         <span className="ed-legend">
           {(["victory", "failure", "both", "other"] as const).map((o) => <span key={o}><i style={{ background: OUTCOME_COLOR[o] }} />{OUTCOME_NAME[o]}</span>)}
           <span><i className="dash" />альтернатива</span>
@@ -86,7 +148,7 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
       {error && <p className="error">{error}</p>}
       <ReactFlowProvider>
         {open && openAdv ? (
-          <FsmView key={open.adv} prefab={openAdv} title={advName(open.adv)} texts={texts} focus={open.focus} />
+          <FsmView key={open.adv} prefab={openAdv} rev={rev} title={advName(open.adv)} texts={texts} focus={open.focus} edit={editApi(open.adv)} />
         ) : (
           <div className="ed-main">
             <div className="ed-canvas">

@@ -39,6 +39,16 @@ export const onImportLog = (f: (line: string) => void): Promise<UnlistenFn> =>
 export const onImportDone = (f: (d: { ok: boolean; code: number | null; task: "pip" | "import" }) => void): Promise<UnlistenFn> =>
   listen<{ ok: boolean; code: number | null; task: "pip" | "import" }>("import-done", (e) => f(e.payload));
 
+/**
+ * Write a text file into a user pack folder (the editor's saves; core-ffg is refused): the Tauri command
+ * write_pack_file, or a PUT to the Vite dev server in a plain browser
+ */
+export async function writePackFile(dir: string, path: string, content: string): Promise<void> {
+  if (inTauri()) { await invoke("write_pack_file", { dir, path, content }); return; }
+  const r = await fetch(`/packs/${dir}/${path.split("/").map(encodeURIComponent).join("/")}`, { method: "PUT", body: content });
+  if (!r.ok) throw new Error(`${dir}/${path}: HTTP ${r.status} ${await r.text()}`);
+}
+
 // ---------------------------------------------------------------- packs as zip files (src-tauri/src/packzip.rs)
 /** Phones and tablets: no game install and no Python there, packs come as zip files */
 export const isMobile = (): boolean => /Android|iPhone|iPad/i.test(navigator.userAgent);

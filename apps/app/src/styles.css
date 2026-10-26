@@ -598,3 +598,11 @@ html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui
 .ed-state.camp { border-color: #5fae5a; border-width: 2px; }
 .ed-state.sel { box-shadow: 0 0 0 3px #e8c76a; }
 .ed-entry { padding: 3px 10px; border-radius: 13px; background: #6a5420; color: #f3e6c8; font-size: 0.68rem; white-space: nowrap; }
+.ed-save { display: flex; align-items: center; gap: 10px; color: #e8c76a; }
+.ed-save .primary { margin: 0; }
+.ed-input { width: 100%; box-sizing: border-box; background: #1b1712; color: #e8dcc0; border: 1px solid #4a3e2c; border-radius: 4px; padding: 3px 5px; font: inherit; font-size: 0.8rem; margin-top: 2px; }
+.ed-input.num { width: 110px; }
+textarea.ed-input { resize: vertical; white-space: pre-wrap; }
+.ed-input:focus { outline: none; border-color: #e8c76a; }
+.ed-dirty { color: #e8c76a; font-weight: normal; }
+.ed-actions li > input[type=checkbox] { margin: 0 6px 0 0; vertical-align: middle; }

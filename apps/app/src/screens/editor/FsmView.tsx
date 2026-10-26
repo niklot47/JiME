@@ -1,5 +1,6 @@
 // One scenario's PlayMaker FSMs as graphs (read only): states with their actions, transitions by event, and the
-// global events that jump into a state. Click a state: its actions with parameters and texts in the side panel.
+// global events that jump into a state. Click a state: its actions with parameters and texts in the side panel;
+// with an EditApi the texts, simple parameters and the actions' on/off switches can be changed there.
 import { useEffect, useMemo, useState } from "react";
 import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { scenarioFsms, type FsmGraph, type FsmStateNode } from "@jime/engine";
@@ -10,6 +11,17 @@ import { keyIn, say } from "./text.ts";
 /** Actions that end the adventure or steer the campaign: such states are marked */
 const CAMPAIGN_ACTIONS = new Set(["SetNextAdventure", "AddAlternativeAdventure", "EndCampaign", "ProceedToNextGame", "EndGame"]);
 const SHOWN_ACTIONS = 4;
+
+/** Changes from the state panel (EditorScreen keeps them as a draft until saved) */
+export interface EditApi {
+  setParam(fsm: string, state: string, action: number, key: string, value: unknown): void;
+  setEnabled(fsm: string, state: string, action: number, on: boolean): void;
+  /** text of a key in the current language, line breaks as real ones (draft first) */
+  text(key: string): string;
+  setText(key: string, value: string): void;
+  /** the key's text was changed in this draft */
+  textChanged(key: string): boolean;
+}
 
 type StateData = { st: FsmStateNode; selected: boolean };
 type EntryData = { event: string };
@@ -86,7 +98,30 @@ function ParamValue({ v, texts }: { v: unknown; texts: TextDb | null }) {
   return <code>{typeof v === "string" ? v : JSON.stringify(v)}</code>;
 }
 
-function StatePanel({ g, name, texts, onSelect }: { g: FsmGraph; name: string; texts: TextDb | null; onSelect: (s: string) => void }) {
+/** One parameter in edit mode: a text key -> its text; numbers, strings, booleans -> inputs; references stay read only */
+function ParamEdit({ v, texts, edit, onChange }: { v: unknown; texts: TextDb | null; edit: EditApi; onChange: (v: unknown) => void }) {
+  const k = keyIn(v);
+  if (k) {
+    return (
+      <span className="ed-key">{k}{edit.textChanged(k) && <b className="ed-dirty"> · изменён</b>}
+        <textarea className="ed-input" rows={Math.min(10, Math.max(2, edit.text(k).split("\n").length + 1))}
+          defaultValue={edit.text(k)} key={`${k}|${edit.text(k)}`} onBlur={(e) => { if (e.target.value !== edit.text(k)) edit.setText(k, e.target.value); }} />
+      </span>
+    );
+  }
+  if (typeof v === "boolean") return <input type="checkbox" checked={v} onChange={(e) => onChange(e.target.checked)} />;
+  if (typeof v === "number") {
+    return <input className="ed-input num" type="number" step="any" defaultValue={v} key={String(v)}
+      onBlur={(e) => { const n = Number(e.target.value); if (e.target.value !== "" && Number.isFinite(n) && n !== v) onChange(n); }} />;
+  }
+  if (typeof v === "string") {
+    return <input className="ed-input" type="text" defaultValue={v} key={v} spellCheck={false}
+      onBlur={(e) => { if (e.target.value !== v) onChange(e.target.value); }} />;
+  }
+  return <ParamValue v={v} texts={texts} />;
+}
+
+function StatePanel({ g, name, texts, onSelect, edit }: { g: FsmGraph; name: string; texts: TextDb | null; onSelect: (s: string) => void; edit?: EditApi }) {
   const s = g.states.find((x) => x.name === name);
   if (!s) return null;
   const out = g.edges.filter((e) => e.from === name);
@@ -100,9 +135,12 @@ function StatePanel({ g, name, texts, onSelect }: { g: FsmGraph; name: string; t
       <ol className="ed-actions">
         {s.actions.map((a, i) => (
           <li key={i} className={a.enabled ? "" : "off"}>
+            {edit && <input type="checkbox" title="Действие включено" checked={a.enabled} onChange={(e) => edit.setEnabled(g.index, s.name, i, e.target.checked)} />}
             <b>{a.action}</b>{a.enabled ? "" : " (выключено)"}
             {Object.keys(a.params).length > 0 && (
-              <dl>{Object.entries(a.params).map(([k, v]) => <div key={k}><dt>{k}</dt><dd><ParamValue v={v} texts={texts} /></dd></div>)}</dl>
+              <dl>{Object.entries(a.params).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>
+                {edit ? <ParamEdit v={v} texts={texts} edit={edit} onChange={(nv) => edit.setParam(g.index, s.name, i, k, nv)} /> : <ParamValue v={v} texts={texts} />}
+              </dd></div>)}</dl>
             )}
           </li>
         ))}
@@ -118,8 +156,11 @@ function StatePanel({ g, name, texts, onSelect }: { g: FsmGraph; name: string; t
   );
 }
 
-export function FsmView({ prefab, title, texts, focus }: { prefab: any; title: string; texts: TextDb | null; focus?: { fsm: string; state: string } }) {
-  const fsms = useMemo(() => scenarioFsms(prefab), [prefab]);
+export function FsmView({ prefab, rev = 0, title, texts, focus, edit }: {
+  prefab: any; rev?: number; title: string; texts: TextDb | null; focus?: { fsm: string; state: string }; edit?: EditApi;
+}) {
+  // rev: the draft prefab is changed in place, a new rev rebuilds the graphs
+  const fsms = useMemo(() => scenarioFsms(prefab), [prefab, rev]); // eslint-disable-line react-hooks/exhaustive-deps
   const [idx, setIdx] = useState(focus?.fsm ?? fsms[0]?.index ?? "0");
   const [state, setState] = useState<string | null>(focus?.state ?? null);
   useEffect(() => { if (focus) { setIdx(focus.fsm); setState(focus.state); } }, [focus?.fsm, focus?.state]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -142,7 +183,7 @@ export function FsmView({ prefab, title, texts, focus }: { prefab: any; title: s
       </aside>
       <div className="ed-canvas"><FsmGraphView g={g} selected={state} onSelect={setState} /></div>
       <aside className="ed-panel">
-        {state ? <StatePanel g={g} name={state} texts={texts} onSelect={setState} />
+        {state ? <StatePanel g={g} name={state} texts={texts} onSelect={setState} edit={edit} />
           : <div className="ed-panel-body"><p className="muted">Выберите состояние на графе.</p>
             <p className="muted">Пунктир от золотых меток — глобальные события, которые переводят автомат прямо в состояние
               (например, ADVENTURE_END_VICTORY). Зелёная рамка — состояние, которое завершает приключение или выбирает следующее.</p></div>}

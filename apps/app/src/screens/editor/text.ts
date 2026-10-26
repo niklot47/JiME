@@ -4,14 +4,15 @@ import type { TextDb } from "@jime/content-tools/text";
 import { loadText } from "../../data/pack.ts";
 import { useLang } from "../../data/lang.ts";
 
-export function useTexts(): TextDb | null {
+/** rev: bump after saving texts (the pack caches were dropped) to read them again */
+export function useTexts(rev = 0): TextDb | null {
   const lang = useLang();
   const [db, setDb] = useState<TextDb | null>(null);
   useEffect(() => {
     let live = true;
     void loadText(lang).then((t) => { if (live) setDb(t); }).catch(() => { if (live) setDb(null); });
     return () => { live = false; };
-  }, [lang]);
+  }, [lang, rev]);
   return db;
 }
 
@@ -27,3 +28,7 @@ export function say(t: TextDb | null, key: string | null | undefined): string {
   if (!key) return "";
   return t?.has(key) ? t.format(key, [], { markup: "strip" }) : key;
 }
+
+/** CSV texts keep line breaks as the two characters \\n; the editor shows real ones */
+export const fromCsv = (s: string): string => s.replace(/\\n/g, "\n");
+export const toCsv = (s: string): string => s.replace(/\r?\n/g, "\\n");

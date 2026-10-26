@@ -250,6 +250,31 @@ fn set_packs_dir(app: AppHandle, state: State<'_, AppState>, path: Option<String
     Ok(out)
 }
 
+/// Pack folder names a user pack may use (pack.json id rules); the imported core-ffg is never written
+fn writable_pack(dir: &str) -> bool {
+    dir != "core-ffg"
+        && (2..=64).contains(&dir.len())
+        && dir.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        && !dir.starts_with('-')
+}
+
+/// Write a text file into a user pack (the editor's saves): `<packs>/<dir>/<path>`, folders created as needed
+#[tauri::command]
+fn write_pack_file(state: State<'_, AppState>, dir: String, path: String, content: String) -> Result<(), String> {
+    if !writable_pack(&dir) {
+        return Err(format!("pack folder not writable: {dir}"));
+    }
+    let root = state.packs.lock().unwrap().path.join(&dir);
+    let file = safe_join(&root, &path).ok_or(format!("bad path: {path}"))?;
+    if let Some(p) = file.parent() {
+        fs::create_dir_all(p).map_err(|e| format!("{}: {e}", p.display()))?;
+    }
+    // write next to it and rename: a crash never leaves a half-written scenario
+    let tmp = file.with_extension("part");
+    fs::write(&tmp, content).map_err(|e| format!("{}: {e}", tmp.display()))?;
+    fs::rename(&tmp, &file).map_err(|e| format!("{}: {e}", file.display()))
+}
+
 /// Open a web page in the system browser (Application.OpenURL: the rules, a product's store page); http(s) only
 #[tauri::command]
 fn open_url(app: AppHandle, url: String) -> Result<(), String> {
@@ -278,6 +303,7 @@ pub fn run() {
             packs_info,
             set_packs_dir,
             open_url,
+            write_pack_file,
             packzip::export_pack,
             packzip::import_pack,
             importer::detect_game,

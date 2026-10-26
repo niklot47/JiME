@@ -1,7 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join, normalize, resolve } from "node:path";
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 
 // Dev-time access to locally imported packs (FFG content never goes into the build):
 // GET /packs/<pack-id>/<path> -> $JIME_PACKS | $JIME_WORK/packs | <repo>/data/packs
@@ -16,6 +16,24 @@ function servePacks(): Plugin {
       server.middlewares.use("/packs", (req, res, next) => {
         const rel = normalize(decodeURIComponent((req.url ?? "/").split("?")[0]!)).replace(/^([/\\])+/, "");
         const json = (data: unknown) => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(data)); };
+        // the editor saves into a user pack (same rules as the Tauri command write_pack_file): never into core-ffg
+        if (req.method === "PUT") {
+          const target = resolve(packsDir, rel);
+          const top = rel.split(/[/\\]/)[0] ?? "";
+          if (!target.startsWith(resolve(packsDir) + sep) || !/^[a-z0-9][a-z0-9-]{1,63}$/.test(top) || top === "core-ffg") {
+            res.statusCode = 403; return res.end("not writable");
+          }
+          const chunks: Buffer[] = [];
+          req.on("data", (c: Buffer) => chunks.push(c));
+          req.on("end", () => {
+            try {
+              mkdirSync(dirname(target), { recursive: true });
+              writeFileSync(target, Buffer.concat(chunks));
+              res.statusCode = 204; res.end();
+            } catch (e) { res.statusCode = 500; res.end(String(e)); }
+          });
+          return;
+        }
         if (rel === "__list.json") {
           const dirs = existsSync(packsDir) ? readdirSync(packsDir).filter((d) => !d.startsWith(".") && statSync(join(packsDir, d)).isDirectory()).sort() : [];
           return json(dirs.map((dir) => {
@@ -36,7 +54,8 @@ function servePacks(): Plugin {
           return json(out.sort());
         }
         const file = join(packsDir, rel);
-        if (!file.startsWith(packsDir) || !existsSync(file) || !statSync(file).isFile()) return next();
+        // a missing pack file is a 404 like in Tauri (next() would serve the app's index.html with 200)
+        if (!file.startsWith(packsDir) || !existsSync(file) || !statSync(file).isFile()) { res.statusCode = 404; return res.end("not found"); }
         res.setHeader("Content-Type", TYPES[extname(file)] ?? "application/octet-stream");
         createReadStream(file).pipe(res);
       });

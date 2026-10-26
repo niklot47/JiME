@@ -8,17 +8,24 @@ export interface TextOptions {
 /** Index "Sheet|KEY" -> text maps by bare KEY as well (first sheet wins) */
 export class TextDb {
   private readonly byKey = new Map<string, string>();
+  /** bare KEY -> the full "Sheet|KEY" it was indexed from (a pack overrides a text by its full key) */
+  private readonly full = new Map<string, string>();
 
   constructor(entries: Iterable<[string, string]>) {
     for (const [k, v] of entries) {
       this.byKey.set(k, v);
       const bar = k.indexOf("|");
-      if (bar >= 0 && !this.byKey.has(k.slice(bar + 1))) this.byKey.set(k.slice(bar + 1), v);
+      if (bar >= 0 && !this.byKey.has(k.slice(bar + 1))) { this.byKey.set(k.slice(bar + 1), v); this.full.set(k.slice(bar + 1), k); }
     }
   }
 
   has(key: string): boolean {
     return this.byKey.has(key);
+  }
+
+  /** The full "Sheet|KEY" behind a bare key (the key itself when it is full or unknown) */
+  fullKey(key: string): string {
+    return this.full.get(key) ?? key;
   }
 
   raw(key: string): string | undefined {

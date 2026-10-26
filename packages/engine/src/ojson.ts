@@ -98,3 +98,27 @@ export function keysOf(o: object): string[] {
 export function valuesOf<T = any>(o: object): T[] {
   return keysOf(o).map((k) => (o as Record<string, T>)[k]!);
 }
+
+/**
+ * JSON text with the keys in their original order (the inverse of parseOrdered: integer-like keys stay where the
+ * file had them). Keys added after parsing (missing from ORDER) follow the ordered ones; deleted ones are skipped.
+ */
+export function stringifyOrdered(v: unknown, indent = 0): string {
+  const pad = (d: number) => (indent ? "\n" + " ".repeat(indent * d) : "");
+  const go = (x: unknown, d: number): string => {
+    if (x === null || typeof x !== "object") return JSON.stringify(x === undefined ? null : x);
+    if (Array.isArray(x)) {
+      if (!x.length) return "[]";
+      return "[" + x.map((e) => pad(d + 1) + go(e, d + 1)).join(",") + pad(d) + "]";
+    }
+    const o = x as Record<string, unknown>;
+    const order = (o as { [ORDER]?: string[] })[ORDER];
+    const keys = order ? [...order.filter((k) => k in o), ...Object.keys(o).filter((k) => !order.includes(k))] : Object.keys(o);
+    const parts = keys.filter((k) => o[k] !== undefined).map((k) => pad(d + 1) + JSON.stringify(k) + (indent ? ": " : ":") + go(o[k], d + 1));
+    return parts.length ? "{" + parts.join(",") + pad(d) + "}" : "{}";
+  };
+  return go(v, 0);
+}
+
+/** A deep copy that keeps the key order (structuredClone drops it) */
+export const cloneOrdered = <T>(v: T): T => parseOrdered(stringifyOrdered(v)) as T;

@@ -22,6 +22,8 @@ export interface PackConfig {
   root: string;
   /** Pack folders turned off by the user */
   disabled: string[];
+  /** bumped when pack files changed (the editor saved): the game worker then drops what it cached */
+  stamp?: number;
 }
 
 const DISABLED_KEY = "jime.packs.disabled";
@@ -46,8 +48,8 @@ export function setPacksRoot(url: string): void {
 
 /** Apply a config (worker side); returns true if it changed */
 export function applyPackConfig(c: PackConfig): boolean {
-  if (c.root === config.root && JSON.stringify(c.disabled) === JSON.stringify(config.disabled)) return false;
-  config = { root: c.root.replace(/\/+$/, ""), disabled: [...c.disabled] };
+  if (c.root === config.root && JSON.stringify(c.disabled) === JSON.stringify(config.disabled) && (c.stamp ?? 0) === (config.stamp ?? 0)) return false;
+  config = { root: c.root.replace(/\/+$/, ""), disabled: [...c.disabled], stamp: c.stamp ?? 0 };
   clearPackCache();
   return true;
 }
@@ -75,6 +77,12 @@ export interface PackSet extends LayerResult {
 
 const cache = new Map<string, Promise<any>>();
 let current: PackSet | null = null;
+/** Pack files were written (the editor): forget them here and in the game worker (its next start sees the new stamp) */
+export function packsChanged(): void {
+  config = { ...config, stamp: (config.stamp ?? 0) + 1 };
+  clearPackCache();
+}
+
 /** Forget loaded pack data (after the packs folder or the enabled packs changed) */
 export function clearPackCache(): void {
   cache.clear();
@@ -87,6 +95,8 @@ const once = <T,>(key: string, f: () => Promise<T>): Promise<T> => {
 
 const enc = (p: string) => p.split("/").map(encodeURIComponent).join("/");
 const url = (dir: string, rel: string) => `${config.root}/${enc(dir)}/${enc(rel)}`;
+/** URL of a file in one pack folder (not through the layers) */
+export const packFileUrl = url;
 
 async function getJson(u: string): Promise<any> {
   const r = await fetch(u);
