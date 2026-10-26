@@ -11,7 +11,7 @@ __pycache__/
 *.pyc
 jime_data.zip
 .tmp*/
-apps/app/src-tauri/gen/
+apps/app/src-tauri/gen/schemas/
 *.tsbuildinfo
 # local screenshots and files from Claude sessions (may contain FFG art)
 Claude outputs/
