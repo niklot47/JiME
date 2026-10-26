@@ -2,13 +2,19 @@ package io.github.niklot47.jime
 
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : TauriActivity() {
+  private val handler = Handler(Looper.getMainLooper())
+  private val rehide = Runnable { hideSystemBars() }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
@@ -17,6 +23,19 @@ class MainActivity : TauriActivity() {
       window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
     }
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    // EMUI and others bring the bars back without a focus change: hide them again a moment after they appear
+    ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { v, insets ->
+      if (insets.isVisible(WindowInsetsCompat.Type.systemBars())) {
+        handler.removeCallbacks(rehide)
+        handler.postDelayed(rehide, 2500)
+      }
+      ViewCompat.onApplyWindowInsets(v, insets)
+    }
+    hideSystemBars()
+  }
+
+  override fun onResume() {
+    super.onResume()
     hideSystemBars()
   }
 

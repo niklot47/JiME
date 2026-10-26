@@ -232,6 +232,10 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       for (const n of ["CameraParent", "PlayMakerGUI"]) root.children.find((c) => nameOf(c) === n)?.removeFromParent();
       // MapRoomVisuals.HideAllPaths
       for (const p of info.paths) { const o = s.byGoid.get(p.node); if (o) o.visible = false; }
+      // the room is static: local matrices computed once, not every frame (updateMatrixWorld over the whole room was
+      // the biggest cost on phones); what moves turns auto-update back on (candle flame here, path steps, campfire)
+      root.traverse((o) => { o.updateMatrix(); o.matrixAutoUpdate = false; });
+      for (const f of flicker) f.matrixAutoUpdate = true;
       scene.add(root);
       emitters = attachEmitters(root);
       s.root = root;
@@ -346,7 +350,13 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       if (props.current.shown) hiddenAt = 0;
       else if (!hiddenAt) hiddenAt = now;
       if (hiddenAt && now - hiddenAt > 900) { last = now; return; }
-      const dt = Math.min(0.05, (now - last) / 1000);
+      // light graphics, behind the new-game pages: the room is blurred by CSS (re-filtered on every new frame), so it
+      // is drawn at a low resolution and 15 times a second (the difficulty page ran at ~26 fps on a phone)
+      const behind = LOW_GFX && props.current.view === "setup";
+      const pr = behind ? 0.6 : PIXEL_RATIO;
+      if (renderer.getPixelRatio() !== pr) { renderer.setPixelRatio(pr); resize(); }
+      if (behind && now - last < 60) return;
+      const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       target(dt, (now - t0) / 1000);
       // path footprints growing in one by one (TweenScale per CampaignPathMarker)
@@ -400,6 +410,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
       recent.visible = true;
       recent.children.forEach((c, i) => {
         c.userData.baseScale ??= c.scale.clone();
+        c.matrixAutoUpdate = true;
         c.scale.setScalar(0);
         s.grow.push({ o: c, t: 0, delay: 0.6 + i * 0.1 });
       });
@@ -410,6 +421,7 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
     if (fire && lo && fire.parent) {
       const wp = lo.getWorldPosition(new THREE.Vector3());
       fire.position.copy(fire.parent.worldToLocal(wp));
+      fire.updateMatrix();
       fire.visible = true;
     } else if (fire) fire.visible = props.current.view !== "title" && props.current.view !== "setup" && !!lo;
   };

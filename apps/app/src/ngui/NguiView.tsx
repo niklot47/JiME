@@ -3,6 +3,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { assetUrl, type AtlasSprite } from "../data/pack.ts";
 import { Particles2D } from "./Particles2D.tsx";
+import { LOW_GFX } from "../data/perf.ts";
 import type { UiLayoutFile, UiNode } from "./types.ts";
 import { solve, type Binds, type Box, type Enter, type Measured } from "./solve.ts";
 
@@ -592,7 +593,8 @@ export function NguiView({ layout, atlas, show, binds, say, className, all }: Ng
 }
 
 /** the flame filters' working resolution (times the element's size) */
-const WOBBLE_RES = 2;
+// light graphics: the filters run on 4x fewer pixels (the difficulty page fell to ~30 fps on a phone)
+const WOBBLE_RES = LOW_GFX ? 1 : 2;
 interface Wobble { id: string; w: number; h: number; pad: number; scale: number; dur: number; rev: boolean; burn: boolean }
 /** a flowing-noise filter for a picture's size, a displacement (px), a speed (_Speed: picture heights per second)
  *  and a direction, shared by the boxes that need the same */
