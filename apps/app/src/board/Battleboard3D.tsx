@@ -9,6 +9,7 @@ import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { assetUrl } from "../data/pack.ts";
 import { markerGroup } from "./Board3D.tsx";
 import { attachEmitters, distortion, DISTORT_LAYER, type Emitter } from "./particles.ts";
+import { ANTIALIAS, PIXEL_RATIO } from "../data/perf.ts";
 
 /** BattleboardSkins: Grass, Quarry, Town -> the environment scene */
 export const SKIN_SCENES = ["forest", "rock", "town"] as const;
@@ -436,8 +437,8 @@ export function Battleboard3D({ boards, visible = [true, true], rivers = true, p
 
   useEffect(() => {
     const el = host.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    const renderer = new THREE.WebGLRenderer({ antialias: ANTIALIAS });
+    renderer.setPixelRatio(PIXEL_RATIO);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;

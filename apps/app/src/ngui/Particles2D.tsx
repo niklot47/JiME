@@ -5,6 +5,7 @@
 import { useEffect, useRef } from "react";
 import { color, mm, type PS } from "../board/particles.ts";
 import { assetUrl } from "../data/pack.ts";
+import { PIXEL_RATIO } from "../data/perf.ts";
 
 export interface UiPS extends PS {
   tex?: string;
@@ -53,7 +54,7 @@ export function Particles2D({ ps, x, y, k, z, mirror = false, rate = 1, speed = 
   useEffect(() => {
     const cv = ref.current!;
     const ctx = cv.getContext("2d")!;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = PIXEL_RATIO;
     cv.width = Math.ceil(2 * R * dpr); cv.height = Math.ceil(2 * R * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     let sprite: HTMLCanvasElement | null = null;

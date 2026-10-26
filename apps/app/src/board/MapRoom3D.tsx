@@ -15,6 +15,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { applyActive, loadGltf, nameOf, smoothCutout } from "./Battleboard3D.tsx";
 import { attachEmitters, renderComposedWithParticles, type Emitter } from "./particles.ts";
 import { assetUrl, packText } from "../data/pack.ts";
+import { ANTIALIAS, LOW_GFX, PIXEL_RATIO } from "../data/perf.ts";
 
 export type MapRoomView = "title" | "setup" | "map" | "zoom";
 
@@ -116,8 +117,8 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
 
   useEffect(() => {
     const el = host.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    const renderer = new THREE.WebGLRenderer({ antialias: ANTIALIAS });
+    renderer.setPixelRatio(PIXEL_RATIO);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
@@ -358,7 +359,8 @@ export function MapRoom3D({ view, focus = null, completed = [], showRecent = fal
         if (shown) e.step(dt, camera);
         return !e.done;
       });
-      if (dof) renderComposedWithParticles(composer, renderer, scene, camera, dt);
+      // light graphics: no depth of field (a full-screen depth pass + blur per frame)
+      if (dof && !LOW_GFX) renderComposedWithParticles(composer, renderer, scene, camera, dt);
       else renderer.render(scene, camera);
     };
     tick();

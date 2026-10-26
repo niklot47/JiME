@@ -7,6 +7,7 @@ import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import type { TileMesh } from "@jime/engine/map";
 import { assetUrl } from "../data/pack.ts";
 import type { Pick, Token } from "./BoardView.tsx";
+import { ANTIALIAS, PIXEL_RATIO } from "../data/perf.ts";
 
 interface Props {
   tiles: TileMesh[];
@@ -486,8 +487,8 @@ export function Board3D({ tiles, tokens, showLabels, rotation, shownTiles = null
   // renderer, scene, controls, render loop (once)
   useEffect(() => {
     const el = host.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: ANTIALIAS });
+    renderer.setPixelRatio(PIXEL_RATIO);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;

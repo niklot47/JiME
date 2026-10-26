@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { TileMesh } from "@jime/engine/map";
 import { assetUrl } from "../data/pack.ts";
+import { ANTIALIAS, PIXEL_RATIO } from "../data/perf.ts";
 
 export interface Token {
   x: number;
@@ -122,8 +123,8 @@ export function BoardView({ tiles, tokens, showLabels, rotation, sectionTint, sh
   // renderer, camera and input (once)
   useEffect(() => {
     const el = host.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: ANTIALIAS });
+    renderer.setPixelRatio(PIXEL_RATIO);
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1d1812);

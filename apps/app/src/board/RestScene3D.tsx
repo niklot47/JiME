@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { applyActive, find, loadGltf, nameOf, smoothCutout } from "./Battleboard3D.tsx";
 import { attachEmitters, type Emitter } from "./particles.ts";
+import { ANTIALIAS, PIXEL_RATIO } from "../data/perf.ts";
 
 /** a soft additive glow around a fire (the original's bloom on the flames) */
 let glowTex: THREE.Texture | null = null;
@@ -42,8 +43,8 @@ export function RestScene3D({ area = 0 }: { area?: number }) {
 
   useEffect(() => {
     const el = host.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    const renderer = new THREE.WebGLRenderer({ antialias: ANTIALIAS });
+    renderer.setPixelRatio(PIXEL_RATIO);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
