@@ -33,7 +33,7 @@ input, textarea, [contenteditable="true"] { user-select: text; -webkit-user-sele
   background: var(--panel); color: var(--text); font-size: 1.1rem; text-align: left; cursor: pointer;
   touch-action: manipulation;
 }
-.card:hover, .card:focus-visible { border-color: var(--accent); outline: none; }
+@media (hover: hover) { .card:hover, .card:focus-visible { border-color: var(--accent); outline: none; } }
 
 .card:disabled { opacity: 0.45; cursor: default; }
 .card .muted { font-size: 0.85rem; }
@@ -148,7 +148,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .tracker .enemy { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 96px; flex: 0 0 auto;
   padding: 0; background: none; border: 0; color: var(--text); font: inherit; text-align: center; }
 .tracker .enemy.can { cursor: pointer; }
-.tracker .enemy.can:hover .medal { transform: scale(1.08); }
+@media (hover: hover) { .tracker .enemy.can:hover .medal { transform: scale(1.08); } }
 .tracker .enemy.exhausted .medal { filter: grayscale(0.85) brightness(0.7); }
 .tracker .medal { position: relative; width: 84px; height: 84px; transition: transform 0.15s; }
 .tracker .medal img { position: absolute; display: block; pointer-events: none; }
@@ -270,14 +270,14 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .gear-btn { position: absolute; top: 8px; right: 10px; width: 50px; height: 50px; border: none; padding: 9px; border-radius: 50%; z-index: 4;
   background: #2a241b; display: flex; align-items: center; justify-content: center; color: #e8dcc0; font-size: 1.4rem; }
 .gear-btn img { width: 100%; height: 100%; }
-.gear-btn:hover { filter: brightness(1.15); }
+@media (hover: hover) { .gear-btn:hover { filter: brightness(1.15); } }
 
 /* bottom bar */
 .bottombar { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; pointer-events: none; z-index: 3; }
 .round-btn { position: absolute; width: 70px; height: 70px; border: none; padding: 0; border-radius: 50%; pointer-events: auto;
   background-color: transparent; filter: drop-shadow(0 2px 4px #000); }
 .round-btn.plain { background: #2a241b; border: 2px solid #8a7445; color: #f3e6c8; font-size: 1.6rem; }
-.round-btn:not(:disabled):hover { filter: drop-shadow(0 2px 4px #000) brightness(1.15); }
+@media (hover: hover) { .round-btn:not(:disabled):hover { filter: drop-shadow(0 2px 4px #000) brightness(1.15); } }
 .round-btn:disabled { filter: drop-shadow(0 2px 4px #000) grayscale(0.7) brightness(0.6); }
 .round-btn.party { left: 10px; bottom: 10px; }
 .round-btn.endround { right: 10px; bottom: 10px; }
@@ -304,7 +304,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .dialog-buttons.grid.two { display: grid; grid-template-columns: repeat(2, minmax(0, 300px)); }
 .green-btn { min-width: 160px; min-height: 44px; padding: 6px 22px; color: #f4ecd4; font-family: var(--font-text); font-size: 1.02rem;
   background: linear-gradient(#4b5a2a, #2f3a18); border: 1px solid #8a9a5a; text-shadow: 0 1px 2px #000; line-height: 1.2; }
-.green-btn:not(:disabled):hover { filter: brightness(1.18); }
+@media (hover: hover) { .green-btn:not(:disabled):hover { filter: brightness(1.18); } }
 .green-btn:disabled { filter: grayscale(0.8) brightness(0.7); }
 .dialog-buttons .skip { background: none; border: none; color: #c9b98f; text-decoration: underline; font-size: 0.85rem; }
 .dialog-area .hint { margin: 0; color: #efe6d2; font-family: var(--font-text); text-shadow: 0 1px 3px #000, 0 0 8px #000; }
@@ -361,7 +361,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .enemy-card .bar i { flex: 1; background: #2a1010; border-radius: 2px; }
 .enemy-card .bar i.on { background: linear-gradient(#ff5a3c, #a8160e); }
 .attack-btn { width: 76px; height: 94px; border: none; background: transparent center / contain no-repeat; margin-left: -10px; filter: drop-shadow(0 2px 6px #000); }
-.attack-btn:hover { filter: drop-shadow(0 0 10px rgba(255, 190, 90, 0.8)); }
+@media (hover: hover) { .attack-btn:hover { filter: drop-shadow(0 0 10px rgba(255, 190, 90, 0.8)); } }
 .toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: 130px; padding: 10px 18px; background: rgba(60, 14, 10, 0.95);
   border: 1px solid #b0503f; color: #f3e6c8; z-index: 12; cursor: pointer; max-width: 80%; }
 @media (max-width: 860px) {
@@ -372,7 +372,7 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .party .xp { margin: -8px 0 0; }
 .party .hero .laststand { min-width: 74px; min-height: 40px; color: #f3e6c8; background: rgba(160, 40, 40, 0.75); font-family: var(--font-title); }
 .party .hero .laststand:disabled { background: rgba(60, 20, 20, 0.6); opacity: 1; }
-.party .hero .laststand:not(:disabled):hover { filter: brightness(1.25); }
+@media (hover: hover) { .party .hero .laststand:not(:disabled):hover { filter: brightness(1.25); } }
 .game-screen.hud .threatbar .flame { width: 4%; top: -45%; bottom: -45%; transform: translateX(-70%); }
 .bottombar .tracker { overflow: visible; flex-wrap: nowrap; }
 .numinput .side { color: #fff3d0; text-shadow: 0 1px 2px #000, 0 0 4px #000; font-size: 1.7rem; line-height: 1; }
@@ -385,8 +385,9 @@ code { background: #2b251c; padding: 1px 5px; border-radius: 4px; }
 .ngui .ng-black { background-color: #000; }
 /* the game's own cursor everywhere (the original has no hand over buttons); text fields keep the caret */
 html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui-cursor) !important; }
-.ngui .ng-click:hover { filter: brightness(1.12); }
-.ngui .ng-click.ng-nohover:hover, .ngui .ng-click.ng-nohover:active { filter: none; }
+@media (hover: hover) { .ngui .ng-click:hover { filter: brightness(1.12); } }
+@media (hover: hover) { .ngui .ng-click.ng-nohover:hover { filter: none; } }
+.ngui .ng-click.ng-nohover:active { filter: none; }
 .ngui .ng-click:active { filter: brightness(0.9); }
 .ngui .ng-disabled { filter: grayscale(0.7) brightness(0.6); }
 .ngui .ng-label span { display: block; }
@@ -466,7 +467,7 @@ html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui
 .title-screen { position: fixed; inset: 0; background: #000; overflow: hidden; }
 .title-screen .ngui { z-index: 2; }
 .title-dim { position: absolute; inset: 0; background: rgba(12, 9, 6, 0.4); z-index: 1; }
-.ngui-wheel { position: absolute; inset: 0; z-index: 2; }
+.ngui-wheel { position: absolute; inset: 0; z-index: 2; touch-action: none; }
 .ngui .ng-input { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; background: transparent; border: 0; outline: 0;
   pointer-events: auto; font: inherit; color: inherit; text-align: center; text-shadow: inherit; padding: 0 8px; }
 .ngui .ng-input::placeholder { color: rgba(218, 215, 186, 0.55); }
@@ -486,7 +487,7 @@ html.game-cursor, html.game-cursor *:not(input):not(textarea) { cursor: var(--ui
 /* this app's tools, a quiet link in the title screen's corner */
 .title-tools { position: absolute; right: 12px; bottom: 10px; z-index: 5; background: rgba(0, 0, 0, 0.45); color: #d9c9a3;
   border: 1px solid rgba(217, 201, 163, 0.35); border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; opacity: 0.7; }
-.title-tools:hover { opacity: 1; }
+@media (hover: hover) { .title-tools:hover { opacity: 1; } }
 
 /* long texts in the title font (cutscenes) */
 .ngui .ng-loose { letter-spacing: 0.06em; word-spacing: 0.12em; }
