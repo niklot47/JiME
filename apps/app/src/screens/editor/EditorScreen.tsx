@@ -30,7 +30,13 @@ let keySeq = 0;
 /** Per language: does a key have a text (the pack's texts, or this draft's for that language) */
 function hasTextFns(langs: Map<string, TextDb>, draft: Map<string, Map<string, string>> | null): Record<string, (k: string) => boolean> {
   const out: Record<string, (k: string) => boolean> = {};
-  for (const [l, t] of langs) out[l] = (k) => t.has(k) || !!draft?.get(l)?.has(t.fullKey(k)) || !!draft?.get(l)?.has(k);
+  for (const [l, t] of langs) {
+    out[l] = (k) => {
+      // the draft's text wins (an emptied text is a missing one)
+      const d = draft?.get(l)?.get(t.fullKey(k)) ?? draft?.get(l)?.get(k);
+      return d !== undefined ? d.trim() !== "" : !!t.raw(k)?.trim();
+    };
+  }
   return out;
 }
 
@@ -146,18 +152,28 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
       return d;
     };
     const action = (fsm: string, state: string, i: number) => prefab().fsms[fsm].states.find((x: any) => x.name === state).actions[i];
-    const langMap = () => {
-      const l = getLang();
+    const langMap = (l = getLang()) => {
       if (!draft.current.texts.has(l)) draft.current.texts.set(l, new Map());
       return draft.current.texts.get(l)!;
     };
-    const full = (key: string) => texts?.fullKey(key) ?? key;
+    // the pack's texts of a language (the current one is loaded first, the others a moment later)
+    const tdb = (l = getLang()) => langTexts.get(l) ?? (l === getLang() ? texts : null);
+    // the full "Sheet|KEY" a pack overrides a text by (the same sheet in every language)
+    const full = (key: string, l = getLang()) => tdb(l)?.fullKey(key) ?? texts?.fullKey(key) ?? key;
+    const draftText = (key: string, l = getLang()) => draft.current.texts.get(l)?.get(full(key, l));
     return {
       setParam(fsm, state, i, key, value) { const a = action(fsm, state, i); a.params ??= {}; a.params[key] = value; setRev((r) => r + 1); },
       setEnabled(fsm, state, i, on) { action(fsm, state, i).enabled = on; setRev((r) => r + 1); },
-      text(key) { const d = draft.current.texts.get(getLang())?.get(full(key)); return fromCsv(d ?? texts?.raw(key) ?? ""); },
-      setText(key, value) { langMap().set(full(key), toCsv(value)); setRev((r) => r + 1); },
-      textChanged(key) { return !!draft.current.texts.get(getLang())?.has(full(key)); },
+      text(key, l = getLang()) { return fromCsv(draftText(key, l) ?? tdb(l)?.raw(key) ?? ""); },
+      setText(key, value, l = getLang()) {
+        const map = langMap(l), k = full(key, l), v = toCsv(value);
+        // back to the pack's own text: no longer an edit
+        if (v === (tdb(l)?.raw(key) ?? "") && tdb(l)?.has(key)) map.delete(k); else map.set(k, v);
+        setRev((r) => r + 1);
+      },
+      textChanged(key, l = getLang()) { return !!draft.current.texts.get(l)?.has(full(key, l)); },
+      hasText(key, l) { const d = draftText(key, l); return d !== undefined ? d.trim() !== "" : !!tdb(l)?.raw(key)?.trim(); },
+      langs: [getLang(), ...[...langTexts.keys()].filter((l) => l !== getLang())],
       mutateState(fsm, state, f) { f(prefab().fsms[fsm].states.find((x: any) => x.name === state)); setRev((r) => r + 1); },
       mutateFsm(fsm, f) { f(prefab().fsms[fsm]); setRev((r) => r + 1); },
       newKey() {

@@ -51,6 +51,28 @@ function textKeys(v: unknown, out: Set<string>): void {
   else if (v && typeof v === "object") for (const k of keysOf(v)) textKeys((v as any)[k], out);
 }
 
+/** One text key of a scenario and the places that show it */
+export interface TextUse {
+  key: string;
+  uses: { fsm: string; fsmName: string; state: string; action: string; enabled: boolean }[];
+}
+
+/** Every text key the scenario's actions name, in the order of the file (FSM, state, action) */
+export function scenarioTextKeys(prefab: any): TextUse[] {
+  const out = new Map<string, TextUse>();
+  for (const g of scenarioFsms(prefab)) {
+    for (const s of g.states) for (const a of s.actions) {
+      const keys = new Set<string>();
+      textKeys(a.params, keys);
+      for (const k of keys) {
+        if (!out.has(k)) out.set(k, { key: k, uses: [] });
+        out.get(k)!.uses.push({ fsm: g.index, fsmName: g.owner ?? g.name, state: s.name, action: a.action, enabled: a.enabled });
+      }
+    }
+  }
+  return [...out.values()];
+}
+
 export function checkScenario(prefab: any, opts: CheckOptions = {}): Issue[] {
   const issues: Issue[] = [];
   const known = opts.actions ? new Set(opts.actions) : null;

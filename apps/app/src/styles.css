@@ -645,3 +645,21 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .ed-issues li.old { opacity: 0.55; }
 .ed-bot { margin-top: 6px; }
 .ed-bot details summary { cursor: pointer; color: #b8ab90; }
+.ed-tabs { display: flex; gap: 4px; margin: 4px 0 8px; }
+.ed-tabs button { flex: 1; background: #2b251c; color: #b8ab90; border: 1px solid #3a3226; border-radius: 5px; padding: 4px 6px; cursor: pointer; font: inherit; font-size: 0.8rem; }
+.ed-tabs button.on { background: #3a3226; color: #e8dcc0; border-color: #6a5a40; }
+.ed-texts { flex: 1; min-width: 0; overflow: auto; padding: 10px 14px; user-select: text; -webkit-user-select: text; }
+.ed-texts-bar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; font-size: 0.85rem; position: sticky; top: -10px; background: #1b1712; padding: 6px 0; z-index: 1; }
+.ed-texts-bar select { background: #2b251c; color: var(--text); border: 1px solid #3a3226; border-radius: 6px; padding: 3px 6px; }
+.ed-texts table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.8rem; }
+.ed-texts th { text-align: left; color: #d8c49a; font-weight: normal; padding: 4px 6px; border-bottom: 1px solid #3a3226; }
+.ed-texts td { vertical-align: top; padding: 5px 6px; border-bottom: 1px solid #2e281f; }
+.ed-texts td.key { width: 230px; word-break: break-all; }
+.ed-texts td.key .muted { display: block; word-break: normal; font-size: 0.72rem; margin-top: 2px; }
+.ed-texts td.missing textarea, .ed-tr .missing textarea { border-color: #c8574a; background: #2a1814; }
+.ed-texts td.changed textarea, .ed-tr .changed textarea { border-color: #b08a4a; }
+.ed-tr { margin: 4px 0 2px; font-size: 0.76rem; }
+.ed-tr summary { cursor: pointer; color: #b8ab90; }
+.ed-tr .lang { display: block; margin-top: 4px; color: #b8ab90; }
+.ed-tr .lang b.no { color: #c8574a; font-weight: normal; }
+.ed-tr .lang b.ok { color: #7fbf6a; font-weight: normal; }

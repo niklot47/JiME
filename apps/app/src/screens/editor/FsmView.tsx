@@ -9,6 +9,7 @@ import { layout } from "./layout.ts";
 import { KIND_NAME, loadActionCatalog, newAction, paramKind, type ActionInfo } from "./catalog.ts";
 import type { BotReport } from "./botRun.ts";
 import { keyIn, say } from "./text.ts";
+import { TextsTable, Translations } from "./TextsTable.tsx";
 
 /** Actions that end the adventure or steer the campaign: such states are marked */
 const CAMPAIGN_ACTIONS = new Set(["SetNextAdventure", "AddAlternativeAdventure", "EndCampaign", "ProceedToNextGame", "EndGame"]);
@@ -18,11 +19,15 @@ const SHOWN_ACTIONS = 4;
 export interface EditApi {
   setParam(fsm: string, state: string, action: number, key: string, value: unknown): void;
   setEnabled(fsm: string, state: string, action: number, on: boolean): void;
-  /** text of a key in the current language, line breaks as real ones (draft first) */
-  text(key: string): string;
-  setText(key: string, value: string): void;
+  /** text of a key in a language (default: the current one), line breaks as real ones (draft first) */
+  text(key: string, lang?: string): string;
+  setText(key: string, value: string, lang?: string): void;
   /** the key's text was changed in this draft */
-  textChanged(key: string): boolean;
+  textChanged(key: string, lang?: string): boolean;
+  /** the key has a non-empty text in the language (pack or draft) */
+  hasText(key: string, lang: string): boolean;
+  /** the pack set's languages, the current one first */
+  langs: string[];
   /** change one state of the draft (transitions); the FSM graphs are rebuilt */
   mutateState(fsm: string, state: string, f: (st: any) => void): void;
   /** change the whole FSM (states added / renamed / removed) */
@@ -251,8 +256,13 @@ function ParamEdit({ v, texts, edit, prefab, onChange }: { v: unknown; texts: Te
       <span className="ed-key">{k}{edit.textChanged(k) && <b className="ed-dirty"> · изменён</b>}
         <textarea className="ed-input" rows={Math.min(10, Math.max(2, edit.text(k).split("\n").length + 1))}
           defaultValue={edit.text(k)} key={`${k}|${edit.text(k)}`} onBlur={(e) => { if (e.target.value !== edit.text(k)) edit.setText(k, e.target.value); }} />
+        <Translations k={k} edit={edit} />
         <button className="link small" title="Этот текст может быть общим с другими местами: новый ключ меняет только это действие"
-          onClick={() => { const nk = edit.newKey(); edit.setText(nk, edit.text(k)); onChange(typeof v === "string" ? `«${nk}»` : { ...(v as object), key: `«${nk}»` }); }}>отдельный текст для этого места</button>
+          onClick={() => {
+            const nk = edit.newKey();
+            for (const l of edit.langs) edit.setText(nk, edit.text(k, l), l); // every language's text goes along
+            onChange(typeof v === "string" ? `«${nk}»` : { ...(v as object), key: `«${nk}»` });
+          }}>отдельный текст для этого места</button>
       </span>
     );
   }
@@ -435,6 +445,7 @@ export function FsmView({ prefab, rev = 0, title, texts, focus, edit, check }: {
   const [idx, setIdx] = useState(focus?.fsm ?? fsms[0]?.index ?? "0");
   const [state, setState] = useState<string | null>(focus?.state ?? null);
   const [newName, setNewName] = useState("");
+  const [view, setView] = useState<"graph" | "texts">("graph");
   useEffect(() => { if (focus) { setIdx(focus.fsm); setState(focus.state); } }, [focus?.fsm, focus?.state]); // eslint-disable-line react-hooks/exhaustive-deps
   const g = fsms.find((f) => f.index === idx) ?? fsms[0];
   if (!g) return <p className="muted">В сценарии нет FSM.</p>;
@@ -442,6 +453,12 @@ export function FsmView({ prefab, rev = 0, title, texts, focus, edit, check }: {
     <div className="ed-fsm">
       <aside className="ed-list">
         <h3>{title}</h3>
+        {edit && (
+          <div className="ed-tabs">
+            <button className={view === "graph" ? "on" : ""} onClick={() => setView("graph")}>Граф</button>
+            <button className={view === "texts" ? "on" : ""} onClick={() => setView("texts")}>Тексты и переводы</button>
+          </div>
+        )}
         <p className="muted">Автоматы сценария ({fsms.length})</p>
         {edit && (
           <div className="ed-newstate">
@@ -454,14 +471,17 @@ export function FsmView({ prefab, rev = 0, title, texts, focus, edit, check }: {
         <ul>
           {fsms.map((f) => (
             <li key={f.index}>
-              <button className={`link${f.index === g.index ? " on" : ""}`} onClick={() => { setIdx(f.index); setState(null); }}>
+              <button className={`link${f.index === g.index ? " on" : ""}`} onClick={() => { setIdx(f.index); setState(null); setView("graph"); }}>
                 {f.owner ?? f.name}<span className="muted"> · {f.name} · {f.states.length}</span>
               </button>
             </li>
           ))}
         </ul>
-        {check && fsms.length > 0 && <CheckSection check={check} fsms={fsms} onGo={(f, st) => { setIdx(f); setState(st ?? null); }} />}
+        {check && fsms.length > 0 && <CheckSection check={check} fsms={fsms} onGo={(f, st) => { setIdx(f); setState(st ?? null); setView("graph"); }} />}
       </aside>
+      {view === "texts" && edit ? (
+        <TextsTable prefab={prefab} rev={rev} edit={edit} onGo={(f, st) => { setIdx(f); setState(st); setView("graph"); }} />
+      ) : <>
       <div className="ed-canvas"><FsmGraphView g={g} selected={state} onSelect={setState} check={check} /></div>
       <aside className="ed-panel">
         {state && g.states.some((x) => x.name === state) ? <StatePanel g={g} name={state} texts={texts} onSelect={setState} edit={edit} prefab={prefab}
@@ -470,6 +490,7 @@ export function FsmView({ prefab, rev = 0, title, texts, focus, edit, check }: {
             <p className="muted">Пунктир от золотых меток — глобальные события, которые переводят автомат прямо в состояние
               (например, ADVENTURE_END_VICTORY). Зелёная рамка — состояние, которое завершает приключение или выбирает следующее.</p></div>}
       </aside>
+      </>}
     </div>
   );
 }
