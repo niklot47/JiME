@@ -21,7 +21,7 @@ export interface BotReport {
 let encounters: Promise<Map<number, any | null>> | null = null;
 
 /** Every encounter prefab of the pack (the bot may meet any of them), loaded once */
-function loadEncounters(db: any): Promise<Map<number, any | null>> {
+export function loadEncounters(db: any): Promise<Map<number, any | null>> {
   encounters ??= (async () => {
     const ids = Object.values<any>(db.models.EncounterModel ?? {}).map((e) => Number(e._id));
     const m = new Map<number, any | null>();
@@ -33,13 +33,15 @@ function loadEncounters(db: any): Promise<Map<number, any | null>> {
   return encounters;
 }
 
-export async function runBot(db: any, advId: number, prefab: any, seeds: number, onProgress?: (done: number) => void): Promise<BotReport> {
+export async function runBot(db: any, advId: number, prefab: any, seeds: number, onProgress?: (done: number) => void,
+  encDraft?: Map<number, any>): Promise<BotReport> {
   const t0 = performance.now();
   const enc = await loadEncounters(db);
   const src: ContentSource = {
     db: () => db,
     adventure: () => cloneOrdered(prefab),
-    encounter: (id) => enc.get(Number(id)) ?? null,
+    // the draft's changed encounters first
+    encounter: (id) => (encDraft?.has(Number(id)) ? cloneOrdered(encDraft.get(Number(id))) : enc.get(Number(id)) ?? null),
   };
   const outcomes: Record<string, number> = {};
   const errors: BotReport["errors"] = [];

@@ -185,6 +185,8 @@ export const loadDb = () => once("db", async () => {
 export const loadTileArt = () => once("art", async () => JSON.parse(await packText("scenario/tileart.json")) as TileArtDb);
 /** Fresh copy each time: the engine may keep references into it */
 export const loadAdventure = async (id: number) => parseOrdered(await packText(`scenario/adventures/${id}.json`)) as any;
+/** An encounter's scenario (an event or threat the adventures place on tiles); fresh copy */
+export const loadEncounter = async (id: number) => parseOrdered(await packText(`scenario/encounters/${id}.json`)) as any;
 
 /**
  * This app's corrections of the publisher's texts: key -> [the publisher's text, ours]. Applied only while the text is

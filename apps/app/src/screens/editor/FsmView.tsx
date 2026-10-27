@@ -150,7 +150,8 @@ export interface CheckInfo {
   /** games played so far while the bot runs, else null */
   running: number | null;
   botSeeds: number;
-  onRunBot: () => void;
+  /** absent: no bot for this scenario (an encounter) */
+  onRunBot?: () => void;
 }
 
 const OUTCOME_RU: Record<string, string> = { victory: "победа", defeat: "поражение", timeout: "не закончил" };
@@ -418,6 +419,7 @@ function CheckSection({ check, fsms, onGo }: { check: CheckInfo; fsms: FsmGraph[
         ))}{shown.length > 60 && <li className="muted">… ещё {shown.length - 60}</li>}</ul>
       )}
       <button className="link small" onClick={() => setOld(!old)}>{old ? "только новые" : "показать и оригинальные"}</button>
+      {check.onRunBot && <>
       <h4>Бот</h4>
       <button className="primary" disabled={check.running !== null} onClick={check.onRunBot}>
         {check.running !== null ? `Играю… ${check.running} / ${check.botSeeds}` : `Прогнать ботом × ${check.botSeeds}`}</button>
@@ -433,6 +435,7 @@ function CheckSection({ check, fsms, onGo }: { check: CheckInfo; fsms: FsmGraph[
           <p className="muted">На графе бледные — состояния, до которых бот ни разу не дошёл.</p>
         </div>
       )}
+      </>}
     </div>
   );
 }

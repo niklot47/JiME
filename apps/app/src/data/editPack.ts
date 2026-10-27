@@ -1,6 +1,7 @@
 // The editor's own pack: changed scenarios and texts are saved here, on top of core-ffg (which is never touched).
 //   my-edits/pack.json             origin "user", priority 100, depends on core-ffg
 //   my-edits/scenario/adventures/<id>.json   whole adventure files (the topmost layer wins per file)
+//   my-edits/scenario/encounters/<id>.json   whole encounter files
 //   my-edits/lang/<lang>.csv       only the changed texts, by their full "Sheet|KEY" (merged over core-ffg by key)
 import { stringifyOrdered } from "@jime/engine";
 import { parseLangCsv, writeCsv } from "@jime/content-tools/csv";
@@ -12,6 +13,8 @@ export const EDIT_PACK = "my-edits";
 export interface Edits {
   /** changed adventure prefabs by id */
   adventures: Map<number, any>;
+  /** changed encounter prefabs by id */
+  encounters?: Map<number, any>;
   /** changed texts: lang -> full key -> text (as stored in the CSV: line breaks as "\n") */
   texts: Map<string, Map<string, string>>;
 }
@@ -33,6 +36,7 @@ export async function saveEdits(e: Edits): Promise<void> {
   try { manifest = old ? JSON.parse(old) : null; } catch { manifest = null; }
   const langs = new Set<string>((manifest?.contents ?? []).filter((c: any) => c.type === "lang").map((c: any) => c.lang));
   for (const [id, prefab] of e.adventures) await writePackFile(EDIT_PACK, `scenario/adventures/${id}.json`, stringifyOrdered(prefab));
+  for (const [id, prefab] of e.encounters ?? []) await writePackFile(EDIT_PACK, `scenario/encounters/${id}.json`, stringifyOrdered(prefab));
   for (const [lang, changed] of e.texts) {
     if (!changed.size) continue;
     const prev = await current(`lang/${lang}.csv`);

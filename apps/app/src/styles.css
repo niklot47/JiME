@@ -663,3 +663,14 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .ed-tr .lang { display: block; margin-top: 4px; color: #b8ab90; }
 .ed-tr .lang b.no { color: #c8574a; font-weight: normal; }
 .ed-tr .lang b.ok { color: #7fbf6a; font-weight: normal; }
+.ed-tabs.top { display: inline-flex; margin: 0; }
+.ed-tabs.top button { flex: none; padding: 3px 10px; }
+.ed-enc { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px 14px; overflow: hidden; }
+.ed-enc .ed-texts-bar { position: static; }
+.ed-enc-table { flex: 1; overflow: auto; }
+.ed-enc table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+.ed-enc th { text-align: left; color: #d8c49a; font-weight: normal; padding: 4px 6px; border-bottom: 1px solid #3a3226; position: sticky; top: 0; background: #1b1712; }
+.ed-enc td { padding: 4px 6px; border-bottom: 1px solid #2e281f; vertical-align: top; }
+.ed-enc tr.row { cursor: pointer; }
+.ed-enc tr.row:hover td { background: #262019; }
+.ed-enc td.txt { color: #b8ab90; max-width: 520px; }
