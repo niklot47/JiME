@@ -614,3 +614,19 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .ed-trans li .ed-input { margin-top: 0; }
 .ed-trans li.add { opacity: 0.85; }
 .ed-goto { font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.ed-statehead { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.ed-statehead .title { font-size: 1rem; font-weight: bold; margin: 0; }
+.ed-actbtns { margin-left: 8px; display: inline-flex; gap: 6px; font-size: 0.85rem; }
+.ed-addact { margin: 6px 0 4px; }
+.ed-addact .row { display: flex; gap: 6px; align-items: center; }
+.ed-addact .row select { flex: 1; margin: 0; }
+.ed-addact .row .primary { margin: 0; }
+.ed-help { font-size: 0.8rem; background: #1b1712; border: 1px solid #3a3226; border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
+.ed-help p { margin: 0 0 4px; }
+.ed-help dl { margin: 0; }
+.ed-help dl div { display: flex; gap: 6px; }
+.ed-help dt { color: #d0a040; min-width: 100px; max-width: 130px; word-break: break-all; flex: none; }
+.ed-help dd { margin: 0; }
+.ed-ex { display: block; color: #8fb8d8; font-size: 0.72rem; word-break: break-all; }
+.ed-newstate { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 10px; }
+.editor button.link.small { font-size: 0.72rem; color: #b8ab90; }

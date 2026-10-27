@@ -23,6 +23,8 @@ function PathText({ p }: { p: FsmPath }) {
   );
 }
 
+let keySeq = 0;
+
 export function EditorScreen({ onBack }: { onBack: () => void }) {
   const [textsRev, setTextsRev] = useState(0);
   const texts = useTexts(textsRev);
@@ -109,6 +111,14 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
       setText(key, value) { langMap().set(full(key), toCsv(value)); setRev((r) => r + 1); },
       textChanged(key) { return !!draft.current.texts.get(getLang())?.has(full(key)); },
       mutateState(fsm, state, f) { f(prefab().fsms[fsm].states.find((x: any) => x.name === state)); setRev((r) => r + 1); },
+      mutateFsm(fsm, f) { f(prefab().fsms[fsm]); setRev((r) => r + 1); },
+      newKey() {
+        // unique against the pack's texts and this draft: EDIT_A<adventure>_<base36 time><counter>
+        for (;;) {
+          const k = `EDIT_A${advId}_${Date.now().toString(36).toUpperCase()}${(keySeq++).toString(36).toUpperCase()}`;
+          if (!texts?.has(k) && ![...draft.current.texts.values()].some((m) => m.has(k))) { langMap().set(k, ""); setRev((r) => r + 1); return k; }
+        }
+      },
       db,
     };
   };
