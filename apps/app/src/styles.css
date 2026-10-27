@@ -630,3 +630,18 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .ed-ex { display: block; color: #8fb8d8; font-size: 0.72rem; word-break: break-all; }
 .ed-newstate { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 10px; }
 .editor button.link.small { font-size: 0.72rem; color: #b8ab90; }
+.ed-state.error { box-shadow: 0 0 0 2px #c8574a; }
+.ed-state.warning { box-shadow: 0 0 0 2px #d0a040; }
+.ed-state.sel.error, .ed-state.sel.warning { box-shadow: 0 0 0 3px #e8c76a, 0 0 0 5px #c8574a; }
+.ed-state.unvisited { opacity: 0.4; }
+.ed-check { border-top: 1px solid #3a3226; margin-top: 10px; padding-top: 4px; font-size: 0.8rem; }
+.ed-check h4 { margin: 8px 0 4px; color: #d8c49a; }
+.ed-check p { margin: 3px 0; }
+.ed-check .ok { color: #7fbf6a; }
+.ed-check .warn, .ed-bot .warn { color: #d0a040; }
+.ed-issues { list-style: none; padding: 0; margin: 4px 0; font-size: 0.76rem; }
+.ed-issues li { padding: 2px 0 2px 8px; border-left: 3px solid #d0a040; margin-bottom: 2px; }
+.ed-issues li.error { border-left-color: #c8574a; }
+.ed-issues li.old { opacity: 0.55; }
+.ed-bot { margin-top: 6px; }
+.ed-bot details summary { cursor: pointer; color: #b8ab90; }

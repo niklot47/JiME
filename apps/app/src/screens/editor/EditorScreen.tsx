@@ -4,10 +4,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { campaignGraph, cloneOrdered, type CampaignGraph, type FsmPath } from "@jime/engine";
-import { loadAdventure, loadDb, loadModelArt, type ModelArt } from "../../data/pack.ts";
+import { ACTIONS, campaignGraph, checkScenario, cloneOrdered, issueId, newIssues, parseOrdered, type CampaignGraph, type FsmPath, type Issue } from "@jime/engine";
+import type { TextDb } from "@jime/content-tools/text";
+import { loadAdventure, loadDb, loadModelArt, loadPackSet, loadText, PACK_ID, packFileUrl, type ModelArt } from "../../data/pack.ts";
+import { runBot, type BotReport } from "./botRun.ts";
 import { CampaignGraphView, groupLinks, OUTCOME_COLOR, OUTCOME_NAME } from "./CampaignGraphView.tsx";
-import { FsmView, type EditApi } from "./FsmView.tsx";
+import { FsmView, type CheckInfo, type EditApi } from "./FsmView.tsx";
 import { fromCsv, say, toCsv, useTexts } from "./text.ts";
 import { EDIT_PACK, saveEdits } from "../../data/editPack.ts";
 import { getLang } from "../../data/lang.ts";
@@ -24,6 +26,13 @@ function PathText({ p }: { p: FsmPath }) {
 }
 
 let keySeq = 0;
+
+/** Per language: does a key have a text (the pack's texts, or this draft's for that language) */
+function hasTextFns(langs: Map<string, TextDb>, draft: Map<string, Map<string, string>> | null): Record<string, (k: string) => boolean> {
+  const out: Record<string, (k: string) => boolean> = {};
+  for (const [l, t] of langs) out[l] = (k) => t.has(k) || !!draft?.get(l)?.has(t.fullKey(k)) || !!draft?.get(l)?.has(k);
+  return out;
+}
 
 export function EditorScreen({ onBack }: { onBack: () => void }) {
   const [textsRev, setTextsRev] = useState(0);
@@ -88,6 +97,45 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
   };
 
   const openAdv = open && (draft.current.adv.get(open.adv) ?? prefabs.get(open.adv));
+
+  // ---- check: every language's texts, the original scenario's own issues, the bot
+  const [langTexts, setLangTexts] = useState<Map<string, TextDb>>(new Map());
+  useEffect(() => {
+    let live = true;
+    void loadPackSet().then(async (set) => {
+      const m = new Map<string, TextDb>();
+      for (const l of set.langs) { try { m.set(l, await loadText(l)); } catch { /* language without texts */ } }
+      if (live) setLangTexts(m);
+    });
+    return () => { live = false; };
+  }, [textsRev]);
+  const [baseline, setBaseline] = useState<{ adv: number; issues: Issue[] } | null>(null);
+  useEffect(() => {
+    if (!open || !db) return;
+    let live = true;
+    // the imported game's version of this adventure (none for an adventure of one's own)
+    void fetch(packFileUrl(PACK_ID, `scenario/adventures/${open.adv}.json`)).then(async (r) => {
+      const orig = r.ok && !(r.headers.get("content-type") ?? "").includes("text/html") ? parseOrdered(await r.text()) : null;
+      if (live) setBaseline({ adv: open.adv, issues: orig ? checkScenario(orig, { actions: Object.keys(ACTIONS), hasText: hasTextFns(langTexts, null) }) : [] });
+    }).catch(() => { if (live) setBaseline({ adv: open.adv, issues: [] }); });
+    return () => { live = false; };
+  }, [open?.adv, db, langTexts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const issues = useMemo(() => (openAdv ? checkScenario(openAdv, { actions: Object.keys(ACTIONS), hasText: hasTextFns(langTexts, draft.current.texts) }) : []),
+    [openAdv, rev, langTexts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fresh = useMemo(() => new Set(newIssues(issues, baseline && baseline.adv === open?.adv ? baseline.issues : issues).map(issueId)), [issues, baseline, open?.adv]);
+  const [bot, setBot] = useState<{ adv: number; report: BotReport } | null>(null);
+  const [botRunning, setBotRunning] = useState<number | null>(null);
+  const BOT_SEEDS = 20;
+  const check: CheckInfo | undefined = open && openAdv ? {
+    issues, fresh, bot: bot?.adv === open.adv ? bot.report : null, running: botRunning, botSeeds: BOT_SEEDS,
+    onRunBot: () => {
+      setBotRunning(0);
+      void runBot(db, open.adv, openAdv, BOT_SEEDS, setBotRunning)
+        .then((report) => setBot({ adv: open.adv, report }))
+        .catch((e) => setError(String(e)))
+        .finally(() => setBotRunning(null));
+    },
+  } : undefined;
   const dirtyTexts = [...draft.current.texts.values()].reduce((n, m) => n + m.size, 0);
   const dirty = draft.current.adv.size + dirtyTexts;
 
@@ -171,7 +219,7 @@ export function EditorScreen({ onBack }: { onBack: () => void }) {
       {error && <p className="error">{error}</p>}
       <ReactFlowProvider>
         {open && openAdv ? (
-          <FsmView key={open.adv} prefab={openAdv} rev={rev} title={advName(open.adv)} texts={texts} focus={open.focus} edit={editApi(open.adv)} />
+          <FsmView key={open.adv} prefab={openAdv} rev={rev} title={advName(open.adv)} texts={texts} focus={open.focus} edit={editApi(open.adv)} check={check} />
         ) : (
           <div className="ed-main">
             <div className="ed-canvas">

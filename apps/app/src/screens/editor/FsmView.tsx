@@ -3,10 +3,11 @@
 // with an EditApi the texts, simple parameters and the actions' on/off switches can be changed there.
 import { useEffect, useMemo, useState } from "react";
 import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { keysOf, ORDER, scenarioFsms, type FsmGraph, type FsmStateNode } from "@jime/engine";
+import { issueId, keysOf, ORDER, scenarioFsms, type FsmGraph, type FsmStateNode, type Issue } from "@jime/engine";
 import type { TextDb } from "@jime/content-tools/text";
 import { layout } from "./layout.ts";
 import { KIND_NAME, loadActionCatalog, newAction, paramKind, type ActionInfo } from "./catalog.ts";
+import type { BotReport } from "./botRun.ts";
 import { keyIn, say } from "./text.ts";
 
 /** Actions that end the adventure or steer the campaign: such states are marked */
@@ -133,14 +134,38 @@ function ObjectSelect({ v, prefab, onChange }: { v: any; prefab: any; onChange: 
   );
 }
 
-type StateData = { st: FsmStateNode; selected: boolean };
+type StateData = { st: FsmStateNode; selected: boolean; mark: "error" | "warning" | null; unvisited: boolean };
+
+/** The check's results and the bot's report for this scenario (EditorScreen computes them) */
+export interface CheckInfo {
+  issues: Issue[];
+  /** issueId of the issues the original scenario does not have */
+  fresh: Set<string>;
+  bot: BotReport | null;
+  /** games played so far while the bot runs, else null */
+  running: number | null;
+  botSeeds: number;
+  onRunBot: () => void;
+}
+
+const OUTCOME_RU: Record<string, string> = { victory: "победа", defeat: "поражение", timeout: "не закончил" };
+
+export const ISSUE_TEXT: Record<Issue["kind"], string> = {
+  "missing-state": "переход в несуществующее состояние",
+  "duplicate-state": "два состояния с одним именем (работает первое)",
+  "no-start": "начального состояния нет",
+  unreachable: "сюда не ведёт ни один переход",
+  "unsent-event": "событие перехода никто не посылает",
+  "unknown-action": "движок не выполняет это действие",
+  "missing-text": "нет текста",
+};
 type EntryData = { event: string };
 
 function StateNode({ data }: NodeProps<Node<StateData>>) {
   const s = data.st;
   const campaign = s.actions.some((a) => CAMPAIGN_ACTIONS.has(a.action));
   return (
-    <div className={`ed-state${data.selected ? " sel" : ""}${s.start ? " start" : ""}${campaign ? " camp" : ""}`}>
+    <div className={`ed-state${data.selected ? " sel" : ""}${s.start ? " start" : ""}${campaign ? " camp" : ""}${data.mark ? ` ${data.mark}` : ""}${data.unvisited ? " unvisited" : ""}`}>
       <Handle type="target" position={Position.Top} />
       <b>{s.name}</b>
       {s.actions.slice(0, SHOWN_ACTIONS).map((a, i) => <span key={i} className={a.enabled ? "" : "off"}>{a.action}</span>)}
@@ -161,12 +186,22 @@ function EntryNode({ data }: NodeProps<Node<EntryData>>) {
 
 const nodeTypes = { state: StateNode, entry: EntryNode };
 
-function FsmGraphView({ g, selected, onSelect }: { g: FsmGraph; selected: string | null; onSelect: (s: string) => void }) {
+function FsmGraphView({ g, selected, onSelect, check }: { g: FsmGraph; selected: string | null; onSelect: (s: string) => void; check?: CheckInfo }) {
   const flow = useReactFlow();
+  // only the issues an edit brought in mark the graph (the original's own left-overs would mark half of it)
+  const marks = useMemo(() => {
+    const m = new Map<string, "error" | "warning">();
+    for (const i of check?.issues ?? []) {
+      if (i.fsm !== g.index || i.state === undefined || !check!.fresh.has(issueId(i))) continue;
+      if (i.level === "error" || !m.has(i.state)) m.set(i.state, i.level);
+    }
+    return m;
+  }, [check, g]);
   const { nodes, edges } = useMemo(() => {
     const nodes: Node[] = g.states.map((s) => ({
       id: `s:${s.name}`, type: "state", position: { x: 0, y: 0 }, width: 200,
-      height: 30 + 15 * Math.min(s.actions.length, SHOWN_ACTIONS + 1), data: { st: s, selected: selected === s.name },
+      height: 30 + 15 * Math.min(s.actions.length, SHOWN_ACTIONS + 1),
+      data: { st: s, selected: selected === s.name, mark: marks.get(s.name) ?? null, unvisited: !!check?.bot && !check.bot.visited.has(`${g.name}\u001f${s.name}`) },
     }));
     const edges: Edge[] = g.edges.map((e, i) => ({
       id: `t${i}`, source: `s:${e.from}`, target: `s:${e.to}`, label: e.event === "FINISHED" ? undefined : e.event,
@@ -181,7 +216,7 @@ function FsmGraphView({ g, selected, onSelect }: { g: FsmGraph; selected: string
       }
     }
     return { nodes: layout(nodes, edges, { dir: "TB", rankSep: 50, nodeSep: 24 }), edges };
-  }, [g, selected]);
+  }, [g, selected, marks, check?.bot]); // eslint-disable-line react-hooks/exhaustive-deps
   // a new FSM: show all of it
   useEffect(() => { requestAnimationFrame(() => flow.fitView({ duration: 0 })); }, [g, flow]);
   return (
@@ -282,7 +317,9 @@ function TransitionsEdit({ g, s, edit }: { g: FsmGraph; s: FsmStateNode; edit: E
   );
 }
 
-function StatePanel({ g, name, texts, onSelect, edit, prefab }: { g: FsmGraph; name: string; texts: TextDb | null; onSelect: (s: string) => void; edit?: EditApi; prefab: any }) {
+function StatePanel({ g, name, texts, onSelect, edit, prefab, stateIssues }: {
+  g: FsmGraph; name: string; texts: TextDb | null; onSelect: (s: string) => void; edit?: EditApi; prefab: any; stateIssues?: Issue[];
+}) {
   const s = g.states.find((x) => x.name === name);
   if (!s) return null;
   const out = g.edges.filter((e) => e.from === name);
@@ -309,6 +346,9 @@ function StatePanel({ g, name, texts, onSelect, edit, prefab }: { g: FsmGraph; n
         </div>
       ) : <h3>{s.name}</h3>}
       {s.start && <p className="muted">Начальное состояние</p>}
+      {stateIssues && stateIssues.length > 0 && (
+        <ul className="ed-issues">{stateIssues.map((i, n) => <li key={n} className={i.level}>{ISSUE_TEXT[i.kind]}{i.detail ? `: ${i.detail}` : ""}{i.langs ? ` (${i.langs.join(", ")})` : ""}</li>)}</ul>
+      )}
       {s.entries.length > 0 && <p>Глобальные события: {s.entries.map((e) => <span key={e} className="ed-chip">{e}</span>)}</p>}
       <h4>Действия ({s.actions.length})</h4>
       <ol className="ed-actions">
@@ -344,8 +384,51 @@ function StatePanel({ g, name, texts, onSelect, edit, prefab }: { g: FsmGraph; n
   );
 }
 
-export function FsmView({ prefab, rev = 0, title, texts, focus, edit }: {
-  prefab: any; rev?: number; title: string; texts: TextDb | null; focus?: { fsm: string; state: string }; edit?: EditApi;
+/** The check and bot results in the side list: new issues first (clickable), the original's own ones on request */
+function CheckSection({ check, fsms, onGo }: { check: CheckInfo; fsms: FsmGraph[]; onGo: (fsm: string, state?: string) => void }) {
+  const [old, setOld] = useState(false);
+  const fresh = check.issues.filter((i) => check.fresh.has(issueId(i)));
+  const shown = old ? check.issues : fresh;
+  const errors = fresh.filter((i) => i.level === "error").length;
+  const b = check.bot;
+  return (
+    <div className="ed-check">
+      <h4>Проверка</h4>
+      <p className={errors ? "error" : fresh.length ? "warn" : "ok"}>
+        {fresh.length ? `Новых проблем: ${fresh.length}${errors ? ` (ошибок ${errors})` : ""}` : "Новых проблем нет"}
+        <span className="muted"> · в оригинале {check.issues.length - fresh.length}</span>
+      </p>
+      {shown.length > 0 && (
+        <ul className="ed-issues">{shown.slice(0, 60).map((i, n) => (
+          <li key={n} className={`${i.level}${check.fresh.has(issueId(i)) ? "" : " old"}`}>
+            <button className="link" onClick={() => onGo(i.fsm, i.state)}>{i.state ?? i.fsmName}</button>{" "}
+            {ISSUE_TEXT[i.kind]}{i.detail ? `: ${i.detail}` : ""}{i.langs ? ` (${i.langs.join(", ")})` : ""}
+            {fsms.length > 1 && <span className="muted"> · {i.fsmName}</span>}
+          </li>
+        ))}{shown.length > 60 && <li className="muted">… ещё {shown.length - 60}</li>}</ul>
+      )}
+      <button className="link small" onClick={() => setOld(!old)}>{old ? "только новые" : "показать и оригинальные"}</button>
+      <h4>Бот</h4>
+      <button className="primary" disabled={check.running !== null} onClick={check.onRunBot}>
+        {check.running !== null ? `Играю… ${check.running} / ${check.botSeeds}` : `Прогнать ботом × ${check.botSeeds}`}</button>
+      {b && (
+        <div className="ed-bot">
+          <p>{Object.entries(b.outcomes).map(([k, v]) => <span key={k} className="ed-chip">{OUTCOME_RU[k] ?? k} × {v}</span>)}
+            <span className="muted"> · раундов в среднем {b.avgRounds.toFixed(1)} · {(b.ms / 1000).toFixed(1)} с</span></p>
+          {b.errors.length > 0 && <><p className="error">Ошибки движка: {b.errors.length}</p>
+            <ul className="ed-issues">{b.errors.slice(0, 5).map((e) => <li key={e.seed} className="error">сид {e.seed}: {e.message}</li>)}</ul></>}
+          {b.unimplemented.length > 0 && <p className="warn">Не выполнено движком: {b.unimplemented.map(([k, v]) => `${k} × ${v}`).join(", ")}</p>}
+          {b.warnings.length > 0 && <details><summary>Предупреждения движка ({b.warnings.length})</summary>
+            <ul className="ed-issues">{b.warnings.map(([k, v]) => <li key={k} className="warning">{k} × {v}</li>)}</ul></details>}
+          <p className="muted">На графе бледные — состояния, до которых бот ни разу не дошёл.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FsmView({ prefab, rev = 0, title, texts, focus, edit, check }: {
+  prefab: any; rev?: number; title: string; texts: TextDb | null; focus?: { fsm: string; state: string }; edit?: EditApi; check?: CheckInfo;
 }) {
   // rev: the draft prefab is changed in place, a new rev rebuilds the graphs
   const fsms = useMemo(() => scenarioFsms(prefab), [prefab, rev]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -377,10 +460,12 @@ export function FsmView({ prefab, rev = 0, title, texts, focus, edit }: {
             </li>
           ))}
         </ul>
+        {check && fsms.length > 0 && <CheckSection check={check} fsms={fsms} onGo={(f, st) => { setIdx(f); setState(st ?? null); }} />}
       </aside>
-      <div className="ed-canvas"><FsmGraphView g={g} selected={state} onSelect={setState} /></div>
+      <div className="ed-canvas"><FsmGraphView g={g} selected={state} onSelect={setState} check={check} /></div>
       <aside className="ed-panel">
-        {state && g.states.some((x) => x.name === state) ? <StatePanel g={g} name={state} texts={texts} onSelect={setState} edit={edit} prefab={prefab} />
+        {state && g.states.some((x) => x.name === state) ? <StatePanel g={g} name={state} texts={texts} onSelect={setState} edit={edit} prefab={prefab}
+          stateIssues={check?.issues.filter((i) => i.fsm === g.index && i.state === state)} />
           : <div className="ed-panel-body"><p className="muted">Выберите состояние на графе.</p>
             <p className="muted">Пунктир от золотых меток — глобальные события, которые переводят автомат прямо в состояние
               (например, ADVENTURE_END_VICTORY). Зелёная рамка — состояние, которое завершает приключение или выбирает следующее.</p></div>}

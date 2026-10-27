@@ -10,3 +10,4 @@ export { ACTIONS } from "./actions.ts";
 export const ENGINE_VERSION = "0.3.0";
 export * from "./campaign.ts";
 export * from "./graph.ts";
+export * from "./check.ts";
