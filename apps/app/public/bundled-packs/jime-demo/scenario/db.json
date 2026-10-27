@@ -1,0 +1,5195 @@
+{
+ "format": "jime-db",
+ "formatVersion": 1,
+ "models": {
+  "HeroModel": {
+   "9001": {
+    "m_Name": "9001_HERO_AIRA",
+    "_id": 9001,
+    "NameKey": "HERO_AIRA_NAME",
+    "RaceKey": "RACE_DEMO_HUMAN",
+    "DefaultArmor": {
+     "ref": "ItemModel",
+     "name": "9111_ItemModel",
+     "id": 9111
+    },
+    "DefaultWeapon": {
+     "ref": "ItemModel",
+     "name": "9101_ItemModel",
+     "id": 9101
+    },
+    "Gender": 0,
+    "Traits": 0,
+    "StartingSkills": [
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9200_SkillModel",
+       "id": 9200
+      },
+      "Quantity": 2
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9201_SkillModel",
+       "id": 9201
+      },
+      "Quantity": 1
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9202_SkillModel",
+       "id": 9202
+      },
+      "Quantity": 1
+     }
+    ]
+   },
+   "9002": {
+    "m_Name": "9002_HERO_BORIN",
+    "_id": 9002,
+    "NameKey": "HERO_BORIN_NAME",
+    "RaceKey": "RACE_DEMO_DWARF",
+    "DefaultArmor": {
+     "ref": "ItemModel",
+     "name": "9112_ItemModel",
+     "id": 9112
+    },
+    "DefaultWeapon": {
+     "ref": "ItemModel",
+     "name": "9102_ItemModel",
+     "id": 9102
+    },
+    "Gender": 0,
+    "Traits": 0,
+    "StartingSkills": [
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9203_SkillModel",
+       "id": 9203
+      },
+      "Quantity": 2
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9204_SkillModel",
+       "id": 9204
+      },
+      "Quantity": 1
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9205_SkillModel",
+       "id": 9205
+      },
+      "Quantity": 1
+     }
+    ]
+   },
+   "9003": {
+    "m_Name": "9003_HERO_MAEVE",
+    "_id": 9003,
+    "NameKey": "HERO_MAEVE_NAME",
+    "RaceKey": "RACE_DEMO_HUMAN",
+    "DefaultArmor": {
+     "ref": "ItemModel",
+     "name": "9113_ItemModel",
+     "id": 9113
+    },
+    "DefaultWeapon": {
+     "ref": "ItemModel",
+     "name": "9103_ItemModel",
+     "id": 9103
+    },
+    "Gender": 0,
+    "Traits": 0,
+    "StartingSkills": [
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9206_SkillModel",
+       "id": 9206
+      },
+      "Quantity": 2
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9207_SkillModel",
+       "id": 9207
+      },
+      "Quantity": 1
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9208_SkillModel",
+       "id": 9208
+      },
+      "Quantity": 1
+     }
+    ]
+   },
+   "9004": {
+    "m_Name": "9004_HERO_TOLLAN",
+    "_id": 9004,
+    "NameKey": "HERO_TOLLAN_NAME",
+    "RaceKey": "RACE_DEMO_HALFLING",
+    "DefaultArmor": {
+     "ref": "ItemModel",
+     "name": "9111_ItemModel",
+     "id": 9111
+    },
+    "DefaultWeapon": {
+     "ref": "ItemModel",
+     "name": "9104_ItemModel",
+     "id": 9104
+    },
+    "Gender": 0,
+    "Traits": 0,
+    "StartingSkills": [
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9209_SkillModel",
+       "id": 9209
+      },
+      "Quantity": 2
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9210_SkillModel",
+       "id": 9210
+      },
+      "Quantity": 1
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9211_SkillModel",
+       "id": 9211
+      },
+      "Quantity": 1
+     }
+    ]
+   }
+  },
+  "ItemModel": {
+   "9101": {
+    "m_Name": "9101_ITEM_DEMO_BOW",
+    "_id": 9101,
+    "NameKey": "ITEM_DEMO_BOW",
+    "Level": 1,
+    "Is2Handed": 1,
+    "Upgrades": [
+     {
+      "ref": "ItemModel",
+      "name": "9121_ItemModel",
+      "id": 9121
+     }
+    ],
+    "UpgradeCost": 20
+   },
+   "9102": {
+    "m_Name": "9102_ITEM_DEMO_HAMMER",
+    "_id": 9102,
+    "NameKey": "ITEM_DEMO_HAMMER",
+    "Level": 1,
+    "Is2Handed": 1,
+    "Upgrades": [
+     {
+      "ref": "ItemModel",
+      "name": "9122_ItemModel",
+      "id": 9122
+     }
+    ],
+    "UpgradeCost": 20
+   },
+   "9103": {
+    "m_Name": "9103_ITEM_DEMO_STAFF",
+    "_id": 9103,
+    "NameKey": "ITEM_DEMO_STAFF",
+    "Level": 1,
+    "Is2Handed": 1,
+    "Upgrades": [
+     {
+      "ref": "ItemModel",
+      "name": "9123_ItemModel",
+      "id": 9123
+     }
+    ],
+    "UpgradeCost": 20
+   },
+   "9104": {
+    "m_Name": "9104_ITEM_DEMO_DAGGER",
+    "_id": 9104,
+    "NameKey": "ITEM_DEMO_DAGGER",
+    "Level": 1,
+    "Upgrades": [
+     {
+      "ref": "ItemModel",
+      "name": "9124_ItemModel",
+      "id": 9124
+     }
+    ],
+    "UpgradeCost": 20
+   },
+   "9111": {
+    "m_Name": "9111_ITEM_DEMO_LEATHER",
+    "_id": 9111,
+    "NameKey": "ITEM_DEMO_LEATHER",
+    "Level": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9112": {
+    "m_Name": "9112_ITEM_DEMO_MAIL",
+    "_id": 9112,
+    "NameKey": "ITEM_DEMO_MAIL",
+    "Level": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9113": {
+    "m_Name": "9113_ITEM_DEMO_CLOAK",
+    "_id": 9113,
+    "NameKey": "ITEM_DEMO_CLOAK",
+    "Level": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9121": {
+    "m_Name": "9121_ITEM_DEMO_LONGBOW",
+    "_id": 9121,
+    "NameKey": "ITEM_DEMO_LONGBOW",
+    "Level": 2,
+    "Is2Handed": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9122": {
+    "m_Name": "9122_ITEM_DEMO_WARHAMMER",
+    "_id": 9122,
+    "NameKey": "ITEM_DEMO_WARHAMMER",
+    "Level": 2,
+    "Is2Handed": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9123": {
+    "m_Name": "9123_ITEM_DEMO_RUNESTAFF",
+    "_id": 9123,
+    "NameKey": "ITEM_DEMO_RUNESTAFF",
+    "Level": 2,
+    "Is2Handed": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9124": {
+    "m_Name": "9124_ITEM_DEMO_FANG",
+    "_id": 9124,
+    "NameKey": "ITEM_DEMO_FANG",
+    "Level": 2,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9131": {
+    "m_Name": "9131_ITEM_DEMO_LANTERN",
+    "_id": 9131,
+    "NameKey": "ITEM_DEMO_LANTERN",
+    "Level": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   },
+   "9132": {
+    "m_Name": "9132_ITEM_DEMO_FERRY_TOKEN",
+    "_id": 9132,
+    "NameKey": "ITEM_DEMO_FERRY_TOKEN",
+    "Level": 1,
+    "Upgrades": [],
+    "UpgradeCost": 0
+   }
+  },
+  "SkillModel": {
+   "9200": {
+    "m_Name": "9200_SKILL_DEMO_0",
+    "_id": 9200,
+    "NameKey": "SKILL_DEMO_0",
+    "SourceType": 1
+   },
+   "9201": {
+    "m_Name": "9201_SKILL_DEMO_1",
+    "_id": 9201,
+    "NameKey": "SKILL_DEMO_1",
+    "SourceType": 1
+   },
+   "9202": {
+    "m_Name": "9202_SKILL_DEMO_2",
+    "_id": 9202,
+    "NameKey": "SKILL_DEMO_2",
+    "SourceType": 1
+   },
+   "9203": {
+    "m_Name": "9203_SKILL_DEMO_3",
+    "_id": 9203,
+    "NameKey": "SKILL_DEMO_3",
+    "SourceType": 1
+   },
+   "9204": {
+    "m_Name": "9204_SKILL_DEMO_4",
+    "_id": 9204,
+    "NameKey": "SKILL_DEMO_4",
+    "SourceType": 1
+   },
+   "9205": {
+    "m_Name": "9205_SKILL_DEMO_5",
+    "_id": 9205,
+    "NameKey": "SKILL_DEMO_5",
+    "SourceType": 1
+   },
+   "9206": {
+    "m_Name": "9206_SKILL_DEMO_6",
+    "_id": 9206,
+    "NameKey": "SKILL_DEMO_6",
+    "SourceType": 1
+   },
+   "9207": {
+    "m_Name": "9207_SKILL_DEMO_7",
+    "_id": 9207,
+    "NameKey": "SKILL_DEMO_7",
+    "SourceType": 1
+   },
+   "9208": {
+    "m_Name": "9208_SKILL_DEMO_8",
+    "_id": 9208,
+    "NameKey": "SKILL_DEMO_8",
+    "SourceType": 1
+   },
+   "9209": {
+    "m_Name": "9209_SKILL_DEMO_9",
+    "_id": 9209,
+    "NameKey": "SKILL_DEMO_9",
+    "SourceType": 1
+   },
+   "9210": {
+    "m_Name": "9210_SKILL_DEMO_10",
+    "_id": 9210,
+    "NameKey": "SKILL_DEMO_10",
+    "SourceType": 1
+   },
+   "9211": {
+    "m_Name": "9211_SKILL_DEMO_11",
+    "_id": 9211,
+    "NameKey": "SKILL_DEMO_11",
+    "SourceType": 1
+   },
+   "9212": {
+    "m_Name": "9212_SKILL_DEMO_12",
+    "_id": 9212,
+    "NameKey": "SKILL_DEMO_12",
+    "SourceType": 2
+   },
+   "9213": {
+    "m_Name": "9213_SKILL_DEMO_13",
+    "_id": 9213,
+    "NameKey": "SKILL_DEMO_13",
+    "SourceType": 2
+   },
+   "9214": {
+    "m_Name": "9214_SKILL_DEMO_14",
+    "_id": 9214,
+    "NameKey": "SKILL_DEMO_14",
+    "SourceType": 2
+   },
+   "9215": {
+    "m_Name": "9215_SKILL_DEMO_15",
+    "_id": 9215,
+    "NameKey": "SKILL_DEMO_15",
+    "SourceType": 2
+   },
+   "9216": {
+    "m_Name": "9216_SKILL_DEMO_16",
+    "_id": 9216,
+    "NameKey": "SKILL_DEMO_16",
+    "SourceType": 2
+   },
+   "9217": {
+    "m_Name": "9217_SKILL_DEMO_17",
+    "_id": 9217,
+    "NameKey": "SKILL_DEMO_17",
+    "SourceType": 2
+   },
+   "9218": {
+    "m_Name": "9218_SKILL_DEMO_18",
+    "_id": 9218,
+    "NameKey": "SKILL_DEMO_18",
+    "SourceType": 2
+   },
+   "9219": {
+    "m_Name": "9219_SKILL_DEMO_19",
+    "_id": 9219,
+    "NameKey": "SKILL_DEMO_19",
+    "SourceType": 2
+   },
+   "9220": {
+    "m_Name": "9220_SKILL_DEMO_20",
+    "_id": 9220,
+    "NameKey": "SKILL_DEMO_20",
+    "SourceType": 2
+   },
+   "9221": {
+    "m_Name": "9221_SKILL_DEMO_21",
+    "_id": 9221,
+    "NameKey": "SKILL_DEMO_21",
+    "SourceType": 2
+   },
+   "9222": {
+    "m_Name": "9222_SKILL_DEMO_22",
+    "_id": 9222,
+    "NameKey": "SKILL_DEMO_22",
+    "SourceType": 2
+   },
+   "9223": {
+    "m_Name": "9223_SKILL_DEMO_23",
+    "_id": 9223,
+    "NameKey": "SKILL_DEMO_23",
+    "SourceType": 2
+   },
+   "9224": {
+    "m_Name": "9224_SKILL_DEMO_24",
+    "_id": 9224,
+    "NameKey": "SKILL_DEMO_24",
+    "SourceType": 3
+   },
+   "9225": {
+    "m_Name": "9225_SKILL_DEMO_25",
+    "_id": 9225,
+    "NameKey": "SKILL_DEMO_25",
+    "SourceType": 3
+   },
+   "9226": {
+    "m_Name": "9226_SKILL_DEMO_26",
+    "_id": 9226,
+    "NameKey": "SKILL_DEMO_26",
+    "SourceType": 3
+   },
+   "9227": {
+    "m_Name": "9227_SKILL_DEMO_27",
+    "_id": 9227,
+    "NameKey": "SKILL_DEMO_27",
+    "SourceType": 3
+   }
+  },
+  "RoleModel": {
+   "9001": {
+    "m_Name": "9001_ROLE_DEMO_SCOUT",
+    "_id": 9001,
+    "NameKey": "ROLE_DEMO_SCOUT",
+    "CoreSkills": [
+     {
+      "ref": "SkillModel",
+      "name": "9212_SkillModel",
+      "id": 9212
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9213_SkillModel",
+      "id": 9213
+     }
+    ],
+    "UpgradeSkills": [
+     {
+      "ref": "SkillModel",
+      "name": "9214_SkillModel",
+      "id": 9214
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9215_SkillModel",
+      "id": 9215
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9216_SkillModel",
+      "id": 9216
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9217_SkillModel",
+      "id": 9217
+     }
+    ]
+   },
+   "9002": {
+    "m_Name": "9002_ROLE_DEMO_GUARDIAN",
+    "_id": 9002,
+    "NameKey": "ROLE_DEMO_GUARDIAN",
+    "CoreSkills": [
+     {
+      "ref": "SkillModel",
+      "name": "9218_SkillModel",
+      "id": 9218
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9219_SkillModel",
+      "id": 9219
+     }
+    ],
+    "UpgradeSkills": [
+     {
+      "ref": "SkillModel",
+      "name": "9220_SkillModel",
+      "id": 9220
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9221_SkillModel",
+      "id": 9221
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9222_SkillModel",
+      "id": 9222
+     },
+     {
+      "ref": "SkillModel",
+      "name": "9223_SkillModel",
+      "id": 9223
+     }
+    ]
+   }
+  },
+  "TitleModel": {
+   "9001": {
+    "m_Name": "9001_TITLE_DEMO_FORD_WARDEN",
+    "_id": 9001,
+    "NameKey": "TITLE_DEMO_FORD_WARDEN"
+   },
+   "9002": {
+    "m_Name": "9002_TITLE_DEMO_SHADOWBANE",
+    "_id": 9002,
+    "NameKey": "TITLE_DEMO_SHADOWBANE"
+   }
+  },
+  "EnemyActivationModel": {
+   "9001": {
+    "m_Name": "9001_BANDIT Activation",
+    "KeyActivation": "ENEMY_DEMO_BANDIT_ACTIVATION_9001",
+    "KeyAttackFlavor": "ENEMY_DEMO_BANDIT_ATTACK_9001",
+    "MinGroupSize": 1,
+    "MaxGroupSize": 3,
+    "Damage": [
+     {
+      "Size": 1,
+      "Physical": 2
+     },
+     {
+      "Size": 2,
+      "Physical": 3
+     },
+     {
+      "Size": 3,
+      "Physical": 3,
+      "Fear": 1
+     }
+    ]
+   },
+   "9002": {
+    "m_Name": "9002_BANDIT Activation",
+    "KeyActivation": "ENEMY_DEMO_BANDIT_ACTIVATION_9002",
+    "KeyAttackFlavor": "ENEMY_DEMO_BANDIT_ATTACK_9002",
+    "MinGroupSize": 1,
+    "MaxGroupSize": 3,
+    "Damage": [
+     {
+      "Size": 1,
+      "Physical": 1,
+      "Fear": 1
+     },
+     {
+      "Size": 2,
+      "Physical": 2,
+      "Fear": 1
+     },
+     {
+      "Size": 3,
+      "Physical": 3,
+      "Fear": 1
+     }
+    ]
+   },
+   "9003": {
+    "m_Name": "9003_WOLF Activation",
+    "KeyActivation": "ENEMY_DEMO_WOLF_ACTIVATION_9003",
+    "KeyAttackFlavor": "ENEMY_DEMO_WOLF_ATTACK_9003",
+    "MinGroupSize": 1,
+    "MaxGroupSize": 3,
+    "Damage": [
+     {
+      "Size": 1,
+      "Physical": 2
+     },
+     {
+      "Size": 2,
+      "Physical": 3
+     },
+     {
+      "Size": 3,
+      "Physical": 4
+     }
+    ]
+   },
+   "9004": {
+    "m_Name": "9004_WOLF Activation",
+    "KeyActivation": "ENEMY_DEMO_WOLF_ACTIVATION_9004",
+    "KeyAttackFlavor": "ENEMY_DEMO_WOLF_ATTACK_9004",
+    "MinGroupSize": 1,
+    "MaxGroupSize": 3,
+    "Damage": [
+     {
+      "Size": 1,
+      "Physical": 1,
+      "Fear": 1
+     },
+     {
+      "Size": 2,
+      "Physical": 2,
+      "Fear": 1
+     },
+     {
+      "Size": 3,
+      "Physical": 2,
+      "Fear": 2
+     }
+    ]
+   },
+   "9005": {
+    "m_Name": "9005_SHADE Activation",
+    "KeyActivation": "ENEMY_DEMO_SHADE_ACTIVATION_9005",
+    "KeyAttackFlavor": "ENEMY_DEMO_SHADE_ATTACK_9005",
+    "MinGroupSize": 1,
+    "MaxGroupSize": 3,
+    "Damage": [
+     {
+      "Size": 1,
+      "Physical": 1,
+      "Fear": 3
+     }
+    ]
+   },
+   "9006": {
+    "m_Name": "9006_SHADE Activation",
+    "KeyActivation": "ENEMY_DEMO_SHADE_ACTIVATION_9006",
+    "KeyAttackFlavor": "ENEMY_DEMO_SHADE_ATTACK_9006",
+    "MinGroupSize": 1,
+    "MaxGroupSize": 3,
+    "Damage": [
+     {
+      "Size": 1,
+      "Physical": 3,
+      "Fear": 2
+     }
+    ]
+   }
+  },
+  "EnemyModel": {
+   "9001": {
+    "m_Name": "9001_ENEMY_DEMO_BANDIT",
+    "_id": 9001,
+    "KeySingular": "ENEMY_DEMO_BANDIT",
+    "KeyPlural": "ENEMY_DEMO_BANDIT_PLURAL",
+    "MaxUnitCount": 3,
+    "MaxUnitsInPlay": 6,
+    "Costs": [
+     {
+      "Num": 1,
+      "Cost": 6
+     },
+     {
+      "Num": 2,
+      "Cost": 11
+     },
+     {
+      "Num": 3,
+      "Cost": 15
+     }
+    ],
+    "Traits": 0,
+    "Armor": 0,
+    "Health": 5,
+    "Activations": [
+     {
+      "ref": "EnemyActivationModel",
+      "name": "9001_EnemyActivationModel",
+      "id": 9001
+     },
+     {
+      "ref": "EnemyActivationModel",
+      "name": "9002_EnemyActivationModel",
+      "id": 9002
+     }
+    ],
+    "Bonuses": []
+   },
+   "9002": {
+    "m_Name": "9002_ENEMY_DEMO_WOLF",
+    "_id": 9002,
+    "KeySingular": "ENEMY_DEMO_WOLF",
+    "KeyPlural": "ENEMY_DEMO_WOLF_PLURAL",
+    "MaxUnitCount": 3,
+    "MaxUnitsInPlay": 6,
+    "Costs": [
+     {
+      "Num": 1,
+      "Cost": 5
+     },
+     {
+      "Num": 2,
+      "Cost": 9
+     },
+     {
+      "Num": 3,
+      "Cost": 12
+     }
+    ],
+    "Traits": 0,
+    "Armor": 0,
+    "Health": 4,
+    "Activations": [
+     {
+      "ref": "EnemyActivationModel",
+      "name": "9003_EnemyActivationModel",
+      "id": 9003
+     },
+     {
+      "ref": "EnemyActivationModel",
+      "name": "9004_EnemyActivationModel",
+      "id": 9004
+     }
+    ],
+    "Bonuses": []
+   },
+   "9003": {
+    "m_Name": "9003_ENEMY_DEMO_SHADE",
+    "_id": 9003,
+    "KeySingular": "ENEMY_DEMO_SHADE",
+    "KeyPlural": "ENEMY_DEMO_SHADE_PLURAL",
+    "MaxUnitCount": 1,
+    "MaxUnitsInPlay": 6,
+    "Costs": [
+     {
+      "Num": 1,
+      "Cost": 12
+     }
+    ],
+    "Traits": 0,
+    "Armor": 1,
+    "Health": 8,
+    "Activations": [
+     {
+      "ref": "EnemyActivationModel",
+      "name": "9005_EnemyActivationModel",
+      "id": 9005
+     },
+     {
+      "ref": "EnemyActivationModel",
+      "name": "9006_EnemyActivationModel",
+      "id": 9006
+     }
+    ],
+    "Bonuses": []
+   }
+  },
+  "EnemyBonusModel": {},
+  "TerrainNodeModel": {},
+  "LastStandModel": {
+   "9001": {
+    "m_Name": "9001_Last_Stand_Physical",
+    "_id": 9001,
+    "Type": 10,
+    "MessageKeys": [
+     "LAST_STAND_DEMO_D_1",
+     "LAST_STAND_DEMO_D_2"
+    ]
+   },
+   "9002": {
+    "m_Name": "9002_Last_Stand_Fear",
+    "_id": 9002,
+    "Type": 20,
+    "MessageKeys": [
+     "LAST_STAND_DEMO_F_1",
+     "LAST_STAND_DEMO_F_2"
+    ]
+   }
+  },
+  "CutsceneModel": {
+   "9001": {
+    "m_Name": "9001_CAM_DEMO_PROLOGUE",
+    "TextKey": "CAM_DEMO_PROLOGUE"
+   },
+   "9002": {
+    "m_Name": "9002_CAM_DEMO_VICTORY",
+    "TextKey": "CAM_DEMO_VICTORY"
+   },
+   "9003": {
+    "m_Name": "9003_CAM_DEMO_DEFEAT",
+    "TextKey": "CAM_DEMO_DEFEAT"
+   }
+  },
+  "CampaignModel": {
+   "9001": {
+    "m_Name": "9001_Shadows over Greyford",
+    "_id": 9001,
+    "TitleKey": "CAM_DEMO_TITLE",
+    "DescriptionKey": "CAM_DEMO_DESC",
+    "ContentsKey": "CAM_DEMO_CONTENTS",
+    "AssetBundleCode": "DemoGreyford",
+    "Products": [
+     {
+      "ref": "ProductModel",
+      "name": "90_ProductModel",
+      "id": 90
+     }
+    ],
+    "Adventures": [
+     {
+      "ref": "AdventureModel",
+      "name": "9101_AdventureModel",
+      "id": 9101
+     },
+     {
+      "ref": "AdventureModel",
+      "name": "9102_AdventureModel",
+      "id": 9102
+     }
+    ],
+    "LastStands": [
+     {
+      "ref": "LastStandModel",
+      "name": "9001_LastStandModel",
+      "id": 9001
+     },
+     {
+      "ref": "LastStandModel",
+      "name": "9002_LastStandModel",
+      "id": 9002
+     }
+    ],
+    "CutscenePrologue": {
+     "ref": "CutsceneModel",
+     "name": "9001_CutsceneModel",
+     "id": 9001
+    },
+    "CutsceneVictory": {
+     "ref": "CutsceneModel",
+     "name": "9002_CutsceneModel",
+     "id": 9002
+    },
+    "CutsceneDefeat": {
+     "ref": "CutsceneModel",
+     "name": "9003_CutsceneModel",
+     "id": 9003
+    }
+   }
+  },
+  "AdventureModel": {
+   "9101": {
+    "m_Name": "9101_Grey Ford",
+    "_id": 9101,
+    "Prefab": {
+     "Path": "jime-demo/adventures/9101"
+    },
+    "NameKey": "D1_TITLE",
+    "LocationKey": "D1_LOCATION",
+    "RestStoryKey": "D1_DESC",
+    "BonusPref": 1.0,
+    "FigurePref": 1.0,
+    "ThreatLimit": 18,
+    "CanFail": 1,
+    "StartingEnemyReserveList": []
+   },
+   "9102": {
+    "m_Name": "9102_Shade's Lair",
+    "_id": 9102,
+    "Prefab": {
+     "Path": "jime-demo/adventures/9102"
+    },
+    "NameKey": "D2_TITLE",
+    "LocationKey": "D2_LOCATION",
+    "RestStoryKey": "D2_DESC",
+    "BonusPref": 1.0,
+    "FigurePref": 1.0,
+    "ThreatLimit": 20,
+    "CanFail": 1,
+    "IsFinale": 1,
+    "StartingEnemyReserveList": []
+   }
+  },
+  "EncounterModel": {
+   "910101": {
+    "m_Name": "910101_Tracks",
+    "_id": 910101,
+    "Prefab": {
+     "Path": "jime-demo/encounters/910101"
+    },
+    "Type": 3
+   },
+   "910102": {
+    "m_Name": "910102_Ferryman",
+    "_id": 910102,
+    "Prefab": {
+     "Path": "jime-demo/encounters/910102"
+    },
+    "Type": 3
+   },
+   "910103": {
+    "m_Name": "910103_Overturned Cart",
+    "_id": 910103,
+    "Prefab": {
+     "Path": "jime-demo/encounters/910103"
+    },
+    "Type": 3
+   },
+   "910104": {
+    "m_Name": "910104_Bandit Camp",
+    "_id": 910104,
+    "Prefab": {
+     "Path": "jime-demo/encounters/910104"
+    },
+    "Type": 3
+   },
+   "910201": {
+    "m_Name": "910201_Raven Stone",
+    "_id": 910201,
+    "Prefab": {
+     "Path": "jime-demo/encounters/910201"
+    },
+    "Type": 3
+   },
+   "910202": {
+    "m_Name": "910202_Cold Spring",
+    "_id": 910202,
+    "Prefab": {
+     "Path": "jime-demo/encounters/910202"
+    },
+    "Type": 3
+   },
+   "910203": {
+    "m_Name": "910203_Altar",
+    "_id": 910203,
+    "Prefab": {
+     "Path": "jime-demo/encounters/910203"
+    },
+    "Type": 3
+   },
+   "919001": {
+    "m_Name": "919001_Old Well",
+    "_id": 919001,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919001"
+    },
+    "Type": 0
+   },
+   "919002": {
+    "m_Name": "919002_Hollow Tree",
+    "_id": 919002,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919002"
+    },
+    "Type": 0
+   },
+   "919003": {
+    "m_Name": "919003_Abandoned Camp",
+    "_id": 919003,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919003"
+    },
+    "Type": 0
+   },
+   "919004": {
+    "m_Name": "919004_Waystone",
+    "_id": 919004,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919004"
+    },
+    "Type": 0
+   },
+   "919005": {
+    "m_Name": "919005_Bramble Thicket",
+    "_id": 919005,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919005"
+    },
+    "Type": 0
+   },
+   "919101": {
+    "m_Name": "919101_Peddler's Pack",
+    "_id": 919101,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919101"
+    },
+    "Type": 1
+   },
+   "919102": {
+    "m_Name": "919102_Shepherd's Hut",
+    "_id": 919102,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919102"
+    },
+    "Type": 1
+   },
+   "919103": {
+    "m_Name": "919103_Fallen Shrine",
+    "_id": 919103,
+    "Prefab": {
+     "Path": "jime-demo/encounters/919103"
+    },
+    "Type": 1
+   }
+  },
+  "EncounterGroupModel": {
+   "9001": {
+    "m_Name": "9001_Roadside Rumours",
+    "_id": 9001,
+    "RequiredEncounters": [
+     {
+      "ref": "EncounterModel",
+      "name": "919101_Peddler's Pack",
+      "id": 919101
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919102_Shepherd's Hut",
+      "id": 919102
+     }
+    ],
+    "IsRepeatable": 1
+   },
+   "9002": {
+    "m_Name": "9002_Old Shrine",
+    "_id": 9002,
+    "RequiredEncounters": [
+     {
+      "ref": "EncounterModel",
+      "name": "919103_Fallen Shrine",
+      "id": 919103
+     }
+    ],
+    "IsRepeatable": 1
+   }
+  },
+  "TileModel": {
+   "D01A": {
+    "m_Name": "D01A",
+    "_id": "D01A",
+    "OtherSideId": "D01B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D01A"
+    ],
+    "HashId": 9100000,
+    "OtherSideHashId": 9100001
+   },
+   "D01B": {
+    "m_Name": "D01B",
+    "_id": "D01B",
+    "OtherSideId": "D01A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D01B"
+    ],
+    "HashId": 9100001,
+    "OtherSideHashId": 9100000
+   },
+   "D02A": {
+    "m_Name": "D02A",
+    "_id": "D02A",
+    "OtherSideId": "D02B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D02A"
+    ],
+    "HashId": 9100002,
+    "OtherSideHashId": 9100003
+   },
+   "D02B": {
+    "m_Name": "D02B",
+    "_id": "D02B",
+    "OtherSideId": "D02A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D02B"
+    ],
+    "HashId": 9100003,
+    "OtherSideHashId": 9100002
+   },
+   "D03A": {
+    "m_Name": "D03A",
+    "_id": "D03A",
+    "OtherSideId": "D03B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D03A"
+    ],
+    "HashId": 9100004,
+    "OtherSideHashId": 9100005
+   },
+   "D03B": {
+    "m_Name": "D03B",
+    "_id": "D03B",
+    "OtherSideId": "D03A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D03B"
+    ],
+    "HashId": 9100005,
+    "OtherSideHashId": 9100004
+   },
+   "D04A": {
+    "m_Name": "D04A",
+    "_id": "D04A",
+    "OtherSideId": "D04B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D04A"
+    ],
+    "HashId": 9100006,
+    "OtherSideHashId": 9100007
+   },
+   "D04B": {
+    "m_Name": "D04B",
+    "_id": "D04B",
+    "OtherSideId": "D04A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D04B"
+    ],
+    "HashId": 9100007,
+    "OtherSideHashId": 9100006
+   },
+   "D05A": {
+    "m_Name": "D05A",
+    "_id": "D05A",
+    "OtherSideId": "D05B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D05A"
+    ],
+    "HashId": 9100008,
+    "OtherSideHashId": 9100009
+   },
+   "D05B": {
+    "m_Name": "D05B",
+    "_id": "D05B",
+    "OtherSideId": "D05A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D05B"
+    ],
+    "HashId": 9100009,
+    "OtherSideHashId": 9100008
+   },
+   "D06A": {
+    "m_Name": "D06A",
+    "_id": "D06A",
+    "OtherSideId": "D06B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D06A"
+    ],
+    "HashId": 9100010,
+    "OtherSideHashId": 9100011
+   },
+   "D06B": {
+    "m_Name": "D06B",
+    "_id": "D06B",
+    "OtherSideId": "D06A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D06B"
+    ],
+    "HashId": 9100011,
+    "OtherSideHashId": 9100010
+   },
+   "D07A": {
+    "m_Name": "D07A",
+    "_id": "D07A",
+    "OtherSideId": "D07B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D07A"
+    ],
+    "HashId": 9100012,
+    "OtherSideHashId": 9100013
+   },
+   "D07B": {
+    "m_Name": "D07B",
+    "_id": "D07B",
+    "OtherSideId": "D07A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D07B"
+    ],
+    "HashId": 9100013,
+    "OtherSideHashId": 9100012
+   },
+   "D08A": {
+    "m_Name": "D08A",
+    "_id": "D08A",
+    "OtherSideId": "D08B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D08A"
+    ],
+    "HashId": 9100014,
+    "OtherSideHashId": 9100015
+   },
+   "D08B": {
+    "m_Name": "D08B",
+    "_id": "D08B",
+    "OtherSideId": "D08A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D08B"
+    ],
+    "HashId": 9100015,
+    "OtherSideHashId": 9100014
+   },
+   "D09A": {
+    "m_Name": "D09A",
+    "_id": "D09A",
+    "OtherSideId": "D09B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D09A"
+    ],
+    "HashId": 9100016,
+    "OtherSideHashId": 9100017
+   },
+   "D09B": {
+    "m_Name": "D09B",
+    "_id": "D09B",
+    "OtherSideId": "D09A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D09B"
+    ],
+    "HashId": 9100017,
+    "OtherSideHashId": 9100016
+   },
+   "D10A": {
+    "m_Name": "D10A",
+    "_id": "D10A",
+    "OtherSideId": "D10B",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D10A"
+    ],
+    "HashId": 9100018,
+    "OtherSideHashId": 9100019
+   },
+   "D10B": {
+    "m_Name": "D10B",
+    "_id": "D10B",
+    "OtherSideId": "D10A",
+    "Set": 1,
+    "DefaultExploreKeys": [
+     "TILE_D10B"
+    ],
+    "HashId": 9100019,
+    "OtherSideHashId": 9100018
+   }
+  },
+  "ProductModel": {
+   "90": {
+    "m_Name": "90_Demo Set",
+    "Standalone": 1,
+    "NameKey": "PROD_DEMO_TITLE",
+    "DescriptionKey": "PROD_DEMO_DESC",
+    "ContentsKey": "PROD_DEMO_CONTENTS",
+    "Tiles": [
+     {
+      "ref": "TileModel",
+      "name": "D01A",
+      "id": "D01A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D01B",
+      "id": "D01B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D02A",
+      "id": "D02A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D02B",
+      "id": "D02B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D03A",
+      "id": "D03A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D03B",
+      "id": "D03B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D04A",
+      "id": "D04A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D04B",
+      "id": "D04B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D05A",
+      "id": "D05A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D05B",
+      "id": "D05B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D06A",
+      "id": "D06A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D06B",
+      "id": "D06B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D07A",
+      "id": "D07A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D07B",
+      "id": "D07B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D08A",
+      "id": "D08A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D08B",
+      "id": "D08B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D09A",
+      "id": "D09A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D09B",
+      "id": "D09B"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D10A",
+      "id": "D10A"
+     },
+     {
+      "ref": "TileModel",
+      "name": "D10B",
+      "id": "D10B"
+     }
+    ],
+    "Enemies": [
+     {
+      "ref": "EnemyModel",
+      "name": "9001_EnemyModel",
+      "id": 9001
+     },
+     {
+      "ref": "EnemyModel",
+      "name": "9002_EnemyModel",
+      "id": 9002
+     },
+     {
+      "ref": "EnemyModel",
+      "name": "9003_EnemyModel",
+      "id": 9003
+     }
+    ],
+    "Items": [
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9101_ItemModel",
+       "id": 9101
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9102_ItemModel",
+       "id": 9102
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9103_ItemModel",
+       "id": 9103
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9104_ItemModel",
+       "id": 9104
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9111_ItemModel",
+       "id": 9111
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9112_ItemModel",
+       "id": 9112
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9113_ItemModel",
+       "id": 9113
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9121_ItemModel",
+       "id": 9121
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9122_ItemModel",
+       "id": 9122
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9123_ItemModel",
+       "id": 9123
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9124_ItemModel",
+       "id": 9124
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9131_ItemModel",
+       "id": 9131
+      },
+      "Quantity": 1
+     },
+     {
+      "Item": {
+       "ref": "ItemModel",
+       "name": "9132_ItemModel",
+       "id": 9132
+      },
+      "Quantity": 1
+     }
+    ],
+    "Heroes": [
+     {
+      "ref": "HeroModel",
+      "name": "9001_HeroModel",
+      "id": 9001
+     },
+     {
+      "ref": "HeroModel",
+      "name": "9002_HeroModel",
+      "id": 9002
+     },
+     {
+      "ref": "HeroModel",
+      "name": "9003_HeroModel",
+      "id": 9003
+     },
+     {
+      "ref": "HeroModel",
+      "name": "9004_HeroModel",
+      "id": 9004
+     }
+    ],
+    "Skills": [
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9200_SkillModel",
+       "id": 9200
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9201_SkillModel",
+       "id": 9201
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9202_SkillModel",
+       "id": 9202
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9203_SkillModel",
+       "id": 9203
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9204_SkillModel",
+       "id": 9204
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9205_SkillModel",
+       "id": 9205
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9206_SkillModel",
+       "id": 9206
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9207_SkillModel",
+       "id": 9207
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9208_SkillModel",
+       "id": 9208
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9209_SkillModel",
+       "id": 9209
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9210_SkillModel",
+       "id": 9210
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9211_SkillModel",
+       "id": 9211
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9212_SkillModel",
+       "id": 9212
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9213_SkillModel",
+       "id": 9213
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9214_SkillModel",
+       "id": 9214
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9215_SkillModel",
+       "id": 9215
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9216_SkillModel",
+       "id": 9216
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9217_SkillModel",
+       "id": 9217
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9218_SkillModel",
+       "id": 9218
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9219_SkillModel",
+       "id": 9219
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9220_SkillModel",
+       "id": 9220
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9221_SkillModel",
+       "id": 9221
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9222_SkillModel",
+       "id": 9222
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9223_SkillModel",
+       "id": 9223
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9224_SkillModel",
+       "id": 9224
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9225_SkillModel",
+       "id": 9225
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9226_SkillModel",
+       "id": 9226
+      },
+      "Quantity": 3
+     },
+     {
+      "Skill": {
+       "ref": "SkillModel",
+       "name": "9227_SkillModel",
+       "id": 9227
+      },
+      "Quantity": 3
+     }
+    ],
+    "Encounters": [
+     {
+      "ref": "EncounterModel",
+      "name": "910101_Tracks",
+      "id": 910101
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "910102_Ferryman",
+      "id": 910102
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "910103_Overturned Cart",
+      "id": 910103
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "910104_Bandit Camp",
+      "id": 910104
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "910201_Raven Stone",
+      "id": 910201
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "910202_Cold Spring",
+      "id": 910202
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "910203_Altar",
+      "id": 910203
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919001_Old Well",
+      "id": 919001
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919002_Hollow Tree",
+      "id": 919002
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919003_Abandoned Camp",
+      "id": 919003
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919004_Waystone",
+      "id": 919004
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919005_Bramble Thicket",
+      "id": 919005
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919101_Peddler's Pack",
+      "id": 919101
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919102_Shepherd's Hut",
+      "id": 919102
+     },
+     {
+      "ref": "EncounterModel",
+      "name": "919103_Fallen Shrine",
+      "id": 919103
+     }
+    ],
+    "Roles": [
+     {
+      "ref": "RoleModel",
+      "name": "9001_RoleModel",
+      "id": 9001
+     },
+     {
+      "ref": "RoleModel",
+      "name": "9002_RoleModel",
+      "id": 9002
+     }
+    ],
+    "Titles": [
+     {
+      "ref": "TitleModel",
+      "name": "9001_TitleModel",
+      "id": 9001
+     },
+     {
+      "ref": "TitleModel",
+      "name": "9002_TitleModel",
+      "id": 9002
+     }
+    ],
+    "EncounterGroups": [
+     {
+      "ref": "EncounterGroupModel",
+      "name": "9001_Roadside Rumours",
+      "id": 9001
+     },
+     {
+      "ref": "EncounterGroupModel",
+      "name": "9002_Old Shrine",
+      "id": 9002
+     }
+    ]
+   }
+  }
+ },
+ "standardTiles": {
+  "D01A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D01A",
+    "id": "D01A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "D01B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D01B",
+    "id": "D01B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D02A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D02A",
+    "id": "D02A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D02B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D02B",
+    "id": "D02B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D03A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D03A",
+    "id": "D03A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D03B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D03B",
+    "id": "D03B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": []
+    }
+   ]
+  },
+  "D04A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D04A",
+    "id": "D04A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D04B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D04B",
+    "id": "D04B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": []
+    }
+   ]
+  },
+  "D05A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D05A",
+    "id": "D05A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D05B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D05B",
+    "id": "D05B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D06A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D06A",
+    "id": "D06A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": []
+    }
+   ]
+  },
+  "D06B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D06B",
+    "id": "D06B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": []
+    }
+   ]
+  },
+  "D07A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D07A",
+    "id": "D07A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": []
+    }
+   ]
+  },
+  "D07B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D07B",
+    "id": "D07B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D08A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D08A",
+    "id": "D08A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": []
+    }
+   ]
+  },
+  "D08B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D08B",
+    "id": "D08B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D09A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D09A",
+    "id": "D09A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "D09B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D09B",
+    "id": "D09B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D10A": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D10A",
+    "id": "D10A"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "connected": [
+      0
+     ]
+    }
+   ]
+  },
+  "D10B": {
+   "model": {
+    "ref": "TileModel",
+    "name": "D10B",
+    "id": "D10B"
+   },
+   "spaces": [
+    {
+     "traits": 0,
+     "connected": []
+    }
+   ]
+  }
+ },
+ "globals": {
+  "EnemyPoints": {
+   "type": "int",
+   "value": 0
+  },
+  "PlayerCount": {
+   "type": "int",
+   "value": 5
+  },
+  "Round": {
+   "type": "int",
+   "value": 1
+  },
+  "Threat": {
+   "type": "int",
+   "value": 0
+  },
+  "Campaign/Lore": {
+   "type": "int",
+   "value": 0
+  },
+  "IsDarkness": {
+   "type": "bool",
+   "value": 0
+  },
+  "IsTutorial": {
+   "type": "bool",
+   "value": 0
+  },
+  "CorruptionPresence": {
+   "type": "bool",
+   "value": 0
+  },
+  "DarknessMessageOverride": {
+   "type": "string",
+   "value": ""
+  },
+  "PartyName": {
+   "type": "string",
+   "value": ""
+  }
+ },
+ "tiles": [
+  {
+   "code": "D01A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "z": -1,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "z": -1,
+     "space": 1
+    },
+    {
+     "x": -1,
+     "y": 1,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": -1,
+     "y": 0,
+     "z": 1,
+     "space": 2
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 2
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2
+     ],
+     "connected": [
+      1,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      3,
+      4
+     ],
+     "connected": [
+      0,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      5,
+      6
+     ],
+     "connected": [
+      0,
+      1
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D01B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "z": -1,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "z": -1,
+     "space": 0
+    },
+    {
+     "x": -1,
+     "y": 1,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": -1,
+     "y": 0,
+     "z": 1,
+     "space": 1
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      2,
+      3
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      4,
+      5,
+      6,
+      1
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D02A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 2,
+     "y": -2,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      3
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      2,
+      4
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D02B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": 2,
+     "y": -2,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      3,
+      4
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      1,
+      2
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D03A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 1
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      2,
+      3
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D03B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "connected": []
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D04A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      2
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      1,
+      3
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D04B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "connected": []
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D05A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 2,
+     "y": -2,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 1
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      3,
+      4
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D05B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 2,
+     "y": -2,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      3,
+      4
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      2
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D06A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2
+     ],
+     "connected": []
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D06B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2
+     ],
+     "connected": []
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D07A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 2,
+     "y": -2,
+     "z": 0,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2
+     ],
+     "connected": []
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D07B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 2,
+     "y": -2,
+     "z": 0,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      2
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D08A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2
+     ],
+     "connected": []
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D08B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      2
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D09A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "z": -1,
+     "space": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "z": -1,
+     "space": 1
+    },
+    {
+     "x": -1,
+     "y": 1,
+     "z": 0,
+     "space": 2
+    },
+    {
+     "x": -1,
+     "y": 0,
+     "z": 1,
+     "space": 2
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      6
+     ],
+     "connected": [
+      1,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      2,
+      3
+     ],
+     "connected": [
+      0,
+      2
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      4,
+      5
+     ],
+     "connected": [
+      0,
+      1
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D09B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "z": -1,
+     "space": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "z": -1,
+     "space": 1
+    },
+    {
+     "x": -1,
+     "y": 1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": -1,
+     "y": 0,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      4,
+      5
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      1,
+      2,
+      3,
+      6
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 4,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 5,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 6,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D10A",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 1
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 1
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1
+     ],
+     "connected": [
+      1
+     ]
+    },
+    {
+     "traits": 0,
+     "hexes": [
+      2,
+      3
+     ],
+     "connected": [
+      0
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  },
+  {
+   "code": "D10B",
+   "hexes": [
+    {
+     "x": 0,
+     "y": 0,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -1,
+     "z": 0,
+     "space": 0
+    },
+    {
+     "x": 0,
+     "y": -1,
+     "z": 1,
+     "space": 0
+    },
+    {
+     "x": 1,
+     "y": -2,
+     "z": 1,
+     "space": 0
+    }
+   ],
+   "spaces": [
+    {
+     "traits": 0,
+     "hexes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "connected": []
+    }
+   ],
+   "edges": [
+    {
+     "hex": 0,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 0,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 4,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 1,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 2,
+     "dir": 3,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 0,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 1,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 2,
+     "traits": 0,
+     "open": true
+    },
+    {
+     "hex": 3,
+     "dir": 5,
+     "traits": 0,
+     "open": true
+    }
+   ]
+  }
+ ],
+ "productOrder": [
+  90
+ ]
+}

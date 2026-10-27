@@ -1,0 +1,40 @@
+[
+ {
+  "dir": "jime-demo",
+  "manifest": {
+   "formatVersion": 1,
+   "id": "jime-demo",
+   "name": {
+    "ru": "Демо: Тени над Серым Бродом",
+    "en": "Demo: Shadows over Greyford",
+    "it": "Demo: Ombre su Guadogrigio"
+   },
+   "description": "A small open campaign of JiME Reborn (no content of the original game).",
+   "version": "0.1.0",
+   "priority": -10,
+   "origin": "bundled",
+   "license": "MIT",
+   "contents": [
+    {
+     "type": "scenario",
+     "path": "scenario"
+    },
+    {
+     "type": "lang",
+     "lang": "ru",
+     "path": "lang/ru.csv"
+    },
+    {
+     "type": "lang",
+     "lang": "en",
+     "path": "lang/en.csv"
+    },
+    {
+     "type": "lang",
+     "lang": "it",
+     "path": "lang/it.csv"
+    }
+   ]
+  }
+ }
+]

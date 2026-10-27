@@ -1,0 +1,646 @@
+{
+ "format": "jime-scenario",
+ "formatVersion": 1,
+ "kind": "adventure",
+ "id": 9101,
+ "source": "jime-demo",
+ "root": 1,
+ "model": {
+  "m_Name": "9101_Grey Ford",
+  "_id": 9101,
+  "Prefab": {
+   "Path": "jime-demo/adventures/9101"
+  },
+  "NameKey": "D1_TITLE",
+  "LocationKey": "D1_LOCATION",
+  "RestStoryKey": "D1_DESC",
+  "BonusPref": 1.0,
+  "FigurePref": 1.0,
+  "ThreatLimit": 18,
+  "CanFail": 1,
+  "StartingEnemyReserveList": []
+ },
+ "gameObjects": {
+  "1": {
+   "name": "9101_Grey Ford",
+   "parent": null,
+   "components": {
+    "Adventure": {
+     "Model": {
+      "ref": "AdventureModel",
+      "name": "9101_Grey Ford",
+      "id": 9101
+     }
+    },
+    "PlayMakerFSM": [
+     0
+    ]
+   }
+  },
+  "2": {
+   "name": "Map_Builder",
+   "parent": 1,
+   "components": {
+    "MapBuilder": {
+     "RandomSeed": 1,
+     "Seed": 0,
+     "RequiredConnections": [
+      {
+       "Section1": {
+        "ref": "go",
+        "go": 10,
+        "kind": "SectionBuilder"
+       },
+       "Section2": {
+        "ref": "go",
+        "go": 11,
+        "kind": "SectionBuilder"
+       }
+      }
+     ],
+     "InvalidConnections": [],
+     "Sections": [
+      {
+       "ref": "go",
+       "go": 10,
+       "kind": "SectionBuilder"
+      },
+      {
+       "ref": "go",
+       "go": 11,
+       "kind": "SectionBuilder"
+      }
+     ],
+     "PlayerCount": 1
+    }
+   }
+  },
+  "10": {
+   "name": "Section_Builder_0",
+   "parent": 2,
+   "components": {
+    "SectionBuilder": {
+     "AllowedTileSets": 1,
+     "MinimumSpaces": 6,
+     "MaximumSpaces": 7,
+     "IgnorePlayerScaling": 1,
+     "TileClumpFactor": 0.5,
+     "SectionClumpFactor": 0.5,
+     "RelativeSizeFactor": 0.5,
+     "StartTileInfo": {
+      "SpecifyStartTile": 1,
+      "Tile": {
+       "IsStandard": 1,
+       "TileCode": "D01A"
+      }
+     },
+     "RandomFillPercent": 0.5,
+     "SectionEncounters": [
+      {
+       "ref": "EncounterModel",
+       "name": "910101_Tracks",
+       "id": 910101
+      },
+      {
+       "ref": "EncounterModel",
+       "name": "910102_Ferryman",
+       "id": 910102
+      },
+      {
+       "ref": "EncounterModel",
+       "name": "910103_Overturned Cart",
+       "id": 910103
+      }
+     ],
+     "LastAttachedTileId": -1
+    }
+   }
+  },
+  "11": {
+   "name": "Section_Builder_1",
+   "parent": 2,
+   "components": {
+    "SectionBuilder": {
+     "AllowedTileSets": 1,
+     "MinimumSpaces": 3,
+     "MaximumSpaces": 4,
+     "IgnorePlayerScaling": 1,
+     "TileClumpFactor": 0.5,
+     "SectionClumpFactor": 0.5,
+     "RelativeSizeFactor": 0.5,
+     "RequiredTiles": [
+      {
+       "IsStandard": 1,
+       "TileCode": "D05B"
+      }
+     ],
+     "RandomFillPercent": 0.3,
+     "SectionEncounters": [
+      {
+       "ref": "EncounterModel",
+       "name": "910104_Bandit Camp",
+       "id": 910104
+      }
+     ],
+     "LastAttachedTileId": -1
+    }
+   }
+  },
+  "20": {
+   "name": "ThreatEvent_1",
+   "parent": 1,
+   "components": {
+    "PlayMakerFSM": [
+     1
+    ],
+    "ThreatEvent": {
+     "Threshold": 6,
+     "InfoKey": "D1_THREAT_1_INFO"
+    }
+   }
+  },
+  "21": {
+   "name": "ThreatEvent_2",
+   "parent": 1,
+   "components": {
+    "PlayMakerFSM": [
+     2
+    ],
+    "ThreatEvent": {
+     "Threshold": 12,
+     "InfoKey": "D1_THREAT_2_INFO"
+    }
+   }
+  }
+ },
+ "fsms": [
+  {
+   "name": "FSM",
+   "start": "Idle",
+   "variables": {
+    "StartTileId": 0,
+    "Clues": 3
+   },
+   "global": {
+    "SCENARIO_BEGIN": "Set Threats",
+    "ADVENTURE_END_VICTORY": "Win",
+    "ADVENTURE_END_FAILURE": "Loss",
+    "DEMO_CLUE": "Clue Found"
+   },
+   "states": [
+    {
+     "name": "Idle",
+     "transitions": {},
+     "actions": []
+    },
+    {
+     "name": "Set Threats",
+     "transitions": {
+      "FINISHED": "Intro"
+     },
+     "actions": [
+      {
+       "action": "AddThreatEvent",
+       "enabled": true,
+       "params": {
+        "ThreatEvent": {
+         "ref": "go",
+         "go": 20,
+         "kind": "GameObject"
+        }
+       }
+      },
+      {
+       "action": "AddThreatEvent",
+       "enabled": true,
+       "params": {
+        "ThreatEvent": {
+         "ref": "go",
+         "go": 21,
+         "kind": "GameObject"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Intro",
+     "transitions": {
+      "FINISHED": "Place Start Tile"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_INTRO»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Place Start Tile",
+     "transitions": {
+      "FINISHED": "Hero Placement"
+     },
+     "actions": [
+      {
+       "action": "GetStartTileId",
+       "enabled": true,
+       "params": {
+        "storeValue": "@StartTileId"
+       }
+      },
+      {
+       "action": "RevealTile",
+       "enabled": true,
+       "params": {
+        "FocusCamera": 1,
+        "TileId": "@StartTileId"
+       }
+      },
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": {
+         "key": "PLACE_TILE_NO_FLAVOR",
+         "inserts": [
+          {
+           "LocalizationKey": "«D01A»",
+           "filter": 8
+          }
+         ]
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Hero Placement",
+     "transitions": {
+      "FINISHED": "Explore Start"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_HEROES»"
+       }
+      },
+      {
+       "action": "HighlightTileSpace",
+       "enabled": true,
+       "params": {
+        "FocusCamera": 1,
+        "SpecifyIndex": 1,
+        "IndexSpace": 0,
+        "TileId": "@StartTileId"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Explore Start",
+     "transitions": {
+      "FINISHED": "Section 0"
+     },
+     "actions": [
+      {
+       "action": "ExploreTile",
+       "enabled": true,
+       "params": {
+        "TileId": "@StartTileId",
+        "MessageOverride": "«D1_START_TILE»",
+        "SkipIntro": 1,
+        "NoInspiration": 1,
+        "SkipOutro": 1
+       }
+      }
+     ]
+    },
+    {
+     "name": "Section 0",
+     "transitions": {
+      "FINISHED": "Objective"
+     },
+     "actions": [
+      {
+       "action": "SetSectionVisibility",
+       "enabled": true,
+       "params": {
+        "SectionId": 0,
+        "IsVisible": 1
+       }
+      }
+     ]
+    },
+    {
+     "name": "Objective",
+     "transitions": {
+      "FINISHED": "Finished"
+     },
+     "actions": [
+      {
+       "action": "SetObjective",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_OBJECTIVE_1»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Finished",
+     "transitions": {},
+     "actions": [
+      {
+       "action": "FinishProcessingEvent",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    },
+    {
+     "name": "Clue Found",
+     "transitions": {
+      "FINISHED": "Clues Left"
+     },
+     "actions": [
+      {
+       "action": "IntAdd",
+       "enabled": true,
+       "params": {
+        "intVariable": "@Clues",
+        "add": -1
+       }
+      }
+     ]
+    },
+    {
+     "name": "Clues Left",
+     "transitions": {
+      "TRUE": "Camp Found",
+      "FALSE": "More Clues"
+     },
+     "actions": [
+      {
+       "action": "IntCompare",
+       "enabled": true,
+       "params": {
+        "integer1": "@Clues",
+        "integer2": 0,
+        "equal": "TRUE",
+        "lessThan": "TRUE",
+        "greaterThan": "FALSE"
+       }
+      }
+     ]
+    },
+    {
+     "name": "More Clues",
+     "transitions": {
+      "FINISHED": "Finished"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_CLUE_MORE»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Camp Found",
+     "transitions": {
+      "FINISHED": "Camp Objective"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_CAMP_FOUND»"
+       }
+      },
+      {
+       "action": "SetSectionVisibility",
+       "enabled": true,
+       "params": {
+        "SectionId": 1,
+        "IsVisible": 1
+       }
+      }
+     ]
+    },
+    {
+     "name": "Camp Objective",
+     "transitions": {
+      "FINISHED": "Finished"
+     },
+     "actions": [
+      {
+       "action": "SetObjective",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_OBJECTIVE_2»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Win",
+     "transitions": {
+      "FINISHED": "Next"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_WIN»"
+       }
+      },
+      {
+       "action": "AwardXP",
+       "enabled": true,
+       "params": {
+        "XP": 3
+       }
+      },
+      {
+       "action": "AddLore",
+       "enabled": true,
+       "params": {
+        "Lore": 2
+       }
+      }
+     ]
+    },
+    {
+     "name": "Loss",
+     "transitions": {
+      "FINISHED": "Next"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_LOSS»"
+       }
+      },
+      {
+       "action": "AwardXP",
+       "enabled": true,
+       "params": {
+        "XP": 1
+       }
+      }
+     ]
+    },
+    {
+     "name": "Next",
+     "transitions": {
+      "FINISHED": "Fin"
+     },
+     "actions": [
+      {
+       "action": "SetNextAdventure",
+       "enabled": true,
+       "params": {
+        "Adventure": {
+         "ref": "AdventureModel",
+         "name": "9102_Shade's Lair",
+         "id": 9102
+        }
+       }
+      },
+      {
+       "action": "ProceedToNextGame",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    },
+    {
+     "name": "Fin",
+     "transitions": {},
+     "actions": [
+      {
+       "action": "FinishFSM",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    }
+   ],
+   "go": 1
+  },
+  {
+   "name": "FSM",
+   "start": "Waiting",
+   "variables": {
+    "EP": 7
+   },
+   "global": {
+    "THREAT_EVENT_START": "Spawn"
+   },
+   "states": [
+    {
+     "name": "Waiting",
+     "transitions": {},
+     "actions": []
+    },
+    {
+     "name": "Spawn",
+     "transitions": {
+      "FINISHED": "Finished"
+     },
+     "actions": [
+      {
+       "action": "SpawnRandomEnemyGroups",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_THREAT_1»",
+        "MessageLocation": 4,
+        "Points": "@EP"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Finished",
+     "transitions": {},
+     "actions": [
+      {
+       "action": "HideThisNode",
+       "enabled": true,
+       "params": {}
+      },
+      {
+       "action": "FinishFSM",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    }
+   ],
+   "go": 20
+  },
+  {
+   "name": "FSM",
+   "start": "Waiting",
+   "variables": {
+    "EP": 11
+   },
+   "global": {
+    "THREAT_EVENT_START": "Spawn"
+   },
+   "states": [
+    {
+     "name": "Waiting",
+     "transitions": {},
+     "actions": []
+    },
+    {
+     "name": "Spawn",
+     "transitions": {
+      "FINISHED": "Finished"
+     },
+     "actions": [
+      {
+       "action": "SpawnRandomEnemyGroups",
+       "enabled": true,
+       "params": {
+        "Message": "«D1_THREAT_2»",
+        "MessageLocation": 4,
+        "Points": "@EP"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Finished",
+     "transitions": {},
+     "actions": [
+      {
+       "action": "HideThisNode",
+       "enabled": true,
+       "params": {}
+      },
+      {
+       "action": "FinishFSM",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    }
+   ],
+   "go": 21
+  }
+ ]
+}

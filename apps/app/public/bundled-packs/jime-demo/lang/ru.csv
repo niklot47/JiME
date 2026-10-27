@@ -1,0 +1,279 @@
+key,text
+Demo|UI_CONFIRM,Подтвердить
+Demo|UI_CANCEL,Отмена
+Demo|UI_PASS,Успех
+Demo|UI_FAIL,Неудача
+Demo|UI_SEARCH,Обыскать
+Demo|UI_YES,Да
+Demo|UI_NO,Нет
+Demo|UI_CONTINUE,Продолжить
+Demo|UI_CONFIRM_EXPLORE,Исследовать?
+Demo|UI_PLACE_EXPLORE_TOKEN,Положите жетон исследования.
+Demo|UI_PLACE_EXPLORE_TOKENS,Положите жетоны исследования.
+Demo|UI_DISCARD_EXPLORE_TOKEN,Сбросьте жетон исследования.
+Demo|UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION,Сбросьте жетон исследования и получите 1 вдохновение.
+Demo|UI_EXPLORE_TILE_WITH_INTRO_FORMATTED,{0}\n\n{1}
+Demo|UI_SECTION_REVEAL_PLACE_TILE_FORMATTED,"Положите тайл {0}, как показано."
+Demo|PLACE_TILE_NO_FLAVOR,"Положите тайл {0}, как показано."
+Demo|PLACE_SEARCH,"{0}\n\nПоложите жетон поиска, как показано."
+Demo|PLACE_PERSON,"{0}\n\nПоложите жетон персонажа, как показано."
+Demo|PLACE_THREAT,"{0}\n\nПоложите жетон угрозы, как показано."
+Demo|UI_SPAWN_GROUP_FORMAT,Поставьте {0} {1} на указанное место.
+Demo|UI_THREAT_INCREASE,[i]Тень сгущается.[/i]\n\nУгроза растёт на {0}.
+Demo|UI_PHASE_HERO,Фаза действий
+Demo|UI_PHASE_SHADOW,Фаза тени
+Demo|UI_RALLY_PHASE,Фаза сбора
+Demo|UI_RALLY_PHASE_INSTRUCTIONS,"Каждый герой собирает колоду заново, затем [b]разведывает 2[/b]."
+Demo|UI_PROMPT_CAN_ATTACK,Может ли враг атаковать?
+Demo|UI_DAMAGE_LOG_FORMATTED,"{0} урона, {1} страха"
+Demo|UI_DAMAGE_LOG_WITH_EFFECT_FORMATTED,"{0} урона, {1} страха\n\n{2}"
+Demo|UI_ENEMY_DEFEATED_INSPIRATION_REMINDER,\nВы или герой рядом получаете 1 вдохновение!
+Demo|UI_ENEMY_REMOVAL_REMINDER_FORMATTED,Уберите {0} {1}.{2}
+Demo|UI_ENEMY_REMOVAL_UNIQUE_REMINDER_FORMATTED,Уберите {0}.{1}
+Demo|UI_LAST_STAND_FAILED,Вы пали!\n\nУберите фигурку с карты. В начале следующей фазы тени приключение будет проиграно.
+Demo|UI_LAST_STAND_PASSED_FEAR,"Сбросьте все лицом вниз карты страха, получите 1 вдохновение и продолжайте."
+Demo|UI_LAST_STAND_PASSED_PHYSICAL,"Сбросьте все лицом вниз карты урона, получите 1 вдохновение и продолжайте."
+Demo|UI_AWARD_ITEM_FORMATTED,Вы получаете: [b]{0}[/b]!\n\nВы или герой рядом можете сразу его взять.
+Demo|UI_AWARD_TITLE_FORMATTED,Вы получаете звание [b]{0}[/b]!
+Demo|UI_AWARD_TITLE_CHOOSE_HERO,Какой герой получает звание?
+Demo|TITLE_ALREADY_EARNED,Это звание уже получено.
+Demo|ADVENTURE_MODE_INSPIRATION_MESSAGE,[i]Отряд готов встретить тень.[/i]\n\nКаждый герой получает 1 вдохновение.
+Demo|UI_LORE_CHRONICLING,Летопись: +2 знания
+Demo|UI_LORE_COLLECTOR,Собиратель: +1 знание
+Demo|UI_REVEAL_TERRAIN_LOG_FORMATTED,Откройте местность: {0}
+Demo|UI_TERRAIN_NODES_REVEAL_FORMATTED,Положите местность: {0}
+Demo|BLANK_OBJECTIVE, 
+Demo|UI_DEFAULT_OBJECTIVE,Цели пока нет.
+Demo|UI_ROUND_X,Раунд {0}
+Demo|UI_THREAT_VALUE_FORMATTED,{0}/{1}
+Demo|UI_CONFIRM_DAMAGE_FORMAT,Нанести [b]{0}[/b] попаданий?
+Demo|UI_BONUS_FORMAT,[b]{0}[/b] — {1}
+Demo|UI_LORE_GAIN,[b]{0}{1} знания[/b]
+Demo|UI_ATTACK,Атака
+Demo|UI_PROVOKE,Провокация
+Demo|UI_RESOLVE_ATTACK,Провести атаку
+Demo|UI_FEAR,Страх
+Demo|UI_PHYSICAL,Урон
+Demo|UI_LORE,Знание
+Demo|UI_INVENTORY,Снаряжение
+Demo|D01A,D01A
+Demo|D01B,D01B
+Demo|D02A,D02A
+Demo|D02B,D02B
+Demo|D03A,D03A
+Demo|D03B,D03B
+Demo|D04A,D04A
+Demo|D04B,D04B
+Demo|D05A,D05A
+Demo|D05B,D05B
+Demo|D06A,D06A
+Demo|D06B,D06B
+Demo|D07A,D07A
+Demo|D07B,D07B
+Demo|D08A,D08A
+Demo|D08B,D08B
+Demo|D09A,D09A
+Demo|D09B,D09B
+Demo|D10A,D10A
+Demo|D10B,D10B
+Demo|TILE_D01A,Старая дорога спускается к броду; в траве шуршит ветер.
+Demo|TILE_D01B,Старая дорога спускается к броду; в траве шуршит ветер.
+Demo|TILE_D02A,"Река здесь мелеет, и вода журчит по камням."
+Demo|TILE_D02B,"Река здесь мелеет, и вода журчит по камням."
+Demo|TILE_D03A,Опушка леса: светлые поляны и тёмные стволы.
+Demo|TILE_D03B,Опушка леса: светлые поляны и тёмные стволы.
+Demo|TILE_D04A,"Обломки стен, поросшие мхом."
+Demo|TILE_D04B,"Обломки стен, поросшие мхом."
+Demo|TILE_D05A,"Холмы, с которых видна вся долина."
+Demo|TILE_D05B,"Холмы, с которых видна вся долина."
+Demo|TILE_D06A,Мокрая низина; под ногами хлюпает.
+Demo|TILE_D06B,Мокрая низина; под ногами хлюпает.
+Demo|TILE_D07A,Узкая тропа петляет между кустами.
+Demo|TILE_D07B,Узкая тропа петляет между кустами.
+Demo|TILE_D08A,Густой ельник глушит звуки.
+Demo|TILE_D08B,Густой ельник глушит звуки.
+Demo|TILE_D09A,Развалины старой сторожевой башни.
+Demo|TILE_D09B,Развалины старой сторожевой башни.
+Demo|TILE_D10A,"Луг, на котором пасутся дикие козы."
+Demo|TILE_D10B,"Луг, на котором пасутся дикие козы."
+Demo|HERO_AIRA_NAME,Айра
+Demo|HERO_BORIN_NAME,Борин
+Demo|HERO_MAEVE_NAME,Мейв
+Demo|HERO_TOLLAN_NAME,Толлан
+Demo|RACE_DEMO_HUMAN,Человек
+Demo|RACE_DEMO_DWARF,Гном
+Demo|RACE_DEMO_HALFLING,Полурослик
+Demo|ITEM_DEMO_BOW,Лук
+Demo|ITEM_DEMO_HAMMER,Молот
+Demo|ITEM_DEMO_STAFF,Посох
+Demo|ITEM_DEMO_DAGGER,Кинжал
+Demo|ITEM_DEMO_LEATHER,Кожаный доспех
+Demo|ITEM_DEMO_MAIL,Кольчуга
+Demo|ITEM_DEMO_CLOAK,Дорожный плащ
+Demo|ITEM_DEMO_LONGBOW,Длинный лук
+Demo|ITEM_DEMO_WARHAMMER,Боевой молот
+Demo|ITEM_DEMO_RUNESTAFF,Рунный посох
+Demo|ITEM_DEMO_FANG,Волчий клык
+Demo|ITEM_DEMO_LANTERN,Фонарь
+Demo|ITEM_DEMO_FERRY_TOKEN,Жетон паромщика
+Demo|SKILL_DEMO_0,Меткий глаз
+Demo|SKILL_DEMO_1,Тихий шаг
+Demo|SKILL_DEMO_2,Знание троп
+Demo|SKILL_DEMO_3,Крепкий удар
+Demo|SKILL_DEMO_4,Каменная стойкость
+Demo|SKILL_DEMO_5,Старые песни
+Demo|SKILL_DEMO_6,Целебные травы
+Demo|SKILL_DEMO_7,Тихое слово
+Demo|SKILL_DEMO_8,Ясный взгляд
+Demo|SKILL_DEMO_9,Ловкие руки
+Demo|SKILL_DEMO_10,Удача
+Demo|SKILL_DEMO_11,Неприметность
+Demo|SKILL_DEMO_12,Разведка
+Demo|SKILL_DEMO_13,Быстрые ноги
+Demo|SKILL_DEMO_14,Засада
+Demo|SKILL_DEMO_15,Следопыт
+Demo|SKILL_DEMO_16,Тень в листве
+Demo|SKILL_DEMO_17,Дальний выстрел
+Demo|SKILL_DEMO_18,Щит товарищу
+Demo|SKILL_DEMO_19,Стена
+Demo|SKILL_DEMO_20,Вызов
+Demo|SKILL_DEMO_21,Несгибаемый
+Demo|SKILL_DEMO_22,Ответный удар
+Demo|SKILL_DEMO_23,Боевой клич
+Demo|SKILL_DEMO_24,Свет надежды
+Demo|SKILL_DEMO_25,Память предков
+Demo|SKILL_DEMO_26,Последний рубеж
+Demo|SKILL_DEMO_27,Зов дома
+Demo|ROLE_DEMO_SCOUT,Разведчик
+Demo|ROLE_DEMO_GUARDIAN,Страж
+Demo|TITLE_DEMO_FORD_WARDEN,Хранитель брода
+Demo|TITLE_DEMO_SHADOWBANE,Гроза теней
+Demo|ENEMY_DEMO_BANDIT,Разбойник
+Demo|ENEMY_DEMO_BANDIT_PLURAL,Разбойники
+Demo|ENEMY_DEMO_WOLF,Серый волк
+Demo|ENEMY_DEMO_WOLF_PLURAL,Серые волки
+Demo|ENEMY_DEMO_SHADE,Тень
+Demo|ENEMY_DEMO_SHADE_PLURAL,Тени
+Demo|ENEMY_DEMO_BANDIT_ACTIVATION_9001,Атакует ближайшего героя.
+Demo|ENEMY_DEMO_BANDIT_ATTACK_9001,[i]Удар обрушивается на вас![/i]
+Demo|ENEMY_DEMO_BANDIT_ACTIVATION_9002,Подходит на 2 и атакует героя с наименьшим числом карт урона.
+Demo|ENEMY_DEMO_BANDIT_ATTACK_9002,[i]Удар обрушивается на вас![/i]
+Demo|ENEMY_DEMO_WOLF_ACTIVATION_9003,Подходит на 3 и атакует.
+Demo|ENEMY_DEMO_WOLF_ATTACK_9003,[i]Удар обрушивается на вас![/i]
+Demo|ENEMY_DEMO_WOLF_ACTIVATION_9004,"Стая окружает: атакует героя, рядом с которым нет других."
+Demo|ENEMY_DEMO_WOLF_ATTACK_9004,[i]Удар обрушивается на вас![/i]
+Demo|ENEMY_DEMO_SHADE_ACTIVATION_9005,Холод сковывает: атакует всех героев в 1 месте от себя.
+Demo|ENEMY_DEMO_SHADE_ATTACK_9005,[i]Удар обрушивается на вас![/i]
+Demo|ENEMY_DEMO_SHADE_ACTIVATION_9006,Подходит на 1 и атакует героя с наибольшим числом карт страха.
+Demo|ENEMY_DEMO_SHADE_ATTACK_9006,[i]Удар обрушивается на вас![/i]
+Demo|LAST_STAND_DEMO_D_1,"Раны тяжелы. Проверьте [b]Силу[/b] (2), чтобы устоять."
+Demo|LAST_STAND_DEMO_D_2,Вы падаете на колено. Проверьте [b]Ловкость[/b] (2).
+Demo|LAST_STAND_DEMO_F_1,Тьма шепчет. Проверьте [b]Дух[/b] (2).
+Demo|LAST_STAND_DEMO_F_2,Страх сжимает сердце. Проверьте [b]Мудрость[/b] (2).
+Demo|CAM_DEMO_TITLE,Тени над Серым Бродом
+Demo|CAM_DEMO_DESC,Небольшая кампания JiME Reborn: два приключения у старого брода.
+Demo|CAM_DEMO_CONTENTS,Демо-набор
+Demo|PROD_DEMO_TITLE,Демо-набор
+Demo|PROD_DEMO_DESC,Открытый набор для проверки приложения без оригинальной игры.
+Demo|PROD_DEMO_CONTENTS,"20 тайлов, 4 героя, 3 врага"
+Demo|CAM_DEMO_PROLOGUE,"[i]Серый Брод всегда был тихим местом: паром, трактир, да старая дорога на север. Но этой осенью паром стоит без дела, а путники пропадают один за другим. Говорят, у реки видели вооружённых людей — и что-то ещё, что не отбрасывает тени.[/i]"
+Demo|CAM_DEMO_VICTORY,"[i]Тень рассеялась, и над бродом снова слышен скрип парома. Люди долго будут помнить имена тех, кто вернул им дорогу.[/i]"
+Demo|CAM_DEMO_DEFEAT,"[i]Туман над рекой стал гуще, и дорогу на север больше никто не ходит. Может быть, однажды придут другие.[/i]"
+Demo|D1_TITLE,Серый Брод
+Demo|D1_LOCATION,Берег реки
+Demo|D1_DESC,Разбойники перекрыли брод. Найдите их лагерь.
+Demo|D1_INTRO,"[i]Паромщик пропал три дня назад. Трактирщик просит вас разузнать, кто хозяйничает у брода.[/i]"
+Demo|D1_HEROES,Поставьте героев на указанное место.
+Demo|D1_START_TILE,[i]Дорога у брода пуста. На песке — свежие следы сапог.[/i]
+Demo|D1_OBJECTIVE_1,"Найдите 3 улики, чтобы выследить разбойников."
+Demo|D1_OBJECTIVE_2,Штурмуйте лагерь разбойников.
+Demo|D1_CLUE_MORE,Ещё одна улика. Картина понемногу складывается.
+Demo|D1_CAMP_FOUND,"[i]Все следы ведут на холмы к востоку. Там, среди кустов, тлеют костры.[/i]"
+Demo|D1_WIN,"[i]Лагерь пуст, разбойники бежали. Среди их добычи — карта с отметкой у старой башни и странный чёрный знак.[/i]"
+Demo|D1_LOSS,[i]Вы отступаете к трактиру. Но у одного из разбойников вы отняли карту — с отметкой у старой башни.[/i]
+Demo|D1_THREAT_1,[i]Из кустов выходят люди с дубинами.[/i]
+Demo|D1_THREAT_2,[i]Вдали воют волки — и вой приближается.[/i]
+Demo|D1_THREAT_1_INFO,Разбойники заметили вас.
+Demo|D1_THREAT_2_INFO,Волки идут по следу.
+Demo|D1_TRACKS_SEARCH,У воды — примятая трава и следы множества ног.
+Demo|D1_TRACKS_TEST,"Проверьте [b]Мудрость[/b] (1), чтобы прочитать следы."
+Demo|D1_TRACKS_PASS,"Следы уходят на восток, к холмам. Это первая улика."
+Demo|D1_TRACKS_FAIL,Следы путаются. Попробуйте позже.
+Demo|D1_FERRYMAN_INTRO,На перевёрнутой лодке сидит старик и смотрит на реку.
+Demo|D1_FERRYMAN_CHOICE,Это помощник паромщика. Он явно что-то знает.
+Demo|D1_FERRYMAN_ASK,Расспросить
+Demo|D1_FERRYMAN_PAY,Заплатить (−1 знание)
+Demo|D1_FERRYMAN_ASK_TEST,"Проверьте [b]Дух[/b] (2), чтобы он доверился вам."
+Demo|D1_FERRYMAN_ASK_FAIL,"Старик отворачивается. Может быть, позже."
+Demo|D1_FERRYMAN_PAY_RESULT,Монета исчезает в его ладони. Уберите 1 знание.
+Demo|D1_FERRYMAN_CLUE,«Паромщика увели на холмы. Их главарь носит чёрный знак». Это улика.
+Demo|D1_CART_SEARCH,У дороги лежит перевёрнутая повозка.
+Demo|D1_CART_TEST,"Проверьте [b]Ловкость[/b] (1), чтобы обыскать обломки."
+Demo|D1_CART_PASS,Под досками — фонарь и обрывок письма о «лагере за холмами». Улика!
+Demo|D1_CART_FAIL,Доски слишком тяжелы. Вернитесь позже.
+Demo|D1_CAMP_INTRO,"Лагерь разбойников: шатры, костры, часовые."
+Demo|D1_CAMP_CONFIRM,Штурмовать лагерь?
+Demo|D1_CAMP_TEST,"Проверьте [b]Силу[/b] (2), чтобы прорваться в лагерь."
+Demo|D1_CAMP_PASS,"[i]Часовые бегут, и лагерь ваш![/i]"
+Demo|D1_CAMP_FAIL,[i]Тревога! Из шатров выбегают разбойники.[/i]
+Demo|D2_TITLE,Логово Тени
+Demo|D2_LOCATION,Старая башня
+Demo|D2_DESC,Чёрный знак ведёт к развалинам башни.
+Demo|D2_INTRO,"[i]Башня стоит на холме уже сотни лет. Местные обходят её стороной: говорят, по ночам там горит холодный огонь.[/i]"
+Demo|D2_HEROES,Поставьте героев на указанное место.
+Demo|D2_START_TILE,"[i]У подножия башни холодно, хотя солнце ещё высоко.[/i]"
+Demo|D2_OBJECTIVE_1,"Найдите знаки, которые укажут путь к логову."
+Demo|D2_OBJECTIVE_2,Найдите алтарь и разрушьте его.
+Demo|D2_OMEN_FIRST,[i]Знак указывает на тропу за развалинами.[/i]
+Demo|D2_OMEN_SECOND,"[i]Теперь вы знаете, где алтарь: в старом зале, под рухнувшей крышей.[/i]"
+Demo|D2_WIN,"[i]Алтарь раскалывается, и Тень тает, как дым на ветру.[/i]"
+Demo|D2_LOSS,"[i]Холодный огонь вспыхивает ярче. Вы бежите с холма, и Тень остаётся в башне.[/i]"
+Demo|D2_THREAT_1,[i]Среди камней шевелятся тени.[/i]
+Demo|D2_THREAT_2,[i]Воздух звенит от холода. Что-то пришло за вами.[/i]
+Demo|D2_THREAT_1_INFO,Тени пробуждаются.
+Demo|D2_THREAT_2_INFO,"Тень знает, что вы здесь."
+Demo|D2_OMEN1_SEARCH,Камень с вырезанным вороном.
+Demo|D2_OMEN1_TEST,"Проверьте [b]Мудрость[/b] (1), чтобы понять знак."
+Demo|D2_OMEN1_PASS,Ворон смотрит на север. Это первый знак.
+Demo|D2_OMEN1_FAIL,Резьба стёрлась. Вернитесь позже.
+Demo|D2_OMEN2_SEARCH,"Родник, вода в котором покрыта инеем."
+Demo|D2_OMEN2_TEST,"Проверьте [b]Дух[/b] (1), чтобы коснуться воды."
+Demo|D2_OMEN2_PASS,В отражении — зал с рухнувшей крышей. Второй знак!
+Demo|D2_OMEN2_FAIL,Холод обжигает пальцы. Вернитесь позже.
+Demo|D2_ALTAR_INTRO,"Чёрный алтарь, над которым дрожит холодное пламя."
+Demo|D2_ALTAR_CONFIRM,Разрушить алтарь?
+Demo|D2_ALTAR_TEST,"Проверьте [b]Силу[/b] (3), чтобы расколоть камень."
+Demo|D2_ALTAR_PASS,[i]Камень трескается![/i]
+Demo|D2_ALTAR_FAIL,"[i]Пламя взвивается, и из тьмы выходят тени.[/i]"
+Demo|R_WELL_SEARCH,Заброшенный колодец.
+Demo|R_WELL_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|R_WELL_PASS,На дне блестит старая монета.
+Demo|R_WELL_FAIL,Ничего не найдено. Можно попробовать снова.
+Demo|R_TREE_SEARCH,Дуплистое дерево.
+Demo|R_TREE_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|R_TREE_PASS,В дупле — сверток с сушёными травами.
+Demo|R_TREE_FAIL,Ничего не найдено. Можно попробовать снова.
+Demo|R_CAMPFIRE_SEARCH,Брошенная стоянка.
+Demo|R_CAMPFIRE_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|R_CAMPFIRE_PASS,В золе — обрывок карты окрестностей.
+Demo|R_CAMPFIRE_FAIL,Ничего не найдено. Можно попробовать снова.
+Demo|R_WAYSTONE_SEARCH,Придорожный камень с надписью.
+Demo|R_WAYSTONE_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|R_WAYSTONE_PASS,Надпись рассказывает о старом королевстве.
+Demo|R_WAYSTONE_FAIL,Ничего не найдено. Можно попробовать снова.
+Demo|R_BRAMBLE_SEARCH,Густые заросли ежевики.
+Demo|R_BRAMBLE_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|R_BRAMBLE_PASS,Среди колючек — оброненная кем-то фляга.
+Demo|R_BRAMBLE_FAIL,Ничего не найдено. Можно попробовать снова.
+Demo|G_PEDDLER_SEARCH,Брошенный короб торговца.
+Demo|G_PEDDLER_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|G_PEDDLER_PASS,"Внутри — нитки, иглы и записка с местными слухами."
+Demo|G_PEDDLER_FAIL,Ничего не найдено. Можно попробовать снова.
+Demo|G_HUT_SEARCH,Пустая хижина пастуха.
+Demo|G_HUT_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|G_HUT_PASS,На стене углём нарисована дорога к броду.
+Demo|G_HUT_FAIL,Ничего не найдено. Можно попробовать снова.
+Demo|G_SHRINE_SEARCH,Рухнувшее придорожное святилище.
+Demo|G_SHRINE_TEST,Проверьте [b]Ловкость[/b] (1).
+Demo|G_SHRINE_PASS,Под камнями — подношения давно ушедших путников.
+Demo|G_SHRINE_FAIL,Ничего не найдено. Можно попробовать снова.

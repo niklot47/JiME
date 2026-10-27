@@ -5,6 +5,7 @@ import { Battleboard3D, PIECES, type BBToken } from "../board/Battleboard3D.tsx"
 import { boardsOf } from "./BattleboardPreviewScreen.tsx";
 import { useBbClassic } from "../data/bbClassic.ts";
 import { ENGINE_SAVE_VERSION, adventureSetup, keysOf, tokenFamily, type Answer, type CampaignSave, type LogEntry, type SaveData, type SpaceRef, type SessionSetup } from "@jime/engine";
+import { adventureProducts } from "@jime/engine";
 import { setLang, useLang } from "../data/lang.ts";
 import { cubeToWorld, layoutBoard, type GeneratedMap, type TileArtDb } from "@jime/engine/map";
 import type { TextDb } from "@jime/content-tools/text";
@@ -180,6 +181,8 @@ export function GameScreen({ onBack, campaign }: { onBack: () => void; campaign?
   useEffect(() => { loadText(lang).then(setText).catch((e) => setError(String(e))); }, [lang]);
   useEffect(() => { loadText("en").then(setEnglish).catch(() => setEnglish(null)); }, []);
 
+  // the base box only (FFG), or the products the adventure's campaign plays with (the demo: its own set)
+  const productsOf = (a: number) => { const p = db ? adventureProducts(db, a, coreOnly ? [0] : undefined) : undefined; return p ? { products: p } : {}; };
   const say = (key: string | null | undefined, ins: readonly string[] = []) => (key && text ? textHtml(text, key, ins, lang === "en" ? null : english) : "");
 
   const adventures = useMemo(() => {
@@ -378,7 +381,7 @@ export function GameScreen({ onBack, campaign }: { onBack: () => void; campaign?
           </label>
           <label className="check"><input type="checkbox" checked={coreOnly} onChange={(e) => setCoreOnly(e.target.checked)} /> Только базовая коробка</label>
           <button className="primary" disabled={!ready}
-            onClick={() => start({ adv, seed, players, language: lang, heroes: partyOf(heroPick, players, heroArt), ...(coreOnly ? { products: [0] } : {}) })}>
+            onClick={() => start({ adv, seed, players, language: lang, heroes: partyOf(heroPick, players, heroArt), ...productsOf(adv) })}>
             {busy ? "Подготовка…" : "Начать"}
           </button>
           {auto && (

@@ -14,21 +14,25 @@ import { PACK_ID, installTheme, themeChoice } from "./data/pack.ts";
 import { sound } from "./audio/sound.ts";
 import { SoundPanel } from "./audio/SoundPanel.tsx";
 
+const SETUP_SKIPPED = "jime.setup.skipped";
+const setupSkipped = () => { try { return localStorage.getItem(SETUP_SKIPPED) === "1"; } catch { return false; } };
+const skipSetup = () => { try { localStorage.setItem(SETUP_SKIPPED, "1"); } catch { /* asked again next time */ } };
+
 type Screen = "title" | "tools" | "campaign" | "map" | "game" | "packs" | "setup" | "ui" | "bb" | "editor";
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("title");
   const [theme, setTheme] = useState(themeChoice());
   const [campaign, setCampaign] = useState<{ save: CampaignSave; intro: boolean } | null>(null);
-  // first run: no imported game pack in the packs folder -> wizard
+  // first run: no imported game pack in the packs folder -> wizard (once: the bundled demo campaign plays without it)
   useEffect(() => {
-    if (!inTauri()) return;
+    if (!inTauri() || setupSkipped()) return;
     packsInfo().then((i) => { if (!i.packs.some((p) => p.dir === PACK_ID)) setScreen("setup"); }).catch(() => {});
   }, []);
   // title music on the tools screens; the title, campaign and game screens pick their own
   useEffect(() => { if (screen === "tools") { sound.music("TitlescreenMusic"); sound.ambient(null); } }, [screen]);
   const tools = () => setScreen("tools");
-  if (screen === "setup") return <SetupScreen onDone={() => setScreen("title")} onSkip={() => setScreen("title")} />;
+  if (screen === "setup") return <SetupScreen onDone={() => setScreen("title")} onSkip={() => { skipSetup(); setScreen("title"); }} />;
   if (screen === "title") return <TitleScreen onPlay={(s, intro) => { setCampaign({ save: s, intro: !!intro }); setScreen("campaign"); }} onTools={tools} />;
   if (screen === "campaign" && campaign) return <CampaignScreen key={campaign.save.slot} save={campaign.save} intro={campaign.intro} onBack={() => setScreen("title")} />;
   if (screen === "map") return <MapScreen onBack={tools} />;

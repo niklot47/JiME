@@ -1,0 +1,161 @@
+{
+ "format": "jime-scenario",
+ "formatVersion": 1,
+ "kind": "encounter",
+ "id": 910203,
+ "source": "jime-demo",
+ "root": 1,
+ "gameObjects": {
+  "1": {
+   "name": "910203_Altar",
+   "parent": null,
+   "components": {
+    "GameNode": {
+     "Token3DType": 3,
+     "EncounterId": -1,
+     "TerrainId": -1,
+     "UniqueTokenId": -1
+    },
+    "PlayMakerFSM": [
+     0
+    ]
+   }
+  }
+ },
+ "fsms": [
+  {
+   "name": "FSM",
+   "start": "Wait for Click",
+   "variables": {},
+   "global": {
+    "REVEALED": "On Revealed"
+   },
+   "states": [
+    {
+     "name": "On Revealed",
+     "transitions": {
+      "FINISHED": "Finish Processing"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": {
+         "key": "PLACE_THREAT",
+         "inserts": [
+          {
+           "LocalizationKey": "«D2_ALTAR_INTRO»",
+           "filter": 8
+          }
+         ]
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Finish Processing",
+     "transitions": {
+      "FINISHED": "Wait for Click"
+     },
+     "actions": [
+      {
+       "action": "FinishProcessingEvent",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    },
+    {
+     "name": "Wait for Click",
+     "transitions": {
+      "NODE CLICKED": "Confirm"
+     },
+     "actions": []
+    },
+    {
+     "name": "Confirm",
+     "transitions": {
+      "CONFIRM": "Test",
+      "CANCEL": "Wait for Click"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessageCancelConfirm",
+       "enabled": true,
+       "params": {
+        "ConfirmLabel": "«UI_CONFIRM»",
+        "CancelLabel": "«UI_CANCEL»",
+        "Message": "«D2_ALTAR_CONFIRM»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Test",
+     "transitions": {
+      "0": "Fail",
+      "1": "Victory"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessageChallenge",
+       "enabled": true,
+       "params": {
+        "ResultPairs": [
+         {
+          "Event": "0"
+         },
+         {
+          "Sum": 3,
+          "Event": "1"
+         }
+        ],
+        "Message": "«D2_ALTAR_TEST»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Fail",
+     "transitions": {
+      "FINISHED": "Wait for Click"
+     },
+     "actions": [
+      {
+       "action": "SpawnRandomEnemyGroups",
+       "enabled": true,
+       "params": {
+        "Message": "«D2_ALTAR_FAIL»",
+        "MessageLocation": 4,
+        "Points": 10
+       }
+      }
+     ]
+    },
+    {
+     "name": "Victory",
+     "transitions": {},
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«D2_ALTAR_PASS»"
+       }
+      },
+      {
+       "action": "EndGame",
+       "enabled": true,
+       "params": {
+        "Success": 1
+       }
+      }
+     ]
+    }
+   ],
+   "go": 1
+  }
+ ]
+}

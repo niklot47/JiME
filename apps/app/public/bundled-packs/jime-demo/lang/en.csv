@@ -1,0 +1,279 @@
+key,text
+Demo|UI_CONFIRM,Confirm
+Demo|UI_CANCEL,Cancel
+Demo|UI_PASS,Pass
+Demo|UI_FAIL,Fail
+Demo|UI_SEARCH,Search
+Demo|UI_YES,Yes
+Demo|UI_NO,No
+Demo|UI_CONTINUE,Continue
+Demo|UI_CONFIRM_EXPLORE,Explore?
+Demo|UI_PLACE_EXPLORE_TOKEN,Place an exploration token.
+Demo|UI_PLACE_EXPLORE_TOKENS,Place exploration tokens.
+Demo|UI_DISCARD_EXPLORE_TOKEN,Discard the exploration token.
+Demo|UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION,Discard the exploration token and gain 1 inspiration.
+Demo|UI_EXPLORE_TILE_WITH_INTRO_FORMATTED,{0}\n\n{1}
+Demo|UI_SECTION_REVEAL_PLACE_TILE_FORMATTED,Place tile {0} as shown.
+Demo|PLACE_TILE_NO_FLAVOR,Place tile {0} as shown.
+Demo|PLACE_SEARCH,{0}\n\nPlace a search token as shown.
+Demo|PLACE_PERSON,{0}\n\nPlace a person token as shown.
+Demo|PLACE_THREAT,{0}\n\nPlace a threat token as shown.
+Demo|UI_SPAWN_GROUP_FORMAT,Place {0} {1} on the shown space.
+Demo|UI_THREAT_INCREASE,[i]The shadow grows.[/i]\n\nThreat increases by {0}.
+Demo|UI_PHASE_HERO,Action phase
+Demo|UI_PHASE_SHADOW,Shadow phase
+Demo|UI_RALLY_PHASE,Rally phase
+Demo|UI_RALLY_PHASE_INSTRUCTIONS,"Each hero rebuilds their deck, then [b]scouts 2[/b]."
+Demo|UI_PROMPT_CAN_ATTACK,Can the enemy attack?
+Demo|UI_DAMAGE_LOG_FORMATTED,"{0} damage, {1} fear"
+Demo|UI_DAMAGE_LOG_WITH_EFFECT_FORMATTED,"{0} damage, {1} fear\n\n{2}"
+Demo|UI_ENEMY_DEFEATED_INSPIRATION_REMINDER,\nYou or a nearby hero gain 1 inspiration!
+Demo|UI_ENEMY_REMOVAL_REMINDER_FORMATTED,Remove {0} {1}.{2}
+Demo|UI_ENEMY_REMOVAL_UNIQUE_REMINDER_FORMATTED,Remove {0}.{1}
+Demo|UI_LAST_STAND_FAILED,You have fallen!\n\nRemove your figure from the map. At the start of the next shadow phase the adventure is lost.
+Demo|UI_LAST_STAND_PASSED_FEAR,"Discard all facedown fear, gain 1 inspiration and go on."
+Demo|UI_LAST_STAND_PASSED_PHYSICAL,"Discard all facedown damage, gain 1 inspiration and go on."
+Demo|UI_AWARD_ITEM_FORMATTED,You gain [b]{0}[/b]!\n\nYou or a nearby hero may equip it at once.
+Demo|UI_AWARD_TITLE_FORMATTED,You gain the title [b]{0}[/b]!
+Demo|UI_AWARD_TITLE_CHOOSE_HERO,Which hero gains the title?
+Demo|TITLE_ALREADY_EARNED,This title is already earned.
+Demo|ADVENTURE_MODE_INSPIRATION_MESSAGE,[i]The fellowship is ready to face the shadow.[/i]\n\nEach hero gains 1 inspiration.
+Demo|UI_LORE_CHRONICLING,Chronicling: +2 lore
+Demo|UI_LORE_COLLECTOR,Collector: +1 lore
+Demo|UI_REVEAL_TERRAIN_LOG_FORMATTED,Reveal terrain: {0}
+Demo|UI_TERRAIN_NODES_REVEAL_FORMATTED,Place terrain: {0}
+Demo|BLANK_OBJECTIVE, 
+Demo|UI_DEFAULT_OBJECTIVE,No objective yet.
+Demo|UI_ROUND_X,Round {0}
+Demo|UI_THREAT_VALUE_FORMATTED,{0}/{1}
+Demo|UI_CONFIRM_DAMAGE_FORMAT,Apply [b]{0}[/b] hits?
+Demo|UI_BONUS_FORMAT,[b]{0}[/b] - {1}
+Demo|UI_LORE_GAIN,[b]{0}{1} lore[/b]
+Demo|UI_ATTACK,Attack
+Demo|UI_PROVOKE,Provoke
+Demo|UI_RESOLVE_ATTACK,Resolve attack
+Demo|UI_FEAR,Fear
+Demo|UI_PHYSICAL,Damage
+Demo|UI_LORE,Lore
+Demo|UI_INVENTORY,Inventory
+Demo|D01A,D01A
+Demo|D01B,D01B
+Demo|D02A,D02A
+Demo|D02B,D02B
+Demo|D03A,D03A
+Demo|D03B,D03B
+Demo|D04A,D04A
+Demo|D04B,D04B
+Demo|D05A,D05A
+Demo|D05B,D05B
+Demo|D06A,D06A
+Demo|D06B,D06B
+Demo|D07A,D07A
+Demo|D07B,D07B
+Demo|D08A,D08A
+Demo|D08B,D08B
+Demo|D09A,D09A
+Demo|D09B,D09B
+Demo|D10A,D10A
+Demo|D10B,D10B
+Demo|TILE_D01A,An old road runs down to the ford; wind rustles in the grass.
+Demo|TILE_D01B,An old road runs down to the ford; wind rustles in the grass.
+Demo|TILE_D02A,"The river runs shallow here, murmuring over stones."
+Demo|TILE_D02B,"The river runs shallow here, murmuring over stones."
+Demo|TILE_D03A,The forest edge: bright glades and dark trunks.
+Demo|TILE_D03B,The forest edge: bright glades and dark trunks.
+Demo|TILE_D04A,Broken walls overgrown with moss.
+Demo|TILE_D04B,Broken walls overgrown with moss.
+Demo|TILE_D05A,Hills that overlook the whole valley.
+Demo|TILE_D05B,Hills that overlook the whole valley.
+Demo|TILE_D06A,A wet hollow; the ground squelches.
+Demo|TILE_D06B,A wet hollow; the ground squelches.
+Demo|TILE_D07A,A narrow path winds between bushes.
+Demo|TILE_D07B,A narrow path winds between bushes.
+Demo|TILE_D08A,A thick fir wood muffles every sound.
+Demo|TILE_D08B,A thick fir wood muffles every sound.
+Demo|TILE_D09A,The ruins of an old watchtower.
+Demo|TILE_D09B,The ruins of an old watchtower.
+Demo|TILE_D10A,A meadow where wild goats graze.
+Demo|TILE_D10B,A meadow where wild goats graze.
+Demo|HERO_AIRA_NAME,Aira
+Demo|HERO_BORIN_NAME,Borin
+Demo|HERO_MAEVE_NAME,Maeve
+Demo|HERO_TOLLAN_NAME,Tollan
+Demo|RACE_DEMO_HUMAN,Human
+Demo|RACE_DEMO_DWARF,Dwarf
+Demo|RACE_DEMO_HALFLING,Halfling
+Demo|ITEM_DEMO_BOW,Bow
+Demo|ITEM_DEMO_HAMMER,Hammer
+Demo|ITEM_DEMO_STAFF,Staff
+Demo|ITEM_DEMO_DAGGER,Dagger
+Demo|ITEM_DEMO_LEATHER,Leather armour
+Demo|ITEM_DEMO_MAIL,Mail shirt
+Demo|ITEM_DEMO_CLOAK,Travel cloak
+Demo|ITEM_DEMO_LONGBOW,Longbow
+Demo|ITEM_DEMO_WARHAMMER,War hammer
+Demo|ITEM_DEMO_RUNESTAFF,Rune staff
+Demo|ITEM_DEMO_FANG,Wolf fang
+Demo|ITEM_DEMO_LANTERN,Lantern
+Demo|ITEM_DEMO_FERRY_TOKEN,Ferryman's token
+Demo|SKILL_DEMO_0,Keen Eye
+Demo|SKILL_DEMO_1,Quiet Step
+Demo|SKILL_DEMO_2,Pathfinding
+Demo|SKILL_DEMO_3,Heavy Blow
+Demo|SKILL_DEMO_4,Stone Endurance
+Demo|SKILL_DEMO_5,Old Songs
+Demo|SKILL_DEMO_6,Healing Herbs
+Demo|SKILL_DEMO_7,Calming Word
+Demo|SKILL_DEMO_8,Clear Sight
+Demo|SKILL_DEMO_9,Nimble Fingers
+Demo|SKILL_DEMO_10,Luck
+Demo|SKILL_DEMO_11,Unnoticed
+Demo|SKILL_DEMO_12,Scouting
+Demo|SKILL_DEMO_13,Swift Feet
+Demo|SKILL_DEMO_14,Ambush
+Demo|SKILL_DEMO_15,Tracker
+Demo|SKILL_DEMO_16,Shadow in the Leaves
+Demo|SKILL_DEMO_17,Long Shot
+Demo|SKILL_DEMO_18,Shield a Friend
+Demo|SKILL_DEMO_19,Wall
+Demo|SKILL_DEMO_20,Challenge
+Demo|SKILL_DEMO_21,Unbending
+Demo|SKILL_DEMO_22,Riposte
+Demo|SKILL_DEMO_23,War Cry
+Demo|SKILL_DEMO_24,Light of Hope
+Demo|SKILL_DEMO_25,Memory of Elders
+Demo|SKILL_DEMO_26,Last Line
+Demo|SKILL_DEMO_27,Call of Home
+Demo|ROLE_DEMO_SCOUT,Scout
+Demo|ROLE_DEMO_GUARDIAN,Guardian
+Demo|TITLE_DEMO_FORD_WARDEN,Warden of the Ford
+Demo|TITLE_DEMO_SHADOWBANE,Shadowbane
+Demo|ENEMY_DEMO_BANDIT,Bandit
+Demo|ENEMY_DEMO_BANDIT_PLURAL,Bandits
+Demo|ENEMY_DEMO_WOLF,Grey wolf
+Demo|ENEMY_DEMO_WOLF_PLURAL,Grey wolves
+Demo|ENEMY_DEMO_SHADE,Shade
+Demo|ENEMY_DEMO_SHADE_PLURAL,Shades
+Demo|ENEMY_DEMO_BANDIT_ACTIVATION_9001,Attacks the nearest hero.
+Demo|ENEMY_DEMO_BANDIT_ATTACK_9001,[i]The blow falls upon you![/i]
+Demo|ENEMY_DEMO_BANDIT_ACTIVATION_9002,Moves 2 and attacks the hero with the least damage.
+Demo|ENEMY_DEMO_BANDIT_ATTACK_9002,[i]The blow falls upon you![/i]
+Demo|ENEMY_DEMO_WOLF_ACTIVATION_9003,Moves 3 and attacks.
+Demo|ENEMY_DEMO_WOLF_ATTACK_9003,[i]The blow falls upon you![/i]
+Demo|ENEMY_DEMO_WOLF_ACTIVATION_9004,The pack circles: attacks a hero with no one beside them.
+Demo|ENEMY_DEMO_WOLF_ATTACK_9004,[i]The blow falls upon you![/i]
+Demo|ENEMY_DEMO_SHADE_ACTIVATION_9005,A chill grips: attacks every hero within 1 space.
+Demo|ENEMY_DEMO_SHADE_ATTACK_9005,[i]The blow falls upon you![/i]
+Demo|ENEMY_DEMO_SHADE_ACTIVATION_9006,Moves 1 and attacks the hero with the most fear.
+Demo|ENEMY_DEMO_SHADE_ATTACK_9006,[i]The blow falls upon you![/i]
+Demo|LAST_STAND_DEMO_D_1,The wounds are grave. Test [b]Might[/b] (2) to stand.
+Demo|LAST_STAND_DEMO_D_2,You fall to one knee. Test [b]Agility[/b] (2).
+Demo|LAST_STAND_DEMO_F_1,The dark whispers. Test [b]Spirit[/b] (2).
+Demo|LAST_STAND_DEMO_F_2,Fear grips your heart. Test [b]Wisdom[/b] (2).
+Demo|CAM_DEMO_TITLE,Shadows over Greyford
+Demo|CAM_DEMO_DESC,A small JiME Reborn campaign: two adventures at the old ford.
+Demo|CAM_DEMO_CONTENTS,Demo set
+Demo|PROD_DEMO_TITLE,Demo set
+Demo|PROD_DEMO_DESC,An open set to try the app without the original game.
+Demo|PROD_DEMO_CONTENTS,"20 tiles, 4 heroes, 3 enemies"
+Demo|CAM_DEMO_PROLOGUE,"[i]Greyford was always a quiet place: a ferry, an inn and the old road north. But this autumn the ferry stands idle and travellers vanish one by one. Armed men were seen by the river, they say - and something else, something that casts no shadow.[/i]"
+Demo|CAM_DEMO_VICTORY,"[i]The shade is gone, and the ferry creaks over the ford again. People will long remember the names of those who gave them back the road.[/i]"
+Demo|CAM_DEMO_DEFEAT,"[i]The mist over the river grows thicker, and no one walks the north road any more. Perhaps others will come one day.[/i]"
+Demo|D1_TITLE,The Grey Ford
+Demo|D1_LOCATION,The riverbank
+Demo|D1_DESC,Bandits hold the ford. Find their camp.
+Demo|D1_INTRO,[i]The ferryman vanished three days ago. The innkeeper asks you to find out who rules the ford now.[/i]
+Demo|D1_HEROES,Place the heroes on the shown space.
+Demo|D1_START_TILE,[i]The road by the ford is empty. Fresh boot prints mark the sand.[/i]
+Demo|D1_OBJECTIVE_1,Find 3 clues to track the bandits down.
+Demo|D1_OBJECTIVE_2,Storm the bandits' camp.
+Demo|D1_CLUE_MORE,Another clue. The picture slowly comes together.
+Demo|D1_CAMP_FOUND,"[i]Every trail leads to the hills in the east. There, among the bushes, campfires smoulder.[/i]"
+Demo|D1_WIN,"[i]The camp is empty, the bandits fled. Among their loot is a map marking the old tower, and a strange black sign.[/i]"
+Demo|D1_LOSS,[i]You fall back to the inn. Yet you took a map from one of the bandits - with a mark at the old tower.[/i]
+Demo|D1_THREAT_1,[i]Men with clubs step out of the bushes.[/i]
+Demo|D1_THREAT_2,"[i]Wolves howl in the distance, and the howling comes closer.[/i]"
+Demo|D1_THREAT_1_INFO,The bandits have spotted you.
+Demo|D1_THREAT_2_INFO,Wolves are on your trail.
+Demo|D1_TRACKS_SEARCH,By the water the grass is trampled by many feet.
+Demo|D1_TRACKS_TEST,Test [b]Wisdom[/b] (1) to read the tracks.
+Demo|D1_TRACKS_PASS,"The tracks lead east, to the hills. A first clue."
+Demo|D1_TRACKS_FAIL,The tracks get muddled. Try again later.
+Demo|D1_FERRYMAN_INTRO,"An old man sits on an upturned boat, watching the river."
+Demo|D1_FERRYMAN_CHOICE,It is the ferryman's helper. He clearly knows something.
+Demo|D1_FERRYMAN_ASK,Question him
+Demo|D1_FERRYMAN_PAY,Pay him (-1 lore)
+Demo|D1_FERRYMAN_ASK_TEST,Test [b]Spirit[/b] (2) to win his trust.
+Demo|D1_FERRYMAN_ASK_FAIL,The old man turns away. Maybe later.
+Demo|D1_FERRYMAN_PAY_RESULT,The coin vanishes into his palm. Lose 1 lore.
+Demo|D1_FERRYMAN_CLUE,"""They took the ferryman to the hills. Their leader wears a black sign."" A clue."
+Demo|D1_CART_SEARCH,An overturned cart lies by the road.
+Demo|D1_CART_TEST,Test [b]Agility[/b] (1) to search the wreck.
+Demo|D1_CART_PASS,"Under the boards: a lantern and a scrap of a letter about ""the camp beyond the hills"". A clue!"
+Demo|D1_CART_FAIL,The boards are too heavy. Come back later.
+Demo|D1_CAMP_INTRO,"The bandits' camp: tents, fires, sentries."
+Demo|D1_CAMP_CONFIRM,Storm the camp?
+Demo|D1_CAMP_TEST,Test [b]Might[/b] (2) to break into the camp.
+Demo|D1_CAMP_PASS,"[i]The sentries flee, and the camp is yours![/i]"
+Demo|D1_CAMP_FAIL,[i]Alarm! Bandits pour out of the tents.[/i]
+Demo|D2_TITLE,The Shade's Lair
+Demo|D2_LOCATION,The old tower
+Demo|D2_DESC,The black sign leads to the ruined tower.
+Demo|D2_INTRO,"[i]The tower has stood on the hill for centuries. Locals avoid it: at night, they say, a cold fire burns there.[/i]"
+Demo|D2_HEROES,Place the heroes on the shown space.
+Demo|D2_START_TILE,"[i]It is cold at the foot of the tower, though the sun is still high.[/i]"
+Demo|D2_OBJECTIVE_1,Find the omens that show the way to the lair.
+Demo|D2_OBJECTIVE_2,Find the altar and destroy it.
+Demo|D2_OMEN_FIRST,[i]The omen points to a path beyond the ruins.[/i]
+Demo|D2_OMEN_SECOND,"[i]Now you know where the altar is: in the old hall, under the fallen roof.[/i]"
+Demo|D2_WIN,"[i]The altar cracks, and the Shade melts like smoke in the wind.[/i]"
+Demo|D2_LOSS,"[i]The cold fire flares up. You flee the hill, and the Shade remains in the tower.[/i]"
+Demo|D2_THREAT_1,[i]Shadows stir among the stones.[/i]
+Demo|D2_THREAT_2,[i]The air rings with cold. Something has come for you.[/i]
+Demo|D2_THREAT_1_INFO,The shades awaken.
+Demo|D2_THREAT_2_INFO,The Shade knows you are here.
+Demo|D2_OMEN1_SEARCH,A stone carved with a raven.
+Demo|D2_OMEN1_TEST,Test [b]Wisdom[/b] (1) to read the sign.
+Demo|D2_OMEN1_PASS,The raven looks north. The first omen.
+Demo|D2_OMEN1_FAIL,The carving is worn. Come back later.
+Demo|D2_OMEN2_SEARCH,A spring whose water is covered in frost.
+Demo|D2_OMEN2_TEST,Test [b]Spirit[/b] (1) to touch the water.
+Demo|D2_OMEN2_PASS,In the reflection: a hall with a fallen roof. The second omen!
+Demo|D2_OMEN2_FAIL,The cold burns your fingers. Come back later.
+Demo|D2_ALTAR_INTRO,A black altar with a cold flame trembling above it.
+Demo|D2_ALTAR_CONFIRM,Destroy the altar?
+Demo|D2_ALTAR_TEST,Test [b]Might[/b] (3) to split the stone.
+Demo|D2_ALTAR_PASS,[i]The stone cracks![/i]
+Demo|D2_ALTAR_FAIL,"[i]The flame leaps up, and shades step out of the dark.[/i]"
+Demo|R_WELL_SEARCH,An abandoned well.
+Demo|R_WELL_TEST,Test [b]Agility[/b] (1).
+Demo|R_WELL_PASS,An old coin glints at the bottom.
+Demo|R_WELL_FAIL,Nothing found. You may try again.
+Demo|R_TREE_SEARCH,A hollow tree.
+Demo|R_TREE_TEST,Test [b]Agility[/b] (1).
+Demo|R_TREE_PASS,In the hollow: a bundle of dried herbs.
+Demo|R_TREE_FAIL,Nothing found. You may try again.
+Demo|R_CAMPFIRE_SEARCH,An abandoned campsite.
+Demo|R_CAMPFIRE_TEST,Test [b]Agility[/b] (1).
+Demo|R_CAMPFIRE_PASS,In the ashes: a scrap of a local map.
+Demo|R_CAMPFIRE_FAIL,Nothing found. You may try again.
+Demo|R_WAYSTONE_SEARCH,A waystone with an inscription.
+Demo|R_WAYSTONE_TEST,Test [b]Agility[/b] (1).
+Demo|R_WAYSTONE_PASS,The inscription tells of an old kingdom.
+Demo|R_WAYSTONE_FAIL,Nothing found. You may try again.
+Demo|R_BRAMBLE_SEARCH,A dense bramble thicket.
+Demo|R_BRAMBLE_TEST,Test [b]Agility[/b] (1).
+Demo|R_BRAMBLE_PASS,Among the thorns: a flask someone dropped.
+Demo|R_BRAMBLE_FAIL,Nothing found. You may try again.
+Demo|G_PEDDLER_SEARCH,A peddler's abandoned pack.
+Demo|G_PEDDLER_TEST,Test [b]Agility[/b] (1).
+Demo|G_PEDDLER_PASS,"Inside: thread, needles and a note of local rumours."
+Demo|G_PEDDLER_FAIL,Nothing found. You may try again.
+Demo|G_HUT_SEARCH,An empty shepherd's hut.
+Demo|G_HUT_TEST,Test [b]Agility[/b] (1).
+Demo|G_HUT_PASS,A road to the ford is drawn in charcoal on the wall.
+Demo|G_HUT_FAIL,Nothing found. You may try again.
+Demo|G_SHRINE_SEARCH,A fallen roadside shrine.
+Demo|G_SHRINE_TEST,Test [b]Agility[/b] (1).
+Demo|G_SHRINE_PASS,Under the stones: offerings of long-gone travellers.
+Demo|G_SHRINE_FAIL,Nothing found. You may try again.

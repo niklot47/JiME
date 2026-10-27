@@ -1,0 +1,177 @@
+{
+ "format": "jime-scenario",
+ "formatVersion": 1,
+ "kind": "encounter",
+ "id": 919002,
+ "source": "jime-demo",
+ "root": 1,
+ "gameObjects": {
+  "1": {
+   "name": "919002_Hollow Tree",
+   "parent": null,
+   "components": {
+    "GameNode": {
+     "Token3DType": 2,
+     "EncounterId": -1,
+     "TerrainId": -1,
+     "UniqueTokenId": -1
+    },
+    "PlayMakerFSM": [
+     0
+    ]
+   }
+  }
+ },
+ "fsms": [
+  {
+   "name": "FSM",
+   "start": "Wait for Click",
+   "variables": {},
+   "global": {
+    "REVEALED": "On Revealed"
+   },
+   "states": [
+    {
+     "name": "On Revealed",
+     "transitions": {
+      "FINISHED": "Finish Processing"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": {
+         "key": "PLACE_SEARCH",
+         "inserts": [
+          {
+           "LocalizationKey": "«R_TREE_SEARCH»",
+           "filter": 8
+          }
+         ]
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Finish Processing",
+     "transitions": {
+      "FINISHED": "Wait for Click"
+     },
+     "actions": [
+      {
+       "action": "FinishProcessingEvent",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    },
+    {
+     "name": "Wait for Click",
+     "transitions": {
+      "NODE CLICKED": "Confirm"
+     },
+     "actions": []
+    },
+    {
+     "name": "Confirm",
+     "transitions": {
+      "CONFIRM": "Test",
+      "CANCEL": "Wait for Click"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessageCancelConfirm",
+       "enabled": true,
+       "params": {
+        "ConfirmLabel": "«UI_SEARCH»",
+        "CancelLabel": "«UI_CANCEL»",
+        "Message": "«R_TREE_SEARCH»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Test",
+     "transitions": {
+      "0": "Fail",
+      "1": "Pass"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessageChallenge",
+       "enabled": true,
+       "params": {
+        "ResultPairs": [
+         {
+          "Event": "0"
+         },
+         {
+          "Sum": 1,
+          "Event": "1"
+         }
+        ],
+        "Message": "«R_TREE_TEST»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Pass",
+     "transitions": {
+      "FINISHED": "Done"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«R_TREE_PASS»"
+       }
+      },
+      {
+       "action": "AddLore",
+       "enabled": true,
+       "params": {
+        "Lore": 1
+       }
+      }
+     ]
+    },
+    {
+     "name": "Fail",
+     "transitions": {
+      "FINISHED": "Wait for Click"
+     },
+     "actions": [
+      {
+       "action": "DisplayMessage",
+       "enabled": true,
+       "params": {
+        "Message": "«R_TREE_FAIL»"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Done",
+     "transitions": {},
+     "actions": [
+      {
+       "action": "HideThisNode",
+       "enabled": true,
+       "params": {}
+      },
+      {
+       "action": "FinishFSM",
+       "enabled": true,
+       "params": {}
+      }
+     ]
+    }
+   ],
+   "go": 1
+  }
+ ]
+}

@@ -14,6 +14,7 @@
 // flags = globals, chain encounters, used encounters); CampaignSave adds the slot, the party and the chain.
 
 import { Game, newCampaign, type Campaign, type ContentSource, type Difficulty } from "./game.ts";
+import { scopeProducts } from "./products.ts";
 import { ENGINE_SAVE_VERSION, Session, type Answer, type SessionOptions, type SessionSetup } from "./session.ts";
 import { gd, or } from "./py.ts";
 
@@ -133,11 +134,13 @@ export function newCampaignSave(src: ContentSource, o: NewCampaignOptions): Camp
   if (!o.heroes.length) throw new Error("a party needs at least one hero");
   const state = newCampaign();
   const t = now();
+  // a campaign with its own products (the demo) plays with them; others leave out standalone products (products.ts)
+  const products = scopeProducts(D, o.campaign, o.products);
   return {
     format: "jime-campaign", formatVersion: 1, engine: ENGINE_SAVE_VERSION, slot: o.slot ?? randomSlot(), createdAt: t, savedAt: t,
     ...(o.pack ? { pack: o.pack } : {}),
     campaign: o.campaign, partyName: o.partyName ?? "", difficulty: o.difficulty ?? "adventure", hardcore: !!o.hardcore,
-    players: o.heroes.length, ...(o.products ? { products: [...o.products] } : {}), ...(o.language ? { language: o.language } : {}),
+    players: o.heroes.length, ...(products ? { products: [...products] } : {}), ...(o.language ? { language: o.language } : {}),
     heroes: o.heroes.map((h, i) => {
       const hero = newHero(D, h);
       if (o.heroItems?.[i]) hero.items = [...o.heroItems[i]!];

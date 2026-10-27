@@ -1,11 +1,11 @@
-// The editor's own pack: changed scenarios and texts are saved here, on top of core-ffg (which is never touched).
-//   my-edits/pack.json             origin "user", priority 100, depends on core-ffg
+// The editor's own pack: changed scenarios and texts are saved here, on top of the other packs (never touched).
+//   my-edits/pack.json             origin "user", priority 100 (no dependencies: it may change the demo only)
 //   my-edits/scenario/adventures/<id>.json   whole adventure files (the topmost layer wins per file)
 //   my-edits/scenario/encounters/<id>.json   whole encounter files
 //   my-edits/lang/<lang>.csv       only the changed texts, by their full "Sheet|KEY" (merged over core-ffg by key)
 import { stringifyOrdered } from "@jime/engine";
 import { parseLangCsv, writeCsv } from "@jime/content-tools/csv";
-import { PACK_ID, packFileUrl, packsChanged } from "./pack.ts";
+import { packFileUrl, packsChanged } from "./pack.ts";
 import { writePackFile } from "./host.ts";
 
 export const EDIT_PACK = "my-edits";
@@ -51,7 +51,6 @@ export async function saveEdits(e: Edits): Promise<void> {
     name: { ru: "Мои правки", en: "My edits", it: "Le mie modifiche" },
     description: "Changes made in the editor, on top of the imported game.",
     version: manifest?.version ?? "0.1.0", priority: 100, origin: "user",
-    dependencies: { [PACK_ID]: "^1.0.0" },
     contents: [{ type: "scenario", path: "scenario" }, ...[...langs].sort().map((l) => ({ type: "lang", lang: l, path: `lang/${l}.csv` }))],
   };
   await writePackFile(EDIT_PACK, "pack.json", JSON.stringify(manifest, null, 2) + "\n");

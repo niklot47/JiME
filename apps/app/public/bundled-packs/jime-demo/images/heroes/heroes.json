@@ -1,0 +1,22 @@
+{
+ "9001": {
+  "name": "HERO_AIRA_NAME",
+  "icon": "images/heroes/9001_icon.png",
+  "portrait": "images/heroes/9001.png"
+ },
+ "9002": {
+  "name": "HERO_BORIN_NAME",
+  "icon": "images/heroes/9002_icon.png",
+  "portrait": "images/heroes/9002.png"
+ },
+ "9003": {
+  "name": "HERO_MAEVE_NAME",
+  "icon": "images/heroes/9003_icon.png",
+  "portrait": "images/heroes/9003.png"
+ },
+ "9004": {
+  "name": "HERO_TOLLAN_NAME",
+  "icon": "images/heroes/9004_icon.png",
+  "portrait": "images/heroes/9004.png"
+ }
+}

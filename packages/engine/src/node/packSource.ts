@@ -35,8 +35,10 @@ export class PackDirSource implements ContentSource {
   }
 }
 
-/** core-ffg pack location: $JIME_PACKS or $JIME_WORK/packs or <repo>/data/packs */
+/** core-ffg pack location: $JIME_PACK, or $JIME_PACKS or $JIME_WORK/packs or <repo>/data/packs */
 export function defaultPackDir(id = "core-ffg"): string {
+  // $JIME_PACK: one pack folder for every tool (e.g. the bundled demo pack)
+  if (process.env.JIME_PACK) return resolve(process.env.JIME_PACK);
   const repo = resolve(import.meta.dirname, "../../../..");
   const packs = process.env.JIME_PACKS ?? join(process.env.JIME_WORK ?? join(repo, "data"), "packs");
   return join(packs, id);

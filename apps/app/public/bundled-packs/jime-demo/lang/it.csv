@@ -1,0 +1,279 @@
+key,text
+Demo|UI_CONFIRM,Conferma
+Demo|UI_CANCEL,Annulla
+Demo|UI_PASS,Successo
+Demo|UI_FAIL,Fallimento
+Demo|UI_SEARCH,Perquisisci
+Demo|UI_YES,Sì
+Demo|UI_NO,No
+Demo|UI_CONTINUE,Continua
+Demo|UI_CONFIRM_EXPLORE,Esplorare?
+Demo|UI_PLACE_EXPLORE_TOKEN,Piazzate un segnalino esplorazione.
+Demo|UI_PLACE_EXPLORE_TOKENS,Piazzate i segnalini esplorazione.
+Demo|UI_DISCARD_EXPLORE_TOKEN,Scartate il segnalino esplorazione.
+Demo|UI_DISCARD_EXPLORE_TOKEN_WITH_INSPIRATION,Scartate il segnalino esplorazione e ottenete 1 ispirazione.
+Demo|UI_EXPLORE_TILE_WITH_INTRO_FORMATTED,{0}\n\n{1}
+Demo|UI_SECTION_REVEAL_PLACE_TILE_FORMATTED,Piazzate la tessera {0} come indicato.
+Demo|PLACE_TILE_NO_FLAVOR,Piazzate la tessera {0} come indicato.
+Demo|PLACE_SEARCH,{0}\n\nPiazzate un segnalino ricerca come indicato.
+Demo|PLACE_PERSON,{0}\n\nPiazzate un segnalino personaggio come indicato.
+Demo|PLACE_THREAT,{0}\n\nPiazzate un segnalino minaccia come indicato.
+Demo|UI_SPAWN_GROUP_FORMAT,Piazzate {0} {1} nello spazio indicato.
+Demo|UI_THREAT_INCREASE,[i]L'ombra si allunga.[/i]\n\nLa minaccia aumenta di {0}.
+Demo|UI_PHASE_HERO,Fase azione
+Demo|UI_PHASE_SHADOW,Fase ombra
+Demo|UI_RALLY_PHASE,Fase raccolta
+Demo|UI_RALLY_PHASE_INSTRUCTIONS,"Ogni eroe ricompone il mazzo, poi [b]esplora 2[/b]."
+Demo|UI_PROMPT_CAN_ATTACK,Il nemico può attaccare?
+Demo|UI_DAMAGE_LOG_FORMATTED,"{0} danni, {1} paura"
+Demo|UI_DAMAGE_LOG_WITH_EFFECT_FORMATTED,"{0} danni, {1} paura\n\n{2}"
+Demo|UI_ENEMY_DEFEATED_INSPIRATION_REMINDER,\nVoi o un eroe vicino ottenete 1 ispirazione!
+Demo|UI_ENEMY_REMOVAL_REMINDER_FORMATTED,Rimuovete {0} {1}.{2}
+Demo|UI_ENEMY_REMOVAL_UNIQUE_REMINDER_FORMATTED,Rimuovete {0}.{1}
+Demo|UI_LAST_STAND_FAILED,Siete caduti!\n\nRimuovete la miniatura dalla mappa. All'inizio della prossima fase ombra l'avventura è persa.
+Demo|UI_LAST_STAND_PASSED_FEAR,"Scartate tutta la paura coperta, ottenete 1 ispirazione e proseguite."
+Demo|UI_LAST_STAND_PASSED_PHYSICAL,"Scartate tutti i danni coperti, ottenete 1 ispirazione e proseguite."
+Demo|UI_AWARD_ITEM_FORMATTED,Ottenete [b]{0}[/b]!\n\nVoi o un eroe vicino potete equipaggiarlo subito.
+Demo|UI_AWARD_TITLE_FORMATTED,Ottenete il titolo [b]{0}[/b]!
+Demo|UI_AWARD_TITLE_CHOOSE_HERO,Quale eroe ottiene il titolo?
+Demo|TITLE_ALREADY_EARNED,Questo titolo è già stato ottenuto.
+Demo|ADVENTURE_MODE_INSPIRATION_MESSAGE,[i]La compagnia è pronta ad affrontare l'ombra.[/i]\n\nOgni eroe ottiene 1 ispirazione.
+Demo|UI_LORE_CHRONICLING,Cronaca: +2 sapere
+Demo|UI_LORE_COLLECTOR,Collezionista: +1 sapere
+Demo|UI_REVEAL_TERRAIN_LOG_FORMATTED,Rivelate il terreno: {0}
+Demo|UI_TERRAIN_NODES_REVEAL_FORMATTED,Piazzate il terreno: {0}
+Demo|BLANK_OBJECTIVE, 
+Demo|UI_DEFAULT_OBJECTIVE,Nessun obiettivo per ora.
+Demo|UI_ROUND_X,Round {0}
+Demo|UI_THREAT_VALUE_FORMATTED,{0}/{1}
+Demo|UI_CONFIRM_DAMAGE_FORMAT,Applicare [b]{0}[/b] colpi?
+Demo|UI_BONUS_FORMAT,[b]{0}[/b] - {1}
+Demo|UI_LORE_GAIN,[b]{0}{1} sapere[/b]
+Demo|UI_ATTACK,Attacco
+Demo|UI_PROVOKE,Provocazione
+Demo|UI_RESOLVE_ATTACK,Risolvi attacco
+Demo|UI_FEAR,Paura
+Demo|UI_PHYSICAL,Danni
+Demo|UI_LORE,Sapere
+Demo|UI_INVENTORY,Inventario
+Demo|D01A,D01A
+Demo|D01B,D01B
+Demo|D02A,D02A
+Demo|D02B,D02B
+Demo|D03A,D03A
+Demo|D03B,D03B
+Demo|D04A,D04A
+Demo|D04B,D04B
+Demo|D05A,D05A
+Demo|D05B,D05B
+Demo|D06A,D06A
+Demo|D06B,D06B
+Demo|D07A,D07A
+Demo|D07B,D07B
+Demo|D08A,D08A
+Demo|D08B,D08B
+Demo|D09A,D09A
+Demo|D09B,D09B
+Demo|D10A,D10A
+Demo|D10B,D10B
+Demo|TILE_D01A,Una vecchia strada scende al guado; il vento fruscia nell'erba.
+Demo|TILE_D01B,Una vecchia strada scende al guado; il vento fruscia nell'erba.
+Demo|TILE_D02A,Qui il fiume è basso e mormora sulle pietre.
+Demo|TILE_D02B,Qui il fiume è basso e mormora sulle pietre.
+Demo|TILE_D03A,Il limitare del bosco: radure chiare e tronchi scuri.
+Demo|TILE_D03B,Il limitare del bosco: radure chiare e tronchi scuri.
+Demo|TILE_D04A,Muri spezzati coperti di muschio.
+Demo|TILE_D04B,Muri spezzati coperti di muschio.
+Demo|TILE_D05A,Colline che dominano tutta la valle.
+Demo|TILE_D05B,Colline che dominano tutta la valle.
+Demo|TILE_D06A,Una conca umida; il terreno fa ciac.
+Demo|TILE_D06B,Una conca umida; il terreno fa ciac.
+Demo|TILE_D07A,Un sentiero stretto serpeggia tra i cespugli.
+Demo|TILE_D07B,Un sentiero stretto serpeggia tra i cespugli.
+Demo|TILE_D08A,Un fitto bosco di abeti smorza ogni suono.
+Demo|TILE_D08B,Un fitto bosco di abeti smorza ogni suono.
+Demo|TILE_D09A,Le rovine di un'antica torre di guardia.
+Demo|TILE_D09B,Le rovine di un'antica torre di guardia.
+Demo|TILE_D10A,Un prato dove pascolano capre selvatiche.
+Demo|TILE_D10B,Un prato dove pascolano capre selvatiche.
+Demo|HERO_AIRA_NAME,Aira
+Demo|HERO_BORIN_NAME,Borin
+Demo|HERO_MAEVE_NAME,Maeve
+Demo|HERO_TOLLAN_NAME,Tollan
+Demo|RACE_DEMO_HUMAN,Umano
+Demo|RACE_DEMO_DWARF,Nano
+Demo|RACE_DEMO_HALFLING,Mezzuomo
+Demo|ITEM_DEMO_BOW,Arco
+Demo|ITEM_DEMO_HAMMER,Martello
+Demo|ITEM_DEMO_STAFF,Bastone
+Demo|ITEM_DEMO_DAGGER,Pugnale
+Demo|ITEM_DEMO_LEATHER,Armatura di cuoio
+Demo|ITEM_DEMO_MAIL,Cotta di maglia
+Demo|ITEM_DEMO_CLOAK,Mantello da viaggio
+Demo|ITEM_DEMO_LONGBOW,Arco lungo
+Demo|ITEM_DEMO_WARHAMMER,Martello da guerra
+Demo|ITEM_DEMO_RUNESTAFF,Bastone runico
+Demo|ITEM_DEMO_FANG,Zanna di lupo
+Demo|ITEM_DEMO_LANTERN,Lanterna
+Demo|ITEM_DEMO_FERRY_TOKEN,Gettone del traghettatore
+Demo|SKILL_DEMO_0,Occhio acuto
+Demo|SKILL_DEMO_1,Passo silenzioso
+Demo|SKILL_DEMO_2,Conoscere i sentieri
+Demo|SKILL_DEMO_3,Colpo pesante
+Demo|SKILL_DEMO_4,Tenacia di pietra
+Demo|SKILL_DEMO_5,Canti antichi
+Demo|SKILL_DEMO_6,Erbe curative
+Demo|SKILL_DEMO_7,Parola calma
+Demo|SKILL_DEMO_8,Sguardo limpido
+Demo|SKILL_DEMO_9,Dita agili
+Demo|SKILL_DEMO_10,Fortuna
+Demo|SKILL_DEMO_11,Inosservato
+Demo|SKILL_DEMO_12,Ricognizione
+Demo|SKILL_DEMO_13,Piedi veloci
+Demo|SKILL_DEMO_14,Imboscata
+Demo|SKILL_DEMO_15,Segugio
+Demo|SKILL_DEMO_16,Ombra tra le foglie
+Demo|SKILL_DEMO_17,Tiro lungo
+Demo|SKILL_DEMO_18,Scudo all'amico
+Demo|SKILL_DEMO_19,Muro
+Demo|SKILL_DEMO_20,Sfida
+Demo|SKILL_DEMO_21,Inflessibile
+Demo|SKILL_DEMO_22,Contrattacco
+Demo|SKILL_DEMO_23,Grido di battaglia
+Demo|SKILL_DEMO_24,Luce di speranza
+Demo|SKILL_DEMO_25,Memoria degli avi
+Demo|SKILL_DEMO_26,Ultima linea
+Demo|SKILL_DEMO_27,Richiamo di casa
+Demo|ROLE_DEMO_SCOUT,Esploratore
+Demo|ROLE_DEMO_GUARDIAN,Guardiano
+Demo|TITLE_DEMO_FORD_WARDEN,Custode del guado
+Demo|TITLE_DEMO_SHADOWBANE,Flagello delle ombre
+Demo|ENEMY_DEMO_BANDIT,Bandito
+Demo|ENEMY_DEMO_BANDIT_PLURAL,Banditi
+Demo|ENEMY_DEMO_WOLF,Lupo grigio
+Demo|ENEMY_DEMO_WOLF_PLURAL,Lupi grigi
+Demo|ENEMY_DEMO_SHADE,Ombra
+Demo|ENEMY_DEMO_SHADE_PLURAL,Ombre
+Demo|ENEMY_DEMO_BANDIT_ACTIVATION_9001,Attacca l'eroe più vicino.
+Demo|ENEMY_DEMO_BANDIT_ATTACK_9001,[i]Il colpo si abbatte su di voi![/i]
+Demo|ENEMY_DEMO_BANDIT_ACTIVATION_9002,Si muove di 2 e attacca l'eroe con meno danni.
+Demo|ENEMY_DEMO_BANDIT_ATTACK_9002,[i]Il colpo si abbatte su di voi![/i]
+Demo|ENEMY_DEMO_WOLF_ACTIVATION_9003,Si muove di 3 e attacca.
+Demo|ENEMY_DEMO_WOLF_ATTACK_9003,[i]Il colpo si abbatte su di voi![/i]
+Demo|ENEMY_DEMO_WOLF_ACTIVATION_9004,Il branco accerchia: attacca un eroe senza compagni vicini.
+Demo|ENEMY_DEMO_WOLF_ATTACK_9004,[i]Il colpo si abbatte su di voi![/i]
+Demo|ENEMY_DEMO_SHADE_ACTIVATION_9005,Un gelo afferra: attacca ogni eroe entro 1 spazio.
+Demo|ENEMY_DEMO_SHADE_ATTACK_9005,[i]Il colpo si abbatte su di voi![/i]
+Demo|ENEMY_DEMO_SHADE_ACTIVATION_9006,Si muove di 1 e attacca l'eroe con più paura.
+Demo|ENEMY_DEMO_SHADE_ATTACK_9006,[i]Il colpo si abbatte su di voi![/i]
+Demo|LAST_STAND_DEMO_D_1,Le ferite sono gravi. Prova di [b]Forza[/b] (2) per resistere.
+Demo|LAST_STAND_DEMO_D_2,Cadete in ginocchio. Prova di [b]Agilità[/b] (2).
+Demo|LAST_STAND_DEMO_F_1,Il buio sussurra. Prova di [b]Spirito[/b] (2).
+Demo|LAST_STAND_DEMO_F_2,La paura stringe il cuore. Prova di [b]Saggezza[/b] (2).
+Demo|CAM_DEMO_TITLE,Ombre su Guadogrigio
+Demo|CAM_DEMO_DESC,Una piccola campagna di JiME Reborn: due avventure al vecchio guado.
+Demo|CAM_DEMO_CONTENTS,Set dimostrativo
+Demo|PROD_DEMO_TITLE,Set dimostrativo
+Demo|PROD_DEMO_DESC,Un set aperto per provare l'app senza il gioco originale.
+Demo|PROD_DEMO_CONTENTS,"20 tessere, 4 eroi, 3 nemici"
+Demo|CAM_DEMO_PROLOGUE,"[i]Guadogrigio è sempre stato un luogo tranquillo: un traghetto, una locanda e la vecchia strada verso nord. Ma quest'autunno il traghetto è fermo e i viandanti scompaiono uno dopo l'altro. Dicono di aver visto uomini armati lungo il fiume, e qualcos'altro, qualcosa che non proietta ombra.[/i]"
+Demo|CAM_DEMO_VICTORY,[i]L'ombra è svanita e il traghetto torna a cigolare sul guado. La gente ricorderà a lungo i nomi di chi le ha restituito la strada.[/i]
+Demo|CAM_DEMO_DEFEAT,[i]La nebbia sul fiume si fa più fitta e nessuno percorre più la strada del nord. Forse un giorno verranno altri.[/i]
+Demo|D1_TITLE,Il Guado Grigio
+Demo|D1_LOCATION,La riva del fiume
+Demo|D1_DESC,I banditi tengono il guado. Trovate il loro accampamento.
+Demo|D1_INTRO,[i]Il traghettatore è scomparso tre giorni fa. L'oste vi chiede di scoprire chi comanda ora al guado.[/i]
+Demo|D1_HEROES,Piazzate gli eroi nello spazio indicato.
+Demo|D1_START_TILE,[i]La strada presso il guado è vuota. Impronte fresche di stivali segnano la sabbia.[/i]
+Demo|D1_OBJECTIVE_1,Trovate 3 indizi per scovare i banditi.
+Demo|D1_OBJECTIVE_2,Assaltate l'accampamento dei banditi.
+Demo|D1_CLUE_MORE,Un altro indizio. Il quadro si compone a poco a poco.
+Demo|D1_CAMP_FOUND,"[i]Ogni traccia porta alle colline a est. Là, tra i cespugli, covano dei fuochi.[/i]"
+Demo|D1_WIN,"[i]L'accampamento è vuoto, i banditi sono fuggiti. Tra il bottino c'è una mappa che segna la vecchia torre e uno strano segno nero.[/i]"
+Demo|D1_LOSS,"[i]Ripiegate verso la locanda. Ma a uno dei banditi avete tolto una mappa, con un segno presso la vecchia torre.[/i]"
+Demo|D1_THREAT_1,[i]Uomini con randelli escono dai cespugli.[/i]
+Demo|D1_THREAT_2,"[i]In lontananza ululano i lupi, e l'ululato si avvicina.[/i]"
+Demo|D1_THREAT_1_INFO,I banditi vi hanno notato.
+Demo|D1_THREAT_2_INFO,I lupi seguono le vostre tracce.
+Demo|D1_TRACKS_SEARCH,Vicino all'acqua l'erba è calpestata da molti piedi.
+Demo|D1_TRACKS_TEST,Prova di [b]Saggezza[/b] (1) per leggere le tracce.
+Demo|D1_TRACKS_PASS,"Le tracce portano a est, verso le colline. Un primo indizio."
+Demo|D1_TRACKS_FAIL,Le tracce si confondono. Riprovate più tardi.
+Demo|D1_FERRYMAN_INTRO,Un vecchio siede su una barca rovesciata e guarda il fiume.
+Demo|D1_FERRYMAN_CHOICE,È l'aiutante del traghettatore. Sa chiaramente qualcosa.
+Demo|D1_FERRYMAN_ASK,Interrogarlo
+Demo|D1_FERRYMAN_PAY,Pagarlo (-1 sapere)
+Demo|D1_FERRYMAN_ASK_TEST,Prova di [b]Spirito[/b] (2) per ottenere la sua fiducia.
+Demo|D1_FERRYMAN_ASK_FAIL,Il vecchio si volta. Forse più tardi.
+Demo|D1_FERRYMAN_PAY_RESULT,La moneta sparisce nel suo palmo. Perdete 1 sapere.
+Demo|D1_FERRYMAN_CLUE,"""Hanno portato il traghettatore sulle colline. Il loro capo porta un segno nero."" Un indizio."
+Demo|D1_CART_SEARCH,Un carro rovesciato giace a lato della strada.
+Demo|D1_CART_TEST,Prova di [b]Agilità[/b] (1) per frugare tra i resti.
+Demo|D1_CART_PASS,"Sotto le assi: una lanterna e un pezzo di lettera sul ""campo oltre le colline"". Un indizio!"
+Demo|D1_CART_FAIL,Le assi sono troppo pesanti. Tornate più tardi.
+Demo|D1_CAMP_INTRO,"L'accampamento dei banditi: tende, fuochi, sentinelle."
+Demo|D1_CAMP_CONFIRM,Assaltare l'accampamento?
+Demo|D1_CAMP_TEST,Prova di [b]Forza[/b] (2) per irrompere nell'accampamento.
+Demo|D1_CAMP_PASS,[i]Le sentinelle fuggono e il campo è vostro![/i]
+Demo|D1_CAMP_FAIL,[i]Allarme! I banditi escono dalle tende.[/i]
+Demo|D2_TITLE,La tana dell'Ombra
+Demo|D2_LOCATION,La vecchia torre
+Demo|D2_DESC,Il segno nero conduce alla torre in rovina.
+Demo|D2_INTRO,[i]La torre sta sulla collina da secoli. La gente del posto la evita: dicono che di notte vi arda un fuoco freddo.[/i]
+Demo|D2_HEROES,Piazzate gli eroi nello spazio indicato.
+Demo|D2_START_TILE,"[i]Ai piedi della torre fa freddo, anche se il sole è ancora alto.[/i]"
+Demo|D2_OBJECTIVE_1,Trovate i presagi che indicano la via per la tana.
+Demo|D2_OBJECTIVE_2,Trovate l'altare e distruggetelo.
+Demo|D2_OMEN_FIRST,[i]Il presagio indica un sentiero oltre le rovine.[/i]
+Demo|D2_OMEN_SECOND,"[i]Ora sapete dov'è l'altare: nella vecchia sala, sotto il tetto crollato.[/i]"
+Demo|D2_WIN,[i]L'altare si spacca e l'Ombra si dissolve come fumo nel vento.[/i]
+Demo|D2_LOSS,[i]Il fuoco freddo divampa. Fuggite dalla collina e l'Ombra resta nella torre.[/i]
+Demo|D2_THREAT_1,[i]Ombre si muovono tra le pietre.[/i]
+Demo|D2_THREAT_2,[i]L'aria vibra di freddo. Qualcosa è venuto per voi.[/i]
+Demo|D2_THREAT_1_INFO,Le ombre si risvegliano.
+Demo|D2_THREAT_2_INFO,L'Ombra sa che siete qui.
+Demo|D2_OMEN1_SEARCH,Una pietra incisa con un corvo.
+Demo|D2_OMEN1_TEST,Prova di [b]Saggezza[/b] (1) per leggere il segno.
+Demo|D2_OMEN1_PASS,Il corvo guarda a nord. Il primo presagio.
+Demo|D2_OMEN1_FAIL,L'incisione è consumata. Tornate più tardi.
+Demo|D2_OMEN2_SEARCH,Una sorgente la cui acqua è coperta di brina.
+Demo|D2_OMEN2_TEST,Prova di [b]Spirito[/b] (1) per toccare l'acqua.
+Demo|D2_OMEN2_PASS,Nel riflesso: una sala dal tetto crollato. Il secondo presagio!
+Demo|D2_OMEN2_FAIL,Il freddo vi brucia le dita. Tornate più tardi.
+Demo|D2_ALTAR_INTRO,Un altare nero su cui trema una fiamma fredda.
+Demo|D2_ALTAR_CONFIRM,Distruggere l'altare?
+Demo|D2_ALTAR_TEST,Prova di [b]Forza[/b] (3) per spaccare la pietra.
+Demo|D2_ALTAR_PASS,[i]La pietra si incrina![/i]
+Demo|D2_ALTAR_FAIL,[i]La fiamma si alza e dalle tenebre escono delle ombre.[/i]
+Demo|R_WELL_SEARCH,Un pozzo abbandonato.
+Demo|R_WELL_TEST,Prova di [b]Agilità[/b] (1).
+Demo|R_WELL_PASS,Sul fondo brilla una vecchia moneta.
+Demo|R_WELL_FAIL,Non trovate nulla. Potete riprovare.
+Demo|R_TREE_SEARCH,Un albero cavo.
+Demo|R_TREE_TEST,Prova di [b]Agilità[/b] (1).
+Demo|R_TREE_PASS,Nella cavità: un fagotto di erbe secche.
+Demo|R_TREE_FAIL,Non trovate nulla. Potete riprovare.
+Demo|R_CAMPFIRE_SEARCH,Un bivacco abbandonato.
+Demo|R_CAMPFIRE_TEST,Prova di [b]Agilità[/b] (1).
+Demo|R_CAMPFIRE_PASS,Nella cenere: un frammento di mappa della zona.
+Demo|R_CAMPFIRE_FAIL,Non trovate nulla. Potete riprovare.
+Demo|R_WAYSTONE_SEARCH,Una pietra miliare con un'iscrizione.
+Demo|R_WAYSTONE_TEST,Prova di [b]Agilità[/b] (1).
+Demo|R_WAYSTONE_PASS,L'iscrizione narra di un antico regno.
+Demo|R_WAYSTONE_FAIL,Non trovate nulla. Potete riprovare.
+Demo|R_BRAMBLE_SEARCH,Un fitto roveto.
+Demo|R_BRAMBLE_TEST,Prova di [b]Agilità[/b] (1).
+Demo|R_BRAMBLE_PASS,Tra le spine: una borraccia caduta a qualcuno.
+Demo|R_BRAMBLE_FAIL,Non trovate nulla. Potete riprovare.
+Demo|G_PEDDLER_SEARCH,Lo zaino abbandonato di un venditore ambulante.
+Demo|G_PEDDLER_TEST,Prova di [b]Agilità[/b] (1).
+Demo|G_PEDDLER_PASS,"Dentro: filo, aghi e un biglietto con le voci del posto."
+Demo|G_PEDDLER_FAIL,Non trovate nulla. Potete riprovare.
+Demo|G_HUT_SEARCH,Una capanna di pastore vuota.
+Demo|G_HUT_TEST,Prova di [b]Agilità[/b] (1).
+Demo|G_HUT_PASS,Sul muro è disegnata col carbone una strada verso il guado.
+Demo|G_HUT_FAIL,Non trovate nulla. Potete riprovare.
+Demo|G_SHRINE_SEARCH,Un tempietto di strada crollato.
+Demo|G_SHRINE_TEST,Prova di [b]Agilità[/b] (1).
+Demo|G_SHRINE_PASS,Sotto le pietre: offerte di viandanti di un tempo.
+Demo|G_SHRINE_FAIL,Non trovate nulla. Potete riprovare.

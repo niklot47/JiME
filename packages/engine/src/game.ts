@@ -3,6 +3,7 @@
 // cli/parity.ts diffs both engines on the same seeds. Change semantics only together with engine-py
 // or after engine-py is retired.
 import { PyRandom } from "./pyrandom.ts";
+import { adventureProducts } from "./products.ts";
 import { keysOf, valuesOf } from "./ojson.ts";
 import { Counter, gd, isDict, or, pyStr, toInt, truthy } from "./py.ts";
 import { ACTIONS } from "./actions.ts";
@@ -534,9 +535,11 @@ export interface GameOptions {
 }
 
 /** MapBuilder options for a game setup (shared by Game and generateBoard) */
-export function mapGenOptions(D: any, opts: GameOptions, campaign: Campaign): MapGenOptions {
+export function mapGenOptions(D: any, opts: GameOptions, campaign: Campaign, advId: number | null = null): MapGenOptions {
   const c = campaign;
-  const products = opts.products ?? (D.productOrder ?? keysOf(D.models.ProductModel).map(Number));
+  // the adventure's campaign may play with its own products only (products.ts)
+  const scoped = advId !== null ? adventureProducts(D, advId, opts.products) : opts.products;
+  const products = scoped ?? (D.productOrder ?? keysOf(D.models.ProductModel).map(Number));
   return {
     seed: opts.mapSeed ?? opts.seed ?? 0, players: opts.players ?? 2, products, language: opts.language ?? "English",
     unlockedChain: c.unlocked_chain, usedEncounters: c.used_encounters, usedGroups: c.used_groups ?? [],
@@ -558,7 +561,7 @@ export function generateBoard(src: ContentSource, advId: number, opts: GameOptio
   if ((opts.mapMode ?? (D.tiles ? "ffg" : "legacy")) !== "ffg") return null;
   const adv = src.adventure(advId);
   if (!hasMapBuilder(adv)) return null;
-  return generateMap(D, adv, mapGenOptions(D, opts, opts.campaign ?? newCampaign()));
+  return generateMap(D, adv, mapGenOptions(D, opts, opts.campaign ?? newCampaign(), advId));
 }
 
 /** Encounter ids a board spawns (what a client must preload before starting the game) */
@@ -985,7 +988,7 @@ export class Game {
     const hasBuilder = [...this.advObjs.values()].some((o) => Object.hasOwn(o.components, "MapBuilder"));
     if (!hasBuilder) return;
     const c = this.campaign;
-    const m = this.opts.board ?? generateMap(this.D, this.adv, mapGenOptions(this.D, { ...this.opts, seed: this.seed, players: this.players }, c));
+    const m = this.opts.board ?? generateMap(this.D, this.adv, mapGenOptions(this.D, { ...this.opts, seed: this.seed, players: this.players }, c, Number(this.adv.id)));
     this.board = m;
     const byHash = new Map<number, Tile>();
     for (const s of m.sections) {
