@@ -23,10 +23,20 @@ import { CollectionPage } from "./CollectionPage.tsx";
 import { TitleScene3D } from "../../board/TitleScene3D.tsx";
 import { MapRoom3D } from "../../board/MapRoom3D.tsx";
 import { sceneTransition, useLeave } from "../../ui/curtain.tsx";
+import { PlainTitle } from "../menu/PlainTitle.tsx";
+import { useLook } from "../menu/look.ts";
 
 type Page = "title" | "campaign" | "difficulty" | "heroes" | "items" | "party" | "load" | "options" | "collection";
 
-export function TitleScreen({ onPlay, onTools }: {
+/** The original's title (its layout imported, the "original" look chosen) or this app's own menus */
+export function TitleScreen(props: { onPlay: (s: CampaignSave, intro?: boolean) => void; onTools: () => void }) {
+  const look = useLook();
+  if (look === "loading") return <div className="title-screen" />;
+  if (look !== "original") return <PlainTitle {...props} hasOriginal={look === "plain-chosen"} />;
+  return <OriginalTitle {...props} />;
+}
+
+function OriginalTitle({ onPlay, onTools }: {
   /** play a campaign save (new or loaded) */
   onPlay: (s: CampaignSave, intro?: boolean) => void;
   /** this app's developer screens (packs, map, interface preview ...) */

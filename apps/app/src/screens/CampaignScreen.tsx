@@ -11,13 +11,60 @@ import { MapPage } from "./campaign/MapPage.tsx";
 import { RestPage } from "./campaign/RestPage.tsx";
 import { CutscenePage, endingCutscene } from "./campaign/CutscenePage.tsx";
 import { sceneTransition } from "../ui/curtain.tsx";
+import { useLook } from "./menu/look.ts";
+import { useMenuData } from "./menu/useMenuData.ts";
+import { PlainCutscene, PlainEnding, PlainMap, PlainRest } from "./menu/PlainCampaign.tsx";
 
-export function CampaignScreen({ save: initial, intro = false, onBack }: {
+interface CampaignProps {
   save: CampaignSave;
   /** a new campaign: its prologue first (LevelLoader.CoroutineTitlescreenToRestScene) */
   intro?: boolean;
   onBack: () => void;
-}) {
+}
+
+/** The original's pages or this app's own (screens/menu/PlainCampaign.tsx) */
+export function CampaignScreen(props: CampaignProps) {
+  const look = useLook();
+  if (look === "loading") return <div className="title-screen" />;
+  return look === "original" ? <OriginalCampaign {...props} /> : <PlainCampaignScreen {...props} />;
+}
+
+function PlainCampaignScreen({ save: initial, intro = false, onBack }: CampaignProps) {
+  const [save, setSave] = useState(initial);
+  const [scene, setScene] = useState<"prologue" | "map" | "rest">(intro ? "prologue" : "map");
+  const lang = useLang();
+  const { ui, error } = useMenuData(lang);
+  const keep = (s: CampaignSave) => { putSave(s); setSave(s); };
+  const fade = (f: () => void) => { void sceneTransition(f); };
+  const toTitle = () => fade(onBack);
+  const resting = save.status === "rest";
+  useEffect(() => {
+    if (!resting || scene === "prologue") return;
+    sound.music(scene === "map" ? "NewGameMusic" : "RestsceneMusic");
+    sound.ambient(scene === "rest" ? "ForestAmbient" : null);
+  }, [resting, scene]);
+  if (save.status === "adventure" && save.game) {
+    return <GameScreen key={`${save.slot}:${save.completed.length}:${save.game.seed}`} onBack={toTitle}
+      campaign={{ save, onSave: putSave, onFinish: (s) => fade(() => { keep(s); setScene("map"); }) }} />;
+  }
+  if (error) return <div className="shell"><p className="error">{error}</p><button className="link" onClick={onBack}>← Меню</button></div>;
+  if (!ui) return <div className="pm-screen" />;
+  const C = ui.db.models.CampaignModel?.[String(save.campaign)];
+  const title = ui.raw(C?.TitleKey);
+  if (!resting) {
+    const id = endingCutscene(C, save.status === "victory", save.cutscene);
+    return id !== null ? <PlainCutscene ui={ui} cutscene={id} title={title} onDone={toTitle} /> : <PlainEnding won={save.status === "victory"} onDone={toTitle} />;
+  }
+  const prologue = C?.CutscenePrologue?.id;
+  if (scene === "prologue" && prologue !== undefined) return <PlainCutscene ui={ui} cutscene={Number(prologue)} title={title} onDone={() => fade(() => setScene("map"))} />;
+  return scene === "map"
+    ? <PlainMap ui={ui} save={save} onQuit={toTitle}
+        onConfirm={(adv) => fade(() => { const s = structuredClone(save); chooseAdventure(s, adv); s.savedAt = new Date().toISOString(); keep(s); setScene("rest"); })} />
+    : <PlainRest ui={ui} save={save} onChange={keep} onMap={() => fade(() => setScene("map"))} onQuit={toTitle}
+        onEmbark={(s) => fade(() => { beginAdventure(s); keep(s); })} />;
+}
+
+function OriginalCampaign({ save: initial, intro = false, onBack }: CampaignProps) {
   const [save, setSave] = useState(initial);
   // LevelLoader.CoroutineGameToRestScene / TitlescreenToRestScene: the map first, then the rest
   const [scene, setScene] = useState<"prologue" | "map" | "rest">(intro ? "prologue" : "map");
