@@ -188,7 +188,7 @@ def main():
         img = img.convert("RGBA" if img.mode == "RGBA" else "RGB")
         layers.append({"src": save_webp(img, f"{MENU}/layer{n}.webp", 80), "depth": depth[n], "z": (4 - n) * 10})
     effects_water = {"type": "water", "src": f"{MENU}/layer2.webp", "mask": save_webp(water_mask(Image.open(os.path.join(SRC, "2.png"))), f"{MENU}/water.webp", 90),
-                     "z": 21, "strength": 0.004, "speed": 1.0}
+                     "z": 21, "strength": 0.005, "speed": 1.0}
     others = [f for f in os.listdir(SRC) if f.lower().endswith(".png") and f[:-4] not in ("1", "2", "3", "4")]
     rgba = [f for f in others if Image.open(os.path.join(SRC, f)).mode == "RGBA"]
     effects = [

@@ -156,7 +156,7 @@ function Water({ e }: { e: Effect }) {
     load(e.src, 0, (w, h) => { aspect = w / h; });
     load(e.mask, 1);
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 1) * (LOW_GFX ? 0.5 : 0.75);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * (LOW_GFX ? 0.5 : 1);
       cv.width = Math.round(cv.clientWidth * dpr); cv.height = Math.round(cv.clientHeight * dpr);
       gl.viewport(0, 0, cv.width, cv.height);
     };
