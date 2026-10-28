@@ -125,10 +125,10 @@ def fog_texture(w=1024, h=384, seed=7):
         img = img.filter(ImageFilter.GaussianBlur(cell / 2)).crop((w, 0, 2 * w, h))
         acc += np.asarray(img, np.float32) / 255 * weight
     acc = (acc - acc.min()) / (acc.max() - acc.min())
-    acc = np.clip((acc - 0.35) * 1.8, 0, 1)
+    acc = np.clip((acc - 0.2) * 1.6, 0, 1)
     ys = np.linspace(0, 1, h)[:, None]
     acc *= np.sin(ys * np.pi) ** 1.5
-    alpha = (acc * 200).astype(np.uint8)
+    alpha = (acc * 255).astype(np.uint8)
     rgb = np.full((h, w, 3), (255, 236, 214), np.uint8)
     return Image.fromarray(np.dstack([rgb, alpha]), "RGBA")
 
@@ -192,7 +192,7 @@ def main():
         img = img.convert("RGBA" if img.mode == "RGBA" else "RGB")
         layers.append({"src": save_webp(img, f"{MENU}/layer{n}.webp", 80), "depth": depth[n], "z": (4 - n) * 10})
     effects_water = {"type": "water", "src": f"{MENU}/layer2.webp", "mask": save_webp(water_mask(Image.open(os.path.join(SRC, "2.png"))), f"{MENU}/water.webp", 90),
-                     "z": 21, "strength": 0.0025, "speed": 0.45}
+                     "z": 21, "strength": 0.0025, "speed": 0.585}
     others = [f for f in os.listdir(SRC) if f.lower().endswith(".png") and f[:-4] not in ("1", "2", "3", "4")]
     rgba = [f for f in others if Image.open(os.path.join(SRC, f)).mode == "RGBA"]
     l2 = Image.open(os.path.join(SRC, "2.png"))
@@ -200,15 +200,19 @@ def main():
         effects_water,
         {"type": "steam", "z": 22, "x": 0.595, "y": 0.69, "width": 0.13, "count": 22, "aspect": round(l2.width / l2.height, 4), "opacity": 0.5},
         # the sun low over the far mountains, its rays through the valley
-        {"type": "rays", "texture": save_webp(rays_texture(0.2, 0.2), f"{MENU}/rays.webp", 80), "z": 5, "x": 0.2, "y": 0.2, "opacity": 0.55},
-        {"type": "fog", "texture": save_webp(fog_texture(), f"{MENU}/fog.webp", 85), "z": 15, "y": 0.42, "height": 0.35, "opacity": 0.55, "speed": 90},
-        {"type": "fog", "texture": f"{MENU}/fog.webp", "z": 25, "y": 0.58, "height": 0.4, "opacity": 0.4, "speed": 140, "flip": True},
-        {"type": "rays", "texture": f"{MENU}/rays.webp", "z": 26, "x": 0.2, "y": 0.2, "opacity": 0.22},
+        {"type": "rays", "texture": save_webp(rays_texture(0.2, 0.2), f"{MENU}/rays.webp", 80), "z": 5, "x": 0.2, "y": 0.2, "opacity": 0.85},
+        # fog over the far valley (above the city's roofs), in front of the city lower down, and over the river
+        {"type": "fog", "texture": save_webp(fog_texture(), f"{MENU}/fog.webp", 85), "z": 15, "y": 0.36, "height": 0.3, "opacity": 0.75, "speed": 90},
+        {"type": "fog", "texture": f"{MENU}/fog.webp", "z": 23, "y": 0.6, "height": 0.32, "opacity": 0.55, "speed": 140, "flip": True},
+        {"type": "fog", "texture": f"{MENU}/fog.webp", "z": 24, "y": 0.82, "height": 0.25, "opacity": 0.45, "speed": 110},
+        {"type": "rays", "texture": f"{MENU}/rays.webp", "z": 27, "x": 0.2, "y": 0.2, "opacity": 0.5},
     ]
     if rgba:
         sheet = max(rgba, key=lambda f: os.path.getsize(os.path.join(SRC, f)))
         atlas, frames = leaf_atlas(os.path.join(SRC, sheet))
-        effects.append({"type": "leaves", "z": 35, "atlas": atlas, "frames": frames, "count": 30, "size": [30, 70], "wind": 0.35})
+        # two layers of leaves: smaller, slower ones behind the tree on the rock, big ones in front of it
+        effects.append({"type": "leaves", "z": 28, "atlas": atlas, "frames": frames, "count": 18, "size": [16, 34], "wind": 0.25, "speed": 0.7})
+        effects.append({"type": "leaves", "z": 35, "atlas": atlas, "frames": frames, "count": 12, "size": [40, 76], "wind": 0.35})
     menu = {
         "layers": layers,
         "effects": effects,

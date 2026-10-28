@@ -51,7 +51,7 @@ function Leaves({ e }: { e: Effect }) {
         size: smin + (smax - smin) * near,
         x: Math.random() * (W + 200) - 150,
         y: start ? Math.random() * H : -60 - Math.random() * H * 0.5,
-        vy: 25 + 45 * near + Math.random() * 15,
+        vy: (25 + 45 * near + Math.random() * 15) * (e.speed ?? 1),
         sway: 20 + Math.random() * 40, swayF: 0.4 + Math.random() * 0.7, phase: Math.random() * 6.3,
         rot: Math.random() * 6.3, vr: (Math.random() - 0.5) * 1.6,
         flipF: 0.8 + Math.random() * 1.6, alpha: 0.65 + 0.35 * near,
