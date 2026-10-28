@@ -1,11 +1,14 @@
 // This app's own campaign pages (without the imported game's interface): a cutscene (prologue, ending), the travel map
 // (the next adventure and the alternatives), the rest (roles, skills with the roles' XP, item upgrades, embark).
 // Same engine calls as the original-look pages (screens/campaign/*).
-import { useMemo, useState } from "react";
-import { adventureChoices, availableXP, canTakeRole, canUpgrade, embark, firstRest, ownedRoles, roleSkills, setRole, toggleSkill, upgradeItem, upgradeOptions,
+import { useEffect, useMemo, useState } from "react";
+import { adventureChoices, chapterOf, availableXP, canTakeRole, canUpgrade, embark, firstRest, ownedRoles, roleSkills, setRole, toggleSkill, upgradeItem, upgradeOptions,
   xpRoles, type CampaignSave, type ItemPlace } from "@jime/engine";
 import { useTr } from "../../ui/i18n.ts";
 import { MenuBackground } from "./MenuBackground.tsx";
+import { CampaignMap2D, mapView } from "./CampaignMap2D.tsx";
+import { CampaignMap3D } from "./CampaignMap3D.tsx";
+import { loadCampaignMaps, loadMapScene, type CampaignMapData } from "../../data/pack.ts";
 import type { MenuUi } from "./useMenuData.ts";
 
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
@@ -26,42 +29,76 @@ export function PlainCutscene({ ui, cutscene, title, onDone }: { ui: MenuUi; cut
   );
 }
 
-/** The travel map: the next adventure (and alternatives, if the last one added any); choosing one goes to the rest */
+/** The campaign map's look: "3d" (the theme's room, when it has one) or "2d"; the player's choice (settings) */
+export type MapKind = "2d" | "3d";
+const MAP_KIND_KEY = "jime.map.kind";
+export const mapKind = (): MapKind => { try { return localStorage.getItem(MAP_KIND_KEY) === "2d" ? "2d" : "3d"; } catch { return "3d"; } };
+export const setMapKind = (k: MapKind) => { try { localStorage.setItem(MAP_KIND_KEY, k); } catch { /* private mode */ } };
+
+/**
+ * The travel map like the original's: the campaign's title and chapter on a plate, the map with the trail and the
+ * campfire on the coming adventure; Continue flies to it (its story and picture on the left, the place's name at the
+ * fire, arrows between the alternatives), Confirm goes to the rest
+ */
 export function PlainMap({ ui, save, onConfirm, onQuit }: { ui: MenuUi; save: CampaignSave; onConfirm: (adv: number) => void; onQuit: () => void }) {
   const t = useTr();
   const A = ui.db.models.AdventureModel ?? {};
   const C = ui.db.models.CampaignModel?.[String(save.campaign)];
   const choices = adventureChoices(save);
-  const [pick, setPick] = useState(save.current);
+  const [sel, setSel] = useState(Math.max(0, choices.indexOf(save.current)));
+  const [zoomed, setZoomed] = useState(false);
+  const [px, setPx] = useState<[number, number] | null>(null);
+  const [maps, setMaps] = useState<Record<string, CampaignMapData> | null>(null);
+  const [scene, setScene] = useState<string | null | undefined>(undefined);
+  const [failed3d, setFailed3d] = useState(false);
+  useEffect(() => { void loadCampaignMaps().then(setMaps); void loadMapScene().then(setScene); }, []);
+  const adv = choices[sel] ?? save.current;
+  const a = A[String(adv)] ?? {};
+  const advIds = useMemo(() => (C?.Adventures ?? []).map((r: any) => Number(r?.id)).filter((n: number) => !Number.isNaN(n)), [C]);
+  const view = useMemo(() => mapView(maps?.[String(save.campaign)], advIds, ui.pic, ui.raw), [maps, advIds, ui, save.campaign]);
+  if (!maps || scene === undefined) return <div className="pm-screen" />;
+  const trail = [...save.completed, adv];
+  const many = choices.length > 1;
+  const step = (d: number) => setSel((i) => (i + d + choices.length) % choices.length);
+  const use3d = !!scene && !failed3d && mapKind() === "3d";
+  const panel = 0.36;
+  const story = save.restText ? ui.say(save.restText.key, save.restText.inserts) : ui.say(a.RestStoryKey);
+  const art = ui.pic(ui.art.adventures[String(adv)]?.LocationArt);
+  const chapter = ui.raw(`UI_CHAPTER_${chapterOf(save)}`) || `${t("chapter")} ${save.completed.length + 1}`;
   return (
-    <div className="pm-screen">
-      <MenuBackground dim />
-      <section className="pm-panel wide">
-        <header>
-          <h2>{ui.raw(C?.TitleKey)} · {t("chapter")} {save.completed.length + 1}</h2>
-          <p className="muted">{save.partyName} · {t("lore")} {save.state.lore}</p>
-        </header>
-        <div className="pm-body">
-          <div className="pm-adventures">
-            {choices.map((id) => {
-              const a = A[String(id)];
-              const pic = ui.pic(ui.art.adventures[String(id)]?.LocationArt);
-              return (
-                <button key={id} className={`pm-adv${pick === id ? " on" : ""}`} onClick={() => setPick(id)}>
-                  {pic && <img src={pic} alt="" />}
-                  <b>{ui.raw(a?.NameKey) || a?.m_Name || `#${id}`}</b>
-                  <span className="muted">{ui.raw(a?.LocationKey)}</span>
-                  <span className="pm-desc" dangerouslySetInnerHTML={{ __html: ui.say(a?.RestStoryKey) }} />
-                </button>
-              );
-            })}
-          </div>
+    <div className="pm-screen cm-screen">
+      {use3d
+        ? <CampaignMap3D scene={scene!} view={view} trail={trail} focus={adv} zoomed={zoomed} panel={panel} onFocusPx={setPx} onError={() => setFailed3d(true)} />
+        : <CampaignMap2D view={view} trail={trail} focus={adv} zoomed={zoomed} panel={panel} onFocusPx={setPx} />}
+      {!zoomed && (
+        <div className="cm-title">
+          <h2 className="lo-banner"><span>{ui.raw(a.NameKey) || ui.raw(C?.TitleKey)}</span></h2>
+          <p className="cm-chapter">{chapter}</p>
+          {many && <>
+            <button className="lo-arrow left cm-alt-l" aria-label="<" onClick={() => step(-1)} />
+            <button className="lo-arrow right cm-alt-r" aria-label=">" onClick={() => step(1)} />
+          </>}
         </div>
-        <footer>
-          <button className="pm-btn" onClick={onQuit}>{t("toMenu")}</button>
-          <button className="pm-btn primary" onClick={() => onConfirm(pick)}>{t("choose")} →</button>
-        </footer>
-      </section>
+      )}
+      {zoomed && (
+        <aside className="cm-details" key={adv}>
+          <h3>{ui.raw(a.NameKey) || a.m_Name}</h3>
+          <div className="lo-rule" />
+          <div className="cm-story" dangerouslySetInnerHTML={{ __html: story }} />
+          {art && <img src={art} alt="" />}
+          {many && <div className="cm-alts">
+            <button className="lo-arrow left" aria-label="<" onClick={() => step(-1)} />
+            <span>{sel + 1} / {choices.length}</span>
+            <button className="lo-arrow right" aria-label=">" onClick={() => step(1)} />
+          </div>}
+        </aside>
+      )}
+      {zoomed && px && <span className="cm-place" style={{ left: px[0], top: px[1] + 34 }}>{ui.raw(a.LocationKey)}</span>}
+      <div className="cm-buttons">
+        <button className="pm-btn lo-btn cm-quit" onClick={onQuit}>{t("saveQuit")}</button>
+        {zoomed && <button className="pm-btn lo-btn" onClick={() => setZoomed(false)}>{t("back")}</button>}
+        <button className="lo-corner lo-next cm-go" onClick={() => (zoomed ? onConfirm(adv) : setZoomed(true))}><span>{t(zoomed ? "confirm" : "continue")}</span></button>
+      </div>
     </div>
   );
 }

@@ -184,6 +184,10 @@ t("CAM_DEMO_DEFEAT", "[i]Туман над рекой стал гуще, и до
   "[i]The mist over the river grows thicker, and no one walks the north road any more. Perhaps others will come one day.[/i]",
   "[i]La nebbia sul fiume si fa più fitta e nessuno percorre più la strada del nord. Forse un giorno verranno altri.[/i]")
 
+# the campaign map's labels
+t("MAP_DEMO_GREYFORD", "Серый Брод", "Greyford", "Guadogrigio")
+t("MAP_DEMO_RIVER", "Тихая река", "The Still River", "Il Fiume Quieto")
+t("MAP_DEMO_HILLS", "Ветреные холмы", "The Windy Hills", "Le Colline Ventose")
 # ------------------------------------------------------------------ adventure 1: the Grey Ford
 t("D1_TITLE", "Серый Брод", "The Grey Ford", "Il Guado Grigio")
 t("D1_LOCATION", "Берег реки", "The riverbank", "La riva del fiume")

@@ -5,10 +5,13 @@ import { useMemo, useState } from "react";
 import { itemCounts, itemSubstitutes, newCampaignSave, scopeProducts, type CampaignSave, type ContentSource, type Difficulty } from "@jime/engine";
 import { setLang, useLang } from "../../data/lang.ts";
 import { inTauri, quitApp } from "../../data/host.ts";
-import { installTheme, loadPackSet, themeChoice } from "../../data/pack.ts";
+import { installTheme, loadMapScene, loadPackSet, themeChoice } from "../../data/pack.ts";
 import { MAX_SAVES, deleteSave, listSaves, ownedProducts, putSave } from "../../campaign/store.ts";
 import { sound } from "../../audio/sound.ts";
-import { useTr } from "../../ui/i18n.ts";
+import { useTr, type TrKey } from "../../ui/i18n.ts";
+import { useSound } from "../../audio/SoundPanel.tsx";
+import type { SoundSettings } from "../../audio/sound.ts";
+import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
@@ -55,6 +58,11 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [items, setItems] = useState<(number | null)[][]>([]);
   const [replace, setReplace] = useState<{ hero: number; slot: number } | null>(null);
   const [nameWarn, setNameWarn] = useState(false);
+  const [ask, setAsk] = useState<string | null>(null); // the save slot asked to be deleted
+  const [map, setMap] = useState<MapKind>(mapKind);
+  const [mapScene, setMapScene] = useState<string | null>(null);
+  useEffect(() => { void loadMapScene().then(setMapScene); }, []);
+  const snd = useSound();
   const [langs, setLangs] = useState<string[]>(["ru", "en", "it"]);
   useEffect(() => { loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {}); }, []);
   useEffect(() => { sound.music(page === "main" || page === "load" || page === "settings" ? "TitlescreenMusic" : "NewGameMusic"); }, [page]);
@@ -290,36 +298,75 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
       </div>
     );
   } else if (page === "load") {
+    // like the original: the title plate, the saved campaigns (party, campaign, chapter, the heroes), play / delete;
+    // deleting asks first in the game's own confirm window
     body = (
-      <Step title={t("savedGames")} onBack={() => setPage("main")} t={t}>
-        {!saves.length && <p className="muted">{t("noSaves")}</p>}
-        <ul className="pm-saves">
+      <div className="lo-campaign">
+        <h2 className="lo-banner"><span>{t("loadGame")}</span></h2>
+        <div className="lo-sheet">
+          {!saves.length && <p className="muted">{t("noSaves")}</p>}
           {saves.map((s) => (
-            <li key={s.slot}>
+            <div key={s.slot} className="lo-save">
+              <div className="lo-save-heroes">
+                {s.heroes.map((h, i) => {
+                  const a = ui.art.heroes[String(h.hero)];
+                  const p = a?.icon ?? a?.portrait;
+                  return p ? <img key={i} src={ui.pic(p)} alt="" title={ui.raw(H[String(h.hero)]?.NameKey)} /> : <i key={i}>{ui.raw(H[String(h.hero)]?.NameKey).slice(0, 1)}</i>;
+                })}
+              </div>
               <div>
                 <b>{s.partyName || ui.raw(C[String(s.campaign)]?.TitleKey)}</b>
-                <span>{ui.raw(C[String(s.campaign)]?.TitleKey)} · {t("chapter")} {s.completed.length + 1} · {s.heroes.map((h) => ui.raw(H[String(h.hero)]?.NameKey)).join(", ")}</span>
+                <span>{ui.raw(C[String(s.campaign)]?.TitleKey)} · {t("chapter")} {s.completed.length + 1}</span>
                 <small>{new Date(s.savedAt).toLocaleString(lang)}</small>
               </div>
-              <button className="pm-btn small primary" onClick={() => onPlay(s)}>{t("resume")}</button>
-              <button className="pm-btn small" onClick={() => { if (confirm(t("deleteConfirm"))) { deleteSave(s.slot); setSaves(listSaves()); } }}>{t("delete")}</button>
-            </li>
+              <button className="pm-btn lo-btn" onClick={() => onPlay(s)}>{t("resume")}</button>
+              <button className="pm-btn lo-btn" onClick={() => setAsk(s.slot)}>{t("delete")}</button>
+            </div>
           ))}
-        </ul>
-      </Step>
+        </div>
+        <button className="lo-corner lo-back" onClick={() => setPage("main")}><span>{t("back")}</span></button>
+        {ask && (
+          <div className="lo-modal" onClick={() => setAsk(null)}>
+            <div className="lo-confirm" onClick={(e) => e.stopPropagation()}>
+              <p>{t("deleteConfirm")}</p>
+              <div>
+                <button className="pm-btn lo-btn" onClick={() => setAsk(null)}>{t("cancel")}</button>
+                <button className="pm-btn lo-btn" onClick={() => { deleteSave(ask); setAsk(null); setSaves(listSaves()); }}>{t("delete")}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     );
   } else {
+    const vols: [keyof SoundSettings, TrKey][] = [["master", "volMaster"], ["music", "volMusic"], ["ambient", "volAmbient"], ["sfx", "volSfx"]];
     body = (
-      <Step title={t("settings")} onBack={() => setPage("main")} t={t}>
-        <h3>{t("language")}</h3>
-        <div className="pm-seg">{langs.map((l) => <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>{LANG_NAME[l] ?? l}</button>)}</div>
-        <h3>{t("look")}</h3>
-        <div className="pm-seg">
-          <button className="on">{t("lookOwn")}</button>
-          <button disabled={!hasOriginal} onClick={() => { void installTheme("original"); location.reload(); }}>{t("lookOriginal")}</button>
+      <div className="lo-campaign">
+        <h2 className="lo-banner"><span>{t("settings")}</span></h2>
+        <div className="lo-sheet">
+          <h3>{t("language")}</h3>
+          <div className="pm-seg">{langs.map((l) => <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>{LANG_NAME[l] ?? l}</button>)}</div>
+          <h3>{t("look")}</h3>
+          <div className="pm-seg">
+            <button className="on">{t("lookOwn")}</button>
+            <button disabled={!hasOriginal} onClick={() => { void installTheme("original"); location.reload(); }}>{t("lookOriginal")}</button>
+          </div>
+          {!hasOriginal && <p className="muted">{t("lookOriginalMissing")}</p>}
+          <h3>{t("mapKind")}</h3>
+          <div className="pm-seg">
+            <button className={!mapScene || map === "2d" ? "on" : ""} onClick={() => { setMapKind("2d"); setMap("2d"); }}>{t("map2d")}</button>
+            <button className={mapScene && map === "3d" ? "on" : ""} disabled={!mapScene} onClick={() => { setMapKind("3d"); setMap("3d"); }}>{t("map3d")}</button>
+          </div>
+          {!mapScene && <p className="muted">{t("map3dMissing")}</p>}
+          <h3>{t("sound")}</h3>
+          {vols.map(([k, label]) => (
+            <label key={k} className="lo-row"><span>{t(label)}</span>
+              <input type="range" min={0} max={1} step={0.05} value={snd[k] as number} onChange={(e) => sound.set({ [k]: Number(e.target.value) })} />
+            </label>
+          ))}
         </div>
-        {!hasOriginal && <p className="muted">{t("lookOriginalMissing")}</p>}
-      </Step>
+        <button className="lo-corner lo-back" onClick={() => setPage("main")}><span>{t("back")}</span></button>
+      </div>
     );
   }
   return (

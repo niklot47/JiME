@@ -179,6 +179,9 @@ Demo|PROD_DEMO_CONTENTS,"20 tessere, 4 eroi, 3 nemici"
 Demo|CAM_DEMO_PROLOGUE,"[i]Guadogrigio è sempre stato un luogo tranquillo: un traghetto, una locanda e la vecchia strada verso nord. Ma quest'autunno il traghetto è fermo e i viandanti scompaiono uno dopo l'altro. Dicono di aver visto uomini armati lungo il fiume, e qualcos'altro, qualcosa che non proietta ombra.[/i]"
 Demo|CAM_DEMO_VICTORY,[i]L'ombra è svanita e il traghetto torna a cigolare sul guado. La gente ricorderà a lungo i nomi di chi le ha restituito la strada.[/i]
 Demo|CAM_DEMO_DEFEAT,[i]La nebbia sul fiume si fa più fitta e nessuno percorre più la strada del nord. Forse un giorno verranno altri.[/i]
+Demo|MAP_DEMO_GREYFORD,Guadogrigio
+Demo|MAP_DEMO_RIVER,Il Fiume Quieto
+Demo|MAP_DEMO_HILLS,Le Colline Ventose
 Demo|D1_TITLE,Il Guado Grigio
 Demo|D1_LOCATION,La riva del fiume
 Demo|D1_DESC,I banditi tengono il guado. Trovate il loro accampamento.

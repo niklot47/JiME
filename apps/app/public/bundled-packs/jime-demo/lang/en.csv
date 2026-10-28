@@ -179,6 +179,9 @@ Demo|PROD_DEMO_CONTENTS,"20 tiles, 4 heroes, 3 enemies"
 Demo|CAM_DEMO_PROLOGUE,"[i]Greyford was always a quiet place: a ferry, an inn and the old road north. But this autumn the ferry stands idle and travellers vanish one by one. Armed men were seen by the river, they say - and something else, something that casts no shadow.[/i]"
 Demo|CAM_DEMO_VICTORY,"[i]The shade is gone, and the ferry creaks over the ford again. People will long remember the names of those who gave them back the road.[/i]"
 Demo|CAM_DEMO_DEFEAT,"[i]The mist over the river grows thicker, and no one walks the north road any more. Perhaps others will come one day.[/i]"
+Demo|MAP_DEMO_GREYFORD,Greyford
+Demo|MAP_DEMO_RIVER,The Still River
+Demo|MAP_DEMO_HILLS,The Windy Hills
 Demo|D1_TITLE,The Grey Ford
 Demo|D1_LOCATION,The riverbank
 Demo|D1_DESC,Bandits hold the ford. Find their camp.

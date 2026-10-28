@@ -258,6 +258,13 @@ def main():
     os.makedirs(OUT)
     menu = background()
     write_json(f"{MENU}/menu.json", menu)
+    # the campaign map's 3D room (a glTF from Blender; naming convention in screens/menu/CampaignMap3D.tsx):
+    # theme.json "campaignMap": {"scene": "map/room.glb"}; without it the map is the campaign's picture
+    scene = THEME.get("campaignMap", {}).get("scene")
+    if scene:
+        rel = f"{MENU}/mapscene{os.path.splitext(scene)[1].lower()}"
+        shutil.copy2(src(scene), os.path.join(OUT, rel))
+        write_json(f"{MENU}/campaign-map.json", {"scene": rel})
     # the interface skins: the theme's sheets (templates written there when missing, or extended with new regions),
     # its own element pictures (ui/parts), the markup to guides/
     ui, guides = src("ui"), src("guides")

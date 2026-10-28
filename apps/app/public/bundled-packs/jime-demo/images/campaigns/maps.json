@@ -1,0 +1,37 @@
+{
+ "9001": {
+  "image": "images/campaigns/9001_map.jpg",
+  "zoom": 2.4,
+  "labels": [
+   {
+    "key": "MAP_DEMO_GREYFORD",
+    "x": 0.5,
+    "y": 0.62,
+    "size": 42
+   },
+   {
+    "key": "MAP_DEMO_RIVER",
+    "x": 0.25,
+    "y": 0.27,
+    "size": 30,
+    "angle": 52
+   },
+   {
+    "key": "MAP_DEMO_HILLS",
+    "x": 0.76,
+    "y": 0.06,
+    "size": 34
+   }
+  ],
+  "locations": {
+   "9101": [
+    0.43,
+    0.555
+   ],
+   "9102": [
+    0.69,
+    0.32
+   ]
+  }
+ }
+}

@@ -343,6 +343,34 @@ export const loadModelArt = (dir: "campaigns" | "items" | "products" | "adventur
   }
 });
 
+/**
+ * Campaign maps (images/campaigns/maps.json, merged over the packs per campaign, tools/demo-pack/demo_map.py):
+ * the picture, where each adventure is on it (0..1 of the picture), how far the map zooms on one, names drawn on it
+ */
+export interface CampaignMapData {
+  image?: string;
+  locations?: Record<string, [number, number]>;
+  zoom?: number;
+  labels?: { key: string; x: number; y: number; size?: number; angle?: number }[];
+}
+export const loadCampaignMaps = () => once("campaignMaps", async () => {
+  try {
+    return await packJsonMerged<Record<string, CampaignMapData>>("images/campaigns/maps.json");
+  } catch {
+    return {} as Record<string, CampaignMapData>;
+  }
+});
+
+/** The theme's campaign map room: a 3D scene (images/menu/campaign-map.json { scene: glb }); null: the 2D map only */
+export const loadMapScene = () => once("mapScene", async () => {
+  try {
+    const c = JSON.parse(await packText("images/menu/campaign-map.json")) as { scene?: string };
+    return c.scene ?? null;
+  } catch {
+    return null;
+  }
+});
+
 /** Interface art of the "Original" theme (images/ui/ui.json from tools/importer/export_ui.py); {} if absent */
 export const loadUiArt = () => once("ui", async () => {
   try {

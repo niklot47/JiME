@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, os.path.dirname(__file__))
 from demo_texts import TEXTS  # noqa: E402
 from demo_content import ADVENTURES, ENCOUNTERS, GROUPS  # noqa: E402
+from demo_map import LABELS as MAP_LABELS, LOCATIONS as MAP_LOCATIONS, draw_map  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BUNDLED = os.path.join(REPO, "apps", "app", "public", "bundled-packs")
@@ -371,6 +372,13 @@ def build_art(db):
         img = card(1024, 576, TEXTS[a["model"]["NameKey"]]["ru"], TEXTS[a["model"]["LocationKey"]]["ru"], (60, 70, 50), (25, 22, 18))
         advs[str(a["id"])] = {"LocationArt": save_png(img, f"images/adventures/{a['id']}.png")}
     write_json("images/adventures/adventures.json", advs)
+    # the campaign's map (demo_map.py): the picture, where each adventure is, the names on it
+    pic = draw_map(2400, 1500).convert("RGB")
+    rel = "images/campaigns/9001_map.jpg"
+    os.makedirs(os.path.join(OUT, "images", "campaigns"), exist_ok=True)
+    pic.save(os.path.join(OUT, rel), quality=86, optimize=True)
+    write_json("images/campaigns/maps.json", {str(CAMPAIGN): {"image": rel, "zoom": 2.4, "labels": MAP_LABELS,
+                                                              "locations": {str(k): v for k, v in MAP_LOCATIONS.items()}}})
     cuts = {}
     for i in (str(c[0]) for c in CUTSCENES):
         img = card(1280, 720, "", "", (30, 34, 44) if i != "9003" else (44, 24, 24), (12, 12, 14))
