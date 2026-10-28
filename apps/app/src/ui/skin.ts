@@ -14,6 +14,10 @@ interface Region {
   rect?: [number, number, number, number];
   src?: string;
   slice?: [number, number, number, number];
+  /** picture pixels per screen pixel of this region (own pictures; else the skin's scale) */
+  scale?: number;
+  /** "height": the picture always fills the element's height (no vertical middle) */
+  fit?: "height";
 }
 
 interface Skin {
@@ -63,7 +67,11 @@ export function installSkin(): Promise<boolean> {
       const [t, ri, b, l] = r.slice ?? [0, 0, 0, 0];
       root.style.setProperty(`--sk-${v}`, `url("${url}")`);
       root.style.setProperty(`--sk-${v}-slice`, `${t} ${ri} ${b} ${l} fill`);
-      root.style.setProperty(`--sk-${v}-w`, `${t / k}px ${ri / k}px ${b / k}px ${l / k}px`);
+      const s = r.scale ?? k;
+      // fit "height": top and bottom share the whole height (a frame with ornaments along its sides keeps them whole,
+      // only its middle stretches sideways)
+      root.style.setProperty(`--sk-${v}-w`, r.fit === "height"
+        ? `50% ${ri / s}px 50% ${l / s}px` : `${t / s}px ${ri / s}px ${b / s}px ${l / s}px`);
       root.style.setProperty(`--sk-${v}-ar`, ar.toFixed(4));
     }
     for (const [name, c] of Object.entries(skin.colors ?? {})) root.style.setProperty(`--sk-c-${name}`, c);

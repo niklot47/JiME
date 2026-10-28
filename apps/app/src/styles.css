@@ -678,8 +678,9 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 /* ------------------------------------------------------------------ this app's own menus (screens/menu, .pm-*) */
 .pm-screen { position: fixed; inset: 0; overflow: hidden; background: #0d0b09; color: #eadfc6; font-family: "JiME Text", Georgia, "Times New Roman", serif;
   display: flex; align-items: center; justify-content: center; }
-.pm-bg { position: absolute; inset: 0; overflow: hidden; background: #120d0a; }
-.pm-bg.dim::after { content: ""; position: absolute; inset: 0; background: rgba(8, 6, 4, 0.55); transition: background 0.6s; z-index: 2; }
+/* z-index 0: its own stacking context, so the parts' z (up to the front leaves) never rise above the menu pages */
+.pm-bg { position: absolute; inset: 0; overflow: hidden; background: #120d0a; z-index: 0; pointer-events: none; }
+.pm-bg.dim::after { content: ""; position: absolute; inset: 0; background: rgba(8, 6, 4, 0.55); transition: background 0.6s; z-index: 100; pointer-events: none; }
 .pm-part { position: absolute; inset: 0; will-change: transform; pointer-events: none; }
 .pm-img { position: absolute; inset: 0; background-size: cover; background-position: center; }
 /* fog: a band with a strip twice the screen (two texture tiles) sliding by one tile */

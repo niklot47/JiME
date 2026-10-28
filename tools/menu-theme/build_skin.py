@@ -15,7 +15,8 @@ size (SCALE): a 160 x 64 button region is an 80 x 32 point button edge.
 import json
 import os
 
-from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 SCALE = 2
 GAP = 12
@@ -201,7 +202,172 @@ def layout(regions=None, max_w=1024, fit_labels=False):
     return pos, max_w, y + row + GAP + 16
 
 
-def build(out_dir, custom_atlas=None):
+# ---------------------------------------------------------------- parts: own pictures of any size instead of atlas rects
+# regions that keep their height (the picture is scaled to it, only the middle stretches sideways)
+ROW_KINDS = ("button", "seg", "input", "divider", "panel.header", "checkbox", "badge", "logo")
+PART_SCALE = 3  # part pictures are stored at 3x the screen size (sharp on HiDPI, still small files)
+
+
+def _run(d):
+    """The stretchable middle: the run around the centre where d stays at the noise level -> (fixed start, fixed end)"""
+    n = len(d)
+    base = float(np.median(d[int(n * 0.4):max(int(n * 0.4) + 1, int(n * 0.6))]))
+    thr = base * 1.6 + 3
+    lo = hi = n // 2
+    while lo > 0 and d[lo - 1] < thr:
+        lo -= 1
+    while hi < n - 1 and d[hi + 1] < thr:
+        hi += 1
+    return lo, n - 1 - hi
+
+
+def detect_slice(img, row_kind):
+    """
+    Guess the 9-slice of a frame picture: the columns (rows) that repeat the middle one can stretch, the rest (corners,
+    ornaments) stays. Row kinds keep their height: top + bottom take all of it but a 2 px middle.
+    Returns [top, right, bottom, left] in the picture's pixels.
+    """
+    a = np.array(img.filter(ImageFilter.GaussianBlur(2))).astype(float)
+    H, W = a.shape[:2]
+
+    def prof(arr):
+        w = arr.shape[1]
+        c = arr[:, w // 2 - max(1, w // 40):w // 2 + max(1, w // 40)].mean(1)
+        return np.abs(arr - c[:, None, :]).mean((0, 2))
+
+    l, r = _run(prof(a))
+    if row_kind:
+        t = max(1, H // 2 - 1)
+        b = H - t - 2
+    else:
+        t, b = _run(prof(a.transpose(1, 0, 2)))
+    # always leave a middle to stretch
+    l, r = min(l, W // 2 - 1), min(r, W - W // 2 - 1)
+    t, b = min(t, H // 2 - 1), min(b, H - H // 2 - 1)
+    return [int(t), int(r), int(b), int(l)]
+
+
+def largest_piece(img):
+    """The biggest opaque piece of the picture, cropped (a sheet with the assembled frame and its loose parts -> the frame)"""
+    a = np.array(img)[..., 3] > 16
+    if not a.any():
+        return img
+
+    def runs(v):
+        # [start, stop) of the stretches where v is True
+        d = np.diff(np.r_[0, v.astype(np.int8), 0])
+        return list(zip(np.flatnonzero(d == 1), np.flatnonzero(d == -1)))
+
+    def split(y0, y1, x0, x1, axis=0, tried=0):
+        # cut along fully transparent rows / columns, recursively (pieces laid out on a sheet), keep the biggest
+        sub = a[y0:y1, x0:x1]
+        rr = runs(sub.any(1)) if axis == 0 else runs(sub.any(0))
+        if len(rr) <= 1:
+            if tried:
+                ys, xs = runs(sub.any(1)), runs(sub.any(0))
+                return (y0 + ys[0][0], y0 + ys[-1][1], x0 + xs[0][0], x0 + xs[-1][1])
+            return split(y0, y1, x0, x1, 1 - axis, 1)
+        best = None
+        for s, e in rr:
+            box = split(y0 + s, y0 + e, x0, x1, 1, 0) if axis == 0 else split(y0, y1, x0 + s, x0 + e, 0, 0)
+            if best is None or (box[1] - box[0]) * (box[3] - box[2]) > (best[1] - best[0]) * (best[3] - best[2]):
+                best = box
+        return best
+
+    y0, y1, x0, x1 = split(0, a.shape[0], 0, a.shape[1])
+    return img.crop((int(x0), int(y0), int(x1), int(y1)))
+
+
+def variant(img, suffix):
+    """A state drawn from the base picture when it has none of its own (button.hover from button ...)"""
+    a = np.array(img).astype(float)
+    rgb, al = a[..., :3], a[..., 3:]
+    if suffix == "hover":
+        rgb = rgb * 1.18 + 6
+    elif suffix == "pressed":
+        rgb = rgb * 0.8
+    elif suffix == "disabled":
+        g = rgb.mean(2, keepdims=True)
+        rgb = (rgb * 0.3 + g * 0.7) * 0.75
+        al = al * 0.6
+    elif suffix in ("primary", "on"):
+        rgb = rgb * np.array([1.2, 1.08, 0.82]) + 8
+    return Image.fromarray(np.dstack([np.clip(rgb, 0, 255), al]).astype(np.uint8))
+
+
+def build_parts(parts_dir, out_d):
+    """
+    <parts_dir>/<region>.png (any size, e.g. button.png, panel.png): used instead of the atlas rect. Its 9-slice comes from
+    <region>.json {"slice": [top, right, bottom, left]} in the picture's pixels; without one it is guessed and the json
+    written there to be corrected, with a check picture in _preview/. States without a picture of their own
+    (button.hover, card.on ...) are made from the base one. Returns {region: skin.json entry}.
+    """
+    if not parts_dir or not os.path.isdir(parts_dir):
+        return {}
+    out = {}
+    os.makedirs(os.path.join(out_d, "parts"), exist_ok=True)
+    loaded = {}
+    for name, w, h, _ in REGIONS:
+        own = os.path.join(parts_dir, f"{name}.png")
+        if not os.path.exists(own):
+            # the longest base with a picture, then the remaining states in order (button.primary.hover from button:
+            # primary, then hover); "panel.header" is its own region, not a state of "panel"
+            bits = name.split(".")
+            for i in range(len(bits) - 1, 0, -1):
+                base = ".".join(bits[:i])
+                if base in loaded and all(s in ("hover", "pressed", "disabled", "primary", "on") for s in bits[i:]):
+                    img, sl, fit = loaded[base]
+                    for s in bits[i:]:
+                        img = variant(img, s)
+                    break
+            else:
+                continue
+            loaded[name] = (img, sl, fit)
+        else:
+            img = largest_piece(Image.open(own).convert("RGBA"))
+            cfg_path = os.path.join(parts_dir, f"{name}.json")
+            cfg = json.load(open(cfg_path, encoding="utf-8")) if os.path.exists(cfg_path) else {}
+            sl = cfg.get("slice")
+            if not sl:
+                row = name.split(".")[0] in ROW_KINDS or name in ROW_KINDS
+                sl = detect_slice(img, row)
+                cfg = {"slice": sl, "note": "slice: top, right, bottom, left in this picture's pixels. fit height: the "
+                       "picture always takes the element's whole height, only its middle stretches sideways. Edit, rebuild"}
+                if row:
+                    cfg["fit"] = "height"
+                with open(cfg_path, "w", encoding="utf-8", newline="\n") as f:
+                    json.dump(cfg, f, indent=1)
+            fit = cfg.get("fit")
+            loaded[name] = (img, sl, fit)
+            _preview(img, sl, os.path.join(parts_dir, "_preview", f"{name}.png"))
+        # stored at PART_SCALE x the region's screen height
+        th = max(4, round(h / SCALE * PART_SCALE))
+        k = th / img.height
+        small = img.resize((max(4, round(img.width * k)), th), Image.LANCZOS)
+        rel = f"images/ui-skin/parts/{name}.png"
+        small.save(os.path.join(out_d, "parts", f"{name}.png"), optimize=True)
+        out[name] = {"src": rel, "slice": [max(1, round(v * k)) if v else 0 for v in sl], "scale": PART_SCALE}
+        if fit:
+            out[name]["fit"] = fit
+    return out
+
+
+def _preview(img, sl, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    t, r, b, l = sl
+    W, H = img.size
+    bg = Image.new("RGBA", img.size, (70, 70, 70, 255))
+    bg.alpha_composite(img)
+    d = ImageDraw.Draw(bg)
+    lw = max(1, W // 400)
+    for x in (l, W - r):
+        d.line([(x, 0), (x, H)], fill=(255, 0, 200, 255), width=lw)
+    for y in (t, H - b):
+        d.line([(0, y), (W, y)], fill=(255, 0, 200, 255), width=lw)
+    bg.convert("RGB").save(path)
+
+
+def build(out_dir, custom_atlas=None, parts_dir=None):
     d = os.path.join(out_dir, "images", "ui-skin")
     os.makedirs(d, exist_ok=True)
     pos, W, H = layout()
@@ -217,7 +383,7 @@ def build(out_dir, custom_atlas=None):
     guide((W, H), [(name, pos[name], w, h, sl, ()) for name, w, h, sl in REGIONS]).save(os.path.join(d, "guide.png"), optimize=True)
     skin = {
         "atlas": "images/ui-skin/atlas.png", "scale": SCALE,
-        "regions": {name: {"rect": [*pos[name], w, h], "slice": sl} for name, w, h, sl in REGIONS},
+        "regions": {name: {"rect": [*pos[name], w, h], "slice": sl} for name, w, h, sl in REGIONS} | build_parts(parts_dir, d),
         "colors": {"text": "#eadfc6", "muted": "#b9a582", "accent": "#e2b766", "title": "#f0dcae"},
     }
     with open(os.path.join(d, "skin.json"), "w", encoding="utf-8", newline="\n") as f:

@@ -3,88 +3,70 @@
  "scale": 2,
  "regions": {
   "button": {
-   "rect": [
-    12,
-    12,
-    160,
-    64
-   ],
+   "src": "images/ui-skin/parts/button.png",
    "slice": [
-    16,
-    16,
-    16,
-    16
-   ]
+    48,
+    53,
+    48,
+    50
+   ],
+   "scale": 3,
+   "fit": "height"
   },
   "button.hover": {
-   "rect": [
-    184,
-    12,
-    160,
-    64
-   ],
+   "src": "images/ui-skin/parts/button.hover.png",
    "slice": [
-    16,
-    16,
-    16,
-    16
-   ]
+    48,
+    53,
+    48,
+    50
+   ],
+   "scale": 3,
+   "fit": "height"
   },
   "button.pressed": {
-   "rect": [
-    356,
-    12,
-    160,
-    64
-   ],
+   "src": "images/ui-skin/parts/button.pressed.png",
    "slice": [
-    16,
-    16,
-    16,
-    16
-   ]
+    48,
+    53,
+    48,
+    50
+   ],
+   "scale": 3,
+   "fit": "height"
   },
   "button.disabled": {
-   "rect": [
-    528,
-    12,
-    160,
-    64
-   ],
+   "src": "images/ui-skin/parts/button.disabled.png",
    "slice": [
-    16,
-    16,
-    16,
-    16
-   ]
+    48,
+    53,
+    48,
+    50
+   ],
+   "scale": 3,
+   "fit": "height"
   },
   "button.primary": {
-   "rect": [
-    700,
-    12,
-    160,
-    64
-   ],
+   "src": "images/ui-skin/parts/button.primary.png",
    "slice": [
-    16,
-    16,
-    16,
-    16
-   ]
+    48,
+    53,
+    48,
+    50
+   ],
+   "scale": 3,
+   "fit": "height"
   },
   "button.primary.hover": {
-   "rect": [
-    12,
-    104,
-    160,
-    64
-   ],
+   "src": "images/ui-skin/parts/button.primary.hover.png",
    "slice": [
-    16,
-    16,
-    16,
-    16
-   ]
+    48,
+    53,
+    48,
+    50
+   ],
+   "scale": 3,
+   "fit": "height"
   },
   "panel": {
    "rect": [

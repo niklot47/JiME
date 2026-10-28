@@ -231,7 +231,11 @@ def main():
     for sheet, guide_png, build in (("atlas.png", "guide.png", build_skin), ("game_atlas.png", "game_guide.png", build_game_skin)):
         custom = os.path.join(SRC, "ui-skin", sheet)
         had = os.path.exists(custom)
-        build(OUT, custom if had else None)
+        if build is build_skin:
+            # own pictures of single elements, any size: <src>/ui-skin/parts/button.png ... (see build_skin.build_parts)
+            build(OUT, custom if had else None, os.path.join(SRC, "ui-skin", "parts"))
+        else:
+            build(OUT, custom if had else None)
         for f in ((guide_png,) if had else (sheet, guide_png)):
             shutil.copy2(os.path.join(OUT, "images", "ui-skin", f), os.path.join(SRC, "ui-skin", f))
     manifest = {
