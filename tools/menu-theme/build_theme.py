@@ -272,6 +272,24 @@ def main():
         # the sheet as built (a template, or the theme's own extended by new regions) goes back as the one to paint
         shutil.copy2(os.path.join(OUT, "images", "ui-skin", sheet), custom)
         shutil.copy2(os.path.join(OUT, "images", "ui-skin", guide_png), os.path.join(guides, guide_png))
+    # pictures (not frames) of the theme: ui/art/<name>.png -> skin region "art.<name>" (CSS --sk-art-<name>), e.g.
+    # difficulty-adventure, difficulty-normal, difficulty-hard for the difficulty cards
+    art_src = os.path.join(ui, "art")
+    if os.path.isdir(art_src):
+        skin_path = os.path.join(OUT, "images", "ui-skin", "skin.json")
+        skin = json.load(open(skin_path, encoding="utf-8"))
+        for f in sorted(os.listdir(art_src)):
+            stem, ext = os.path.splitext(f)
+            if ext.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+                continue
+            img = Image.open(os.path.join(art_src, f))
+            img = img.convert("RGBA" if img.mode in ("RGBA", "LA", "P") else "RGB")
+            img.thumbnail((1600, 1600), Image.LANCZOS)
+            skin["regions"][f"art.{stem}"] = {"src": save_webp(img, f"images/ui-skin/art/{stem}.webp", 84)}
+        with open(skin_path, "w", encoding="utf-8", newline="\n") as fh:
+            json.dump(skin, fh, indent=1)
+            fh.write("\n")
+    os.makedirs(art_src, exist_ok=True)
     # (the app needs the menu atlas, the in-game sprites are cut out of their sheet)
     for f in ("guide.png", "game_guide.png", "game_atlas.png"):
         os.remove(os.path.join(OUT, "images", "ui-skin", f))

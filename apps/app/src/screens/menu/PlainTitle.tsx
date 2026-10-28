@@ -129,42 +129,74 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
           <button className="lo-arrow right" aria-label=">" disabled={sh >= pages - 1} onClick={() => setShelf(sh + 1)} />
         </div>
         <button className="lo-corner lo-back" onClick={() => setPage("main")}><span>{t("back")}</span></button>
-        <button className="lo-corner lo-next" disabled={campaign === null} onClick={() => setPage("difficulty")}><span>{t("toDifficulty")}</span></button>
+        <button className="lo-corner lo-next" disabled={campaign === null} onClick={() => { setShelf(0); setPage("difficulty"); }}><span>{t("toDifficulty")}</span></button>
       </div>
     );
   } else if (page === "difficulty") {
-    const opts: [Difficulty, "easy" | "normal" | "hard", "easyDesc" | "normalDesc" | "hardDesc"][] = [["adventure", "easy", "easyDesc"], ["normal", "normal", "normalDesc"], ["hard", "hard", "hardDesc"]];
+    // like the original: the wide picture on top (adventure mode), normal and hard side by side under it, the chosen
+    // one's description at the bottom; the pictures are the theme's (ui/art/difficulty-<mode>.png), else a plain card
+    const card = (d: Difficulty, name: "easy" | "normal" | "hard", cls: string) => (
+      <button className={`lo-diff ${cls}${difficulty === d ? " on" : ""}`} onClick={() => setDifficulty(d)} onDoubleClick={() => setPage("heroes")}>
+        <span className="lo-diff-art" style={{ backgroundImage: `var(--sk-art-difficulty-${d}, none)` }} />
+        <b>{t(name)}</b>
+      </button>
+    );
+    const desc = difficulty === "adventure" ? "easyDesc" : difficulty === "hard" ? "hardDesc" : "normalDesc";
     body = (
-      <Step title={t("difficulty")} onBack={() => setPage("campaign")} onNext={() => setPage("heroes")} canNext t={t}>
-        <div className="pm-choices">
-          {opts.map(([d, name, desc]) => (
-            <button key={d} className={`pm-choice${difficulty === d ? " on" : ""}`} onClick={() => setDifficulty(d)}>
-              <b>{t(name)}</b><span>{t(desc)}</span>
-            </button>
-          ))}
+      <div className="lo-campaign lo-difficulty">
+        <h2 className="lo-banner"><span>{t("toDifficulty")}</span></h2>
+        <div className="lo-diffs">
+          {card("adventure", "easy", "wide")}
+          {card("normal", "normal", "half")}
+          {card("hard", "hard", "half")}
         </div>
-      </Step>
+        <p className="lo-hint"><b>{t(difficulty === "adventure" ? "easy" : difficulty === "hard" ? "hard" : "normal")}.</b> {t(desc)}</p>
+        <button className="lo-corner lo-back" onClick={() => setPage("campaign")}><span>{t("back")}</span></button>
+        <button className="lo-corner lo-next" onClick={() => setPage("heroes")}><span>{t("toHeroes")}</span></button>
+      </div>
     );
   } else if (page === "heroes") {
+    // like the original: a row of HERO_ROW portrait cards with their names (paged by the arrows), the chosen heroes
+    // in the five slots under it (click a slot to take the hero out again)
+    const HERO_ROW = 5;
+    const pages = Math.max(1, Math.ceil(heroList.length / HERO_ROW));
+    const sh = Math.min(shelf, pages - 1);
+    const pic = (id: number) => { const a = ui.art.heroes[String(id)]; return a?.portrait ?? a?.icon; };
+    const toggle = (id: number) => setHeroes((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < 5 ? [...p, id] : p));
     body = (
-      <Step title={t("heroes")} sub={`${t("heroesHint")} ${heroes.length}/5`} onBack={() => setPage("difficulty")} onNext={() => setPage("party")} canNext={heroes.length > 0} t={t}>
-        <div className="pm-heroes">
-          {heroList.map((id) => {
-            const h = H[String(id)];
-            const a = ui.art.heroes[String(id)];
-            const k = heroes.indexOf(id);
+      <div className="lo-campaign lo-heroes">
+        <h2 className="lo-banner"><span>{t("chooseHeroes")}</span></h2>
+        <div className="lo-hero-row">
+          <button className="lo-arrow left" aria-label="<" disabled={sh === 0} onClick={() => setShelf(sh - 1)} />
+          <div className="lo-hero-cards">
+            {heroList.slice(sh * HERO_ROW, sh * HERO_ROW + HERO_ROW).map((id) => {
+              const h = H[String(id)];
+              const p = pic(id);
+              return (
+                <button key={id} className={`lo-hero${heroes.includes(id) ? " on" : ""}`} title={ui.raw(h.RaceKey)} onClick={() => toggle(id)}>
+                  <b className="lo-hero-name"><span>{ui.raw(h.NameKey) || h.m_Name}</span></b>
+                  <span className="lo-hero-pic">{p ? <img src={ui.pic(p)} alt="" /> : <i>{(ui.raw(h.NameKey) || h.m_Name).slice(0, 1)}</i>}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button className="lo-arrow right" aria-label=">" disabled={sh >= pages - 1} onClick={() => setShelf(sh + 1)} />
+        </div>
+        <div className="lo-slots">
+          {Array.from({ length: 5 }, (_, i) => {
+            const id = heroes[i];
+            const p = id !== undefined ? pic(id) : undefined;
             return (
-              <button key={id} className={`pm-hero${k >= 0 ? " on" : ""}`}
-                onClick={() => setHeroes((p) => (k >= 0 ? p.filter((x) => x !== id) : p.length < 5 ? [...p, id] : p))}>
-                {(a?.portrait || a?.icon) && <img src={ui.pic(a.portrait ?? a.icon)} alt="" />}
-                <b>{ui.raw(h.NameKey) || h.m_Name}</b>
-                <span>{ui.raw(h.RaceKey)}</span>
-                {k >= 0 && <i className="pm-badge">{k + 1}</i>}
+              <button key={i} className={`lo-slot${id !== undefined ? " full" : ""}`} disabled={id === undefined}
+                title={id !== undefined ? ui.raw(H[String(id)]?.NameKey) : ""} onClick={() => id !== undefined && toggle(id)}>
+                {id !== undefined && (p ? <img src={ui.pic(p)} alt="" /> : <i>{ui.raw(H[String(id)]?.NameKey).slice(0, 1)}</i>)}
               </button>
             );
           })}
         </div>
-      </Step>
+        <button className="lo-corner lo-back" onClick={() => { setShelf(0); setPage("difficulty"); }}><span>{t("back")}</span></button>
+        <button className="lo-corner lo-next" disabled={!heroes.length} onClick={() => setPage("party")}><span>{t("toParty")}</span></button>
+      </div>
     );
   } else if (page === "party") {
     body = (

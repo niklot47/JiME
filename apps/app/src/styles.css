@@ -830,7 +830,7 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
    Sizes in u = 1/1080 of the height of a 16:9 screen (the original's UI scales with the screen like that); the positions
    are fixed, lists scroll or page instead of pushing the layout around. */
 .pm-screen { --u: calc(min(100vh, 56.25vw) / 1080); }
-.pm-page-main, .pm-page-campaign { display: block; padding: 0; }
+.pm-page-main, .pm-page-campaign, .pm-page-difficulty, .pm-page-heroes { display: block; padding: 0; }
 .lo-title, .lo-campaign { position: absolute; inset: 0; }
 .lo-title .lo-logo { position: absolute; left: calc(72 * var(--u)); top: calc(80 * var(--u)); margin: 0; font-size: calc(130 * var(--u)); line-height: 1; }
 .skinned .lo-title .pm-logo.lo-logo { width: min(calc(270 * var(--u) * var(--ar)), calc(980 * var(--u)), calc(100vw - 144 * var(--u))); }
@@ -914,4 +914,63 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
   .lo-corner { width: calc(50vw - 24px); height: calc(96 * var(--u)); font-size: calc(30 * var(--u)); bottom: 16px; }
   .lo-back { left: 16px; }
   .lo-next { right: 16px; }
+}
+
+/* difficulty like the original: the wide card on top, two under it, the description at the bottom */
+.lo-diffs { position: absolute; left: 50%; top: calc(170 * var(--u)); transform: translateX(-50%); width: calc(860 * var(--u)); max-width: calc(100vw - 32px);
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: calc(196 * var(--u)) calc(420 * var(--u)); column-gap: calc(80 * var(--u));
+  row-gap: calc(24 * var(--u)); }
+.lo-diff { position: relative; padding: 0; cursor: pointer; overflow: hidden; font: inherit; color: #f3e2b8; border: 3px solid #5a5048;
+  background: linear-gradient(160deg, #3a3026, #14100c); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6); }
+.lo-diff.wide { grid-column: 1 / 3; }
+.lo-diff.half { width: calc(380 * var(--u)); justify-self: center; }
+.lo-diff:first-of-type + .lo-diff { justify-self: end; }
+.lo-diff:last-child { justify-self: start; }
+.lo-diff-art { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.4s; }
+.lo-diff b { position: absolute; left: 0; right: 0; bottom: 0; padding: calc(10 * var(--u)) 8px; font-family: "JiME Title", Georgia, serif; font-weight: normal;
+  font-size: calc(32 * var(--u)); text-align: center; text-shadow: 0 2px 4px #000; background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); }
+.lo-diff.on { border-color: #e2b766; box-shadow: 0 0 calc(22 * var(--u)) rgba(226, 183, 102, 0.75); }
+@media (hover: hover) { .lo-diff:hover .lo-diff-art { transform: scale(1.04); } .lo-diff:not(.on):hover { border-color: #8a7445; } }
+.lo-hint { position: absolute; left: 50%; bottom: calc(28 * var(--u)); transform: translateX(-50%); width: calc(1020 * var(--u)); max-width: calc(100vw - 2 * 380 * var(--u));
+  margin: 0; text-align: center; font-size: max(12px, calc(22 * var(--u))); line-height: 1.35; color: #f0e6cc; text-shadow: 0 1px 3px #000; }
+.lo-hint b { color: #e8c76a; font-weight: normal; }
+.skinned .lo-diff { border-color: transparent; border-image: var(--sk-frame-thumb) var(--sk-frame-thumb-slice) / var(--sk-frame-thumb-w); }
+.skinned .lo-diff.on { box-shadow: none; border-image-source: var(--sk-frame-thumb-on); }
+
+/* heroes like the original: a row of portrait cards with a name plate, the five chosen ones in slots under it */
+.lo-hero-row { position: absolute; left: 50%; top: calc(170 * var(--u)); transform: translateX(-50%); display: flex; align-items: center; gap: calc(30 * var(--u)); }
+.lo-hero-cards { display: flex; gap: calc(16 * var(--u)); }
+.lo-hero { position: relative; width: calc(250 * var(--u)); height: calc(540 * var(--u)); padding: 0; cursor: pointer; display: flex; flex-direction: column;
+  font: inherit; color: #f3e2b8; background: #120f0c; border: 3px solid #5a5048; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6); transition: transform 0.15s; }
+.lo-hero-name { flex: 0 0 calc(70 * var(--u)); display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: "JiME Title", Georgia, serif;
+  font-weight: normal; font-size: calc(30 * var(--u)); background: linear-gradient(#3a3330, #221d1a); border-bottom: 2px solid #5a5048; overflow: hidden; }
+.lo-hero-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lo-hero-pic { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.lo-hero-pic img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.lo-hero-pic i, .lo-slot i { font-style: normal; font-family: "JiME Title", Georgia, serif; font-size: calc(90 * var(--u)); color: #6b5a3e; }
+.lo-hero.on { border-color: #e2b766; box-shadow: 0 0 calc(22 * var(--u)) rgba(226, 183, 102, 0.75); }
+@media (hover: hover) { .lo-hero:hover { transform: translateY(calc(-6 * var(--u))); } .lo-hero:not(.on):hover { border-color: #8a7445; } }
+.lo-slots { position: absolute; left: 50%; top: calc(770 * var(--u)); transform: translateX(-50%); display: flex; gap: calc(10 * var(--u)); padding: calc(14 * var(--u));
+  background: rgba(20, 16, 12, 0.92); border: 3px solid #5a5048; }
+.lo-slot { width: calc(118 * var(--u)); height: calc(118 * var(--u)); padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  background: #2a211c; border: 2px solid #4a3f36; box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8); cursor: default; }
+.lo-slot.full { cursor: pointer; }
+.lo-slot img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+@media (hover: hover) { .lo-slot.full:hover { filter: brightness(0.75); } }
+.skinned .lo-hero { border-color: transparent; border-image: var(--sk-frame-thumb) var(--sk-frame-thumb-slice) / var(--sk-frame-thumb-w); }
+.skinned .lo-hero.on { box-shadow: none; border-image-source: var(--sk-frame-thumb-on); }
+.skinned .lo-hero-name { border: none; background: none; border-style: solid; border-color: transparent; border-image: var(--sk-plate) var(--sk-plate-slice) / var(--sk-plate-w); }
+.skinned .lo-slots { background: none; border-color: transparent; border-image: var(--sk-frame-art) var(--sk-frame-art-slice) / var(--sk-frame-art-w); }
+.skinned .lo-slot { border-color: transparent; box-shadow: none; background: none; border-image: var(--sk-slot) var(--sk-slot-slice) / var(--sk-slot-w); }
+@media (max-aspect-ratio: 4/5) {
+  .lo-banner { font-size: calc(32 * var(--u)); padding: 0 calc(60 * var(--u)); }
+  .lo-diffs { top: calc(150 * var(--u)); grid-template-rows: calc(240 * var(--u)) calc(520 * var(--u)); column-gap: calc(20 * var(--u)); }
+  .lo-diff.half { width: 100%; }
+  .lo-hint { max-width: none; width: calc(100vw - 32px); bottom: calc(150 * var(--u)); }
+  .lo-hero-row { top: calc(140 * var(--u)); width: calc(100vw - 16px); justify-content: center; gap: 4px; }
+  .lo-hero-cards { flex-wrap: wrap; justify-content: center; gap: calc(12 * var(--u)); max-width: calc(100vw - 80px); }
+  .lo-hero { width: calc(190 * var(--u)); height: calc(360 * var(--u)); }
+  .lo-hero-name { font-size: calc(26 * var(--u)); }
+  .lo-slots { top: auto; bottom: calc(150 * var(--u)); }
+  .lo-slot { width: calc(100 * var(--u)); height: calc(100 * var(--u)); }
 }

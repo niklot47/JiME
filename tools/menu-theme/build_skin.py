@@ -55,9 +55,12 @@ REGIONS = [
     ("button.back.hover", 290, 88, [43, 40, 43, 70]),
     ("button.next", 290, 88, [43, 70, 43, 40]),
     ("button.next.hover", 290, 88, [43, 70, 43, 40]),
+    # heroes: the name plate over a portrait card, a slot of the chosen party
+    ("plate", 250, 70, [20, 30, 20, 30]),
+    ("slot", 120, 120, [14, 14, 14, 14]),
 ]
 # regions that always take the element's whole height (top + bottom slices meet; only the middle stretches sideways)
-FIT_HEIGHT = ("banner", "button.back", "button.back.hover", "button.next", "button.next.hover")
+FIT_HEIGHT = ("banner", "plate", "button.back", "button.back.hover", "button.next", "button.next.hover")
 
 INK = (234, 223, 198, 255)
 GOLD = (201, 163, 90, 255)
@@ -210,6 +213,20 @@ def draw(name, w, h):
             pts = [(2, 2), (w - tip, 2), (w - 1, h / 2), (w - tip, h - 3), (2, h - 3)]
         d.polygon(pts, fill=(150, 52, 30, 255) if hi else (120, 40, 24, 255))
         d.line(pts + [pts[0]], fill=(226, 190, 110, 255) if hi else GOLD, width=4)
+        return img
+    if name == "plate":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, w - 1, h - 1], fill=(44, 38, 34, 250), outline=(90, 80, 70, 255), width=3)
+        d.line([(6, 6), (w - 7, 6)], fill=(255, 235, 200, 50), width=2)
+        for x in (12, w - 13):
+            d.polygon([(x, h / 2 - 7), (x + 7, h / 2), (x, h / 2 + 7), (x - 7, h / 2)], fill=GOLD)
+        return img
+    if name == "slot":
+        img = Image.new("RGBA", (w, h), (42, 33, 28, 255))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, w - 1, h - 1], outline=(74, 63, 54, 255), width=3)
+        d.rectangle([5, 5, w - 6, h - 6], outline=(20, 16, 13, 255), width=4)
         return img
     if name == "logo":
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
