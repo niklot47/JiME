@@ -7,6 +7,7 @@
 //   camera:  { rx, ry, angle, period, zoom }   an ellipse (radii in % of the screen) turned by `angle` degrees,
 //            one round in `period` s; the pointer adds a little parallax. zoom keeps the edges off screen.
 // Without a theme a drawn dusk sky with mist stands in.
+import { SceneBackground } from "./SceneBackground.tsx";
 import { useEffect, useRef, useState } from "react";
 import { assetUrl, packJsonMerged } from "../../data/pack.ts";
 import { LOW_GFX } from "../../data/perf.ts";
@@ -18,7 +19,22 @@ interface Effect {
   atlas?: string; frames?: [number, number, number, number][]; count?: number; size?: [number, number]; wind?: number;
 }
 interface Camera { rx?: number; ry?: number; angle?: number; period?: number; zoom?: number }
-interface Theme { layers?: Layer[]; effects?: Effect[]; camera?: Camera }
+interface Theme { layers?: Layer[]; effects?: Effect[]; camera?: Camera; scene?: string }
+
+/** Which background: the title menus' (images/menu/menu.json) or the camp's (rest-forest.json, rest-cave.json) */
+export type BackgroundKind = "menu" | "rest-forest" | "rest-cave";
+const FILES: Record<BackgroundKind, string[]> = {
+  menu: ["images/menu/menu.json"],
+  "rest-forest": ["images/menu/rest-forest.json"],
+  // a cave camp without its own picture uses the forest's
+  "rest-cave": ["images/menu/rest-cave.json", "images/menu/rest-forest.json"],
+};
+async function loadTheme(kind: BackgroundKind): Promise<Theme | null> {
+  for (const f of FILES[kind]) {
+    try { return await packJsonMerged<Theme>(f); } catch { /* not in the packs */ }
+  }
+  return null;
+}
 
 const reduced = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -267,12 +283,14 @@ function EffectView({ e }: { e: Effect }) {
   return null;
 }
 
-export function MenuBackground({ dim = false }: { dim?: boolean }) {
+export function MenuBackground({ dim = false, which = "menu" }: { dim?: boolean; which?: BackgroundKind }) {
   const [theme, setTheme] = useState<Theme | null>(null);
+  const [sceneFailed, setSceneFailed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    packJsonMerged<Theme>("images/menu/menu.json").then(setTheme).catch(() => setTheme({}));
-  }, []);
+    // no camp in the theme: a plain night camp drawn in CSS (the menus' fallback: their plain hills)
+    void loadTheme(which).then((th) => setTheme(th ?? (which === "menu" ? {} : { camp: true } as Theme)));
+  }, [which]);
   useEffect(() => {
     const el = root.current;
     if (!el || !theme) return;
@@ -309,8 +327,26 @@ export function MenuBackground({ dim = false }: { dim?: boolean }) {
     ...(theme?.effects ?? []).map((e) => ({ z: e.z ?? 100, depth: e.depth ?? null, layer: null as Layer | null, effect: e as Effect | null })),
   ].sort((p, q) => p.z - q.z);
   let depth = 0;
+  const camp = !!(theme as any)?.camp;
+  if (theme?.scene && !sceneFailed) {
+    return (
+      <div ref={root} className={`pm-bg${dim ? " dim" : ""}`}>
+        <SceneBackground src={theme.scene} onError={() => setSceneFailed(true)} />
+        <div className="pm-vignette" />
+        <div className="pm-shade" />
+      </div>
+    );
+  }
   return (
     <div ref={root} className={`pm-bg${dim ? " dim" : ""}`}>
+      {camp && (
+        <div className="pm-part pm-camp" data-depth="0.3">
+          <div className="pm-camp-trees" />
+          <div className="pm-camp-glow" />
+          <div className="pm-camp-fire"><b /><b /><b /></div>
+          {Array.from({ length: 14 }, (_, i) => <i key={i} className="pm-ember" style={{ left: `${46 + ((i * 37) % 9)}%`, animationDelay: `${(i * 0.37) % 4}s`, animationDuration: `${3 + (i % 4) * 0.7}s` }} />)}
+        </div>
+      )}
       {theme && layers.length > 0 && parts.map((p, i) => {
         if (p.layer) depth = p.depth ?? 0;
         const d = p.effect?.type === "leaves" ? null : p.depth ?? depth;
@@ -319,7 +355,7 @@ export function MenuBackground({ dim = false }: { dim?: boolean }) {
         const cls = `pm-part${p.effect?.type === "rays" ? " pm-part-light" : ""}`;
         return d === null ? <div key={i} className={cls}>{body}</div> : <div key={i} className={cls} data-depth={d}>{body}</div>;
       })}
-      {theme && !layers.length && (
+      {theme && !layers.length && !camp && (
         <div className="pm-part" data-depth="0.3">
           <div className="pm-img pm-sky" />
           <div className="pm-img pm-hills far" />

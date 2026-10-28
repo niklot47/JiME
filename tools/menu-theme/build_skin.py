@@ -62,6 +62,8 @@ REGIONS = [
     ("item", 250, 72, [20, 30, 20, 90]),
     ("item.empty", 250, 72, [20, 30, 20, 30]),
     ("level", 48, 48, [0, 0, 0, 0]),
+    # the rest: the map button
+    ("map", 96, 96, [0, 0, 0, 0]),
 ]
 # regions that always take the element's whole height (top + bottom slices meet; only the middle stretches sideways)
 FIT_HEIGHT = ("banner", "plate", "button.back", "button.back.hover", "button.next", "button.next.hover")
@@ -244,6 +246,15 @@ def draw(name, w, h):
         d = ImageDraw.Draw(img)
         c = w / 2
         d.polygon([(c, 1), (w - 2, c), (c, h - 2), (1, c)], fill=(243, 234, 216, 255), outline=(176, 139, 74, 255), width=3)
+        return img
+    if name == "map":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.ellipse([3, 3, w - 4, h - 4], fill=(36, 29, 22, 255), outline=GOLD, width=4)
+        pts = [(22, 32), (38, 26), (58, 32), (74, 26), (74, 64), (58, 70), (38, 64), (22, 70)]
+        d.polygon(pts, fill=(217, 196, 143, 255), outline=(90, 70, 48, 255))
+        d.line([(38, 26), (38, 64)], fill=(90, 70, 48, 255), width=2)
+        d.line([(58, 32), (58, 70)], fill=(90, 70, 48, 255), width=2)
         return img
     if name == "slot":
         img = Image.new("RGBA", (w, h), (42, 33, 28, 255))

@@ -103,115 +103,205 @@ export function PlainMap({ ui, save, onConfirm, onQuit }: { ui: MenuUi; save: Ca
   );
 }
 
-/** The rest before an adventure: each hero's role, skills bought with XP, gear upgrades with lore; then embark */
+/**
+ * The rest like the original's (UI_Rest over the camp): the party's cards at the top (role, XP left), a card opens the
+ * hero's skills (each role's XP spent on its cards); before the first adventure (or while a hero has no role) the
+ * cards choose the roles. Gear (upgrades with lore, hero / party tabs) and the lore at the bottom left, the map at the
+ * top left, save and quit / embark at the bottom right. The camp behind is the theme's (image, parallax or a 3D scene).
+ */
 export function PlainRest({ ui, save, onChange, onEmbark, onMap, onQuit }: {
   ui: MenuUi; save: CampaignSave; onChange: (s: CampaignSave) => void; onEmbark: (s: CampaignSave) => void; onMap: () => void; onQuit: () => void;
 }) {
   const t = useTr();
   const D = ui.db;
   const H = D.models.HeroModel ?? {};
-  const R = D.models.RoleModel ?? {};
+  const Ro = D.models.RoleModel ?? {};
   const S = D.models.SkillModel ?? {};
   const I = D.models.ItemModel ?? {};
-  const roles = useMemo(() => ownedRoles(D, save.products).sort((a, b) => ui.raw(R[String(a)]?.NameKey).localeCompare(ui.raw(R[String(b)]?.NameKey))), [D, save.products, ui]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [award, setAward] = useState<{ s: CampaignSave; title: number } | null>(null);
-  const [up, setUp] = useState<ItemPlace | null>(null);
-  const change = (f: (s: CampaignSave) => void) => { const s = structuredClone(save); f(s); onChange(s); };
+  const roles = useMemo(() => ownedRoles(D, save.products).sort((a, b) => ui.raw(Ro[String(a)]?.NameKey).localeCompare(ui.raw(Ro[String(b)]?.NameKey))), [D, save.products, ui]); // eslint-disable-line react-hooks/exhaustive-deps
+  const first = firstRest(save);
   const allRoles = save.heroes.every((h) => h.role >= 0);
+  const choosing = first || !allRoles;
+  const [hero, setHero] = useState<number | null>(null); // the hero whose skills are open
+  const [skillRole, setSkillRole] = useState<number | null>(null);
+  const [rolePick, setRolePick] = useState<number | null>(null); // the hero choosing a role
+  const [inv, setInv] = useState<null | "hero" | "group">(null);
+  const [up, setUp] = useState<ItemPlace | null>(null);
+  const [upTo, setUpTo] = useState<number | null>(null);
+  const [award, setAward] = useState<{ s: CampaignSave; title: number } | null>(null);
+  const change = (f: (s: CampaignSave) => void) => { const s = structuredClone(save); f(s); onChange(s); };
   const A = D.models.AdventureModel?.[String(save.current)];
-  const itemName = (id: number | null | undefined) => (id ? ui.raw(I[String(id)]?.NameKey) || I[String(id)]?.m_Name || `#${id}` : "");
-  const itemPic = (id: number) => ui.pic(ui.art.items[String(id)]?.Icon);
+  const cave = Number(A?.RestAreaType ?? 0) === 1;
+  const name = (m: any) => ui.raw(m?.NameKey) || m?.m_Name || "";
+  const xpOf = (k: number) => { const h = save.heroes[k]!; return h.role >= 0 ? Math.max(0, availableXP(save, k, h.role)) : 0; };
+  const places: ItemPlace[] = [...save.heroes.flatMap((h, k) => h.items.map((_, j) => ({ hero: k, slot: j }))), ...save.state.items.map((_, g) => ({ group: g }))];
+  const anyUpgrade = places.some((at) => canUpgrade(D, save, at));
   const upKey = (at: ItemPlace) => ("group" in at ? `g${at.group}` : `${at.hero}.${at.slot}`);
-  const upgradeBox = (at: ItemPlace) => {
-    if (!up || upKey(up) !== upKey(at)) return null;
+  const itemCard = (id: number, onClick?: () => void, glow = false, key?: string | number) => {
+    const m = I[String(id)];
+    const icon = ui.art.items[String(id)]?.Icon;
     return (
-      <div className="pm-upgrade">
-        <span>{t("upgradeTo")}:</span>
-        {upgradeOptions(D, save, at).map((to) => (
-          <button key={to} className="pm-btn small" onClick={() => { change((s) => { upgradeItem(D, s, at, to); }); setUp(null); }}>
-            {itemPic(to) && <img src={itemPic(to)} alt="" />}{itemName(to)} <small>{t("level")} {ROMAN[Number(I[String(to)]?.Level ?? 1)]}</small>
-          </button>
-        ))}
-        <button className="pm-btn small" onClick={() => setUp(null)}>{t("close")}</button>
-      </div>
+      <button key={key} className={`lo-item${glow ? " glow" : ""}`} onClick={onClick} disabled={!onClick}>
+        <span className="lo-item-icon">{icon && <img src={ui.pic(icon)} alt="" />}</span>
+        <b>{name(m) || `#${id}`}</b>
+        <i className="lo-item-level">{ROMAN[Number(m?.Level ?? 1)] ?? ""}</i>
+        {!!Number(m?.Is2Handed ?? 0) && <i className="lo-item-2h">✋✋</i>}
+      </button>
     );
   };
-  const item = (id: number, at: ItemPlace) => (
-    <li key={upKey(at)}>
-      {itemPic(id) && <img src={itemPic(id)} alt="" />}
-      <span>{itemName(id)} <small>{t("level")} {ROMAN[Number(I[String(id)]?.Level ?? 1)] ?? ""}</small></span>
-      {canUpgrade(D, save, at) && <button className="pm-btn small" onClick={() => setUp(at)}>{t("upgrade")} ({I[String(id)]?.UpgradeCost})</button>}
-      {upgradeBox(at)}
-    </li>
-  );
+  const openSkills = (k: number) => {
+    if (choosing) { setRolePick(k); return; }
+    setInv(null);
+    setHero(hero === k ? null : k);
+    setSkillRole(save.heroes[k]!.role);
+  };
+  const embarkNow = () => { const s = structuredClone(save); const a = embark(s); if (a) setAward({ s, title: a[1] }); else onEmbark(s); };
+  const k = hero;
+  const skillRoles = k !== null ? [...new Set([...(save.heroes[k]!.role >= 0 ? [save.heroes[k]!.role] : []), ...xpRoles(save, k)])] : [];
+  const sr = k !== null ? (skillRole ?? skillRoles[0] ?? null) : null;
   return (
-    <div className="pm-screen">
-      <MenuBackground dim />
-      <section className="pm-panel wide">
-        <header>
-          <h2>{t("rest")} · {ui.raw(A?.NameKey)}</h2>
-          <p className="muted">{save.partyName} · {t("lore")} {save.state.lore}{firstRest(save) ? "" : ` · ${t("chapter")} ${save.completed.length + 1}`}</p>
-        </header>
-        <div className="pm-body">
-          {A?.RestStoryKey && <p className="pm-story" dangerouslySetInnerHTML={{ __html: ui.say(A.RestStoryKey) }} />}
-          <div className="pm-party">
-            {save.heroes.map((h, k) => {
-              const a = ui.art.heroes[String(h.hero)];
-              const xr = [...new Set([...xpRoles(save, k), ...(h.role >= 0 ? [h.role] : [])])];
-              return (
-                <article key={k} className="pm-member">
-                  <header>
-                    {(a?.portrait || a?.icon) && <img src={ui.pic(a.icon ?? a.portrait)} alt="" />}
-                    <div><b>{ui.raw(H[String(h.hero)]?.NameKey)}</b><span className="muted">{ui.raw(H[String(h.hero)]?.RaceKey)}</span></div>
-                  </header>
-                  <label>{t("role")}
-                    <select value={h.role} onChange={(e) => change((s) => setRole(s, k, Number(e.target.value)))}>
-                      {h.role < 0 && <option value={-1}>{t("noRole")}</option>}
-                      {roles.map((r) => <option key={r} value={r} disabled={!canTakeRole(D, save, k, r) && r !== h.role}>{ui.raw(R[String(r)]?.NameKey)}</option>)}
-                    </select>
-                  </label>
-                  {xr.filter((r) => availableXP(save, k, r) >= 0 || (R[String(r)]?.UpgradeSkills ?? []).length).map((r) => (
-                    <div key={r} className="pm-skills">
-                      <h4>{t("skills")}: {ui.raw(R[String(r)]?.NameKey)} <small>· {Math.max(0, availableXP(save, k, r))} {t("xp")}</small></h4>
-                      <ul>
-                        {roleSkills(D, save, k, r).map((sk) => (
-                          <li key={sk.id}>
-                            <label className={!sk.available ? "off" : ""}>
-                              <input type="checkbox" checked={sk.learned} disabled={!sk.learned && (!sk.canLearn || !sk.available)}
-                                onChange={() => change((s) => { toggleSkill(D, s, k, r, sk.id); })} />
-                              {ui.raw(S[String(sk.id)]?.NameKey)} <small>({sk.cost})</small>
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  <h4>{t("items")}</h4>
-                  <ul className="pm-items">{h.items.map((id, j) => item(id, { hero: k, slot: j }))}</ul>
-                </article>
-              );
-            })}
-          </div>
-          {save.state.items.length > 0 && <>
-            <h4>{t("partyItems")}</h4>
-            <ul className="pm-items">{save.state.items.map((id, g) => item(Number(id), { group: g }))}</ul>
-          </>}
-          {award && (
-            <div className="pm-award">
-              <p>{t("titleAwarded")}: <b>{ui.raw(D.models.TitleModel?.[String(award.title)]?.NameKey)}</b></p>
-              <button className="pm-btn primary" onClick={() => onEmbark(award.s)}>{t("continue")} →</button>
+    <div className="pm-screen rs-screen">
+      <MenuBackground which={cave ? "rest-cave" : "rest-forest"} dim={hero !== null || inv !== null} />
+      {choosing && <h2 className="lo-banner rs-banner"><span>{t("chooseRoles")}</span></h2>}
+      <div className={`rs-party${choosing ? " low" : ""}`}>
+        {save.heroes.map((h, i) => {
+          const a = ui.art.heroes[String(h.hero)];
+          const pic = a?.portrait ?? a?.icon;
+          return (
+            <button key={i} className={`lo-hero rs-hero${hero === i || rolePick === i ? " on" : ""}`} onClick={() => openSkills(i)}>
+              <b className="lo-hero-name"><span>{name(H[String(h.hero)])}</span></b>
+              <span className="lo-hero-pic">{pic ? <img src={ui.pic(pic)} alt="" /> : <i>{name(H[String(h.hero)]).slice(0, 1)}</i>}</span>
+              <span className="rs-hero-foot">
+                <span className={`rs-role${h.role < 0 ? " none" : ""}`}>{h.role >= 0 ? name(Ro[String(h.role)]) : t("noRole")}</span>
+                {!choosing && <span className="rs-xp" title={t("xp")}>{xpOf(i)}</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {/* the role list of a hero (first rest, or a hero without a role) */}
+      {rolePick !== null && (
+        <div className="lo-modal" onClick={() => setRolePick(null)}>
+          <div className="lo-replace rs-roles" onClick={(e) => e.stopPropagation()}>
+            <p>{name(H[String(save.heroes[rolePick]!.hero)])}</p>
+            <div className="lo-replace-list">
+              {roles.map((r) => {
+                const on = save.heroes[rolePick]!.role === r;
+                const ok = canTakeRole(D, save, rolePick, r) || on;
+                return (
+                  <button key={r} className={`pm-btn lo-btn rs-role-btn${on ? " on" : ""}`} disabled={!ok}
+                    onClick={() => { change((s) => setRole(s, rolePick, r)); setRolePick(null); }}>{name(Ro[String(r)])}</button>
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
-        <footer>
-          <button className="pm-btn" onClick={onQuit}>{t("toMenu")}</button>
-          {!firstRest(save) && <button className="pm-btn" onClick={onMap}>{t("map")}</button>}
-          {!allRoles && <span className="muted">{t("rolesNeeded")}</span>}
-          <button className="pm-btn primary" disabled={!allRoles || !!award}
-            onClick={() => { const s = structuredClone(save); const a = embark(s); if (a) setAward({ s, title: a[1] }); else onEmbark(s); }}>{t("embark")} →</button>
-        </footer>
-      </section>
+      )}
+      {/* a hero's skills: the roles with XP on the left, the chosen role's cards on the right */}
+      {k !== null && !inv && (
+        <section className="rs-panel rs-skills">
+          <div className="rs-skill-roles">
+            {skillRoles.map((r) => (
+              <button key={r} className={`rs-skill-role${sr === r ? " on" : ""}`} onClick={() => setSkillRole(r)}>
+                <span>{name(Ro[String(r)])}</span><i className="rs-xp">{Math.max(0, availableXP(save, k, r))}</i>
+              </button>
+            ))}
+            <button className="pm-btn lo-btn rs-change-role" onClick={() => setRolePick(k)}>{t("changeRole")}</button>
+          </div>
+          <div className="rs-skill-cards">
+            <h3 className="rs-plate"><span>{t("roleCards")}</span></h3>
+            <div className="rs-skill-grid">
+              {sr !== null && roleSkills(D, save, k, sr).map((sk) => (
+                <button key={sk.id} className={`rs-skill${sk.learned ? " learned" : ""}${!sk.learned && (!sk.canLearn || !sk.available) ? " locked" : ""}`}
+                  disabled={!sk.learned && (!sk.canLearn || !sk.available)} onClick={() => change((s) => { toggleSkill(D, s, k, sr, sk.id); })}>
+                  <span>{name(S[String(sk.id)])}</span><i className="rs-cost">{sk.cost}</i>
+                </button>
+              ))}
+            </div>
+          </div>
+          <button className="rs-close" aria-label={t("close")} onClick={() => setHero(null)}>×</button>
+        </section>
+      )}
+      {/* gear: each hero's items, or the party's; an item that can be upgraded glows, a click lists its upgrades */}
+      {inv && (
+        <section className="rs-panel rs-inv">
+          <div className="rs-tabs">
+            <div className="pm-seg">
+              <button className={inv === "hero" ? "on" : ""} onClick={() => setInv("hero")}>{t("tabHero")}</button>
+              <button className={inv === "group" ? "on" : ""} onClick={() => setInv("group")}>{t("tabParty")}</button>
+            </div>
+            <span className="rs-lore">{t("lore")}: <b>{save.state.lore}</b></span>
+          </div>
+          <div className="rs-inv-body">
+            {inv === "hero" ? save.heroes.map((h, i) => {
+              const a = ui.art.heroes[String(h.hero)];
+              return (
+                <div key={i} className="rs-inv-row">
+                  {(a?.icon || a?.portrait) ? <img className="rs-inv-hero" src={ui.pic(a.icon ?? a.portrait)} alt="" /> : <i className="rs-inv-hero">{name(H[String(h.hero)]).slice(0, 1)}</i>}
+                  {h.items.map((id, j) => {
+                    const at: ItemPlace = { hero: i, slot: j };
+                    const can = canUpgrade(D, save, at);
+                    return itemCard(id, can ? () => { setUp(at); setUpTo(null); } : undefined, can, upKey(at));
+                  })}
+                </div>
+              );
+            }) : (
+              <div className="rs-inv-row wrap">
+                {!save.state.items.length && <p className="muted">{t("noPartyItems")}</p>}
+                {save.state.items.map((id, g) => {
+                  const at: ItemPlace = { group: g };
+                  const can = canUpgrade(D, save, at);
+                  return itemCard(Number(id), can ? () => { setUp(at); setUpTo(null); } : undefined, can, upKey(at));
+                })}
+              </div>
+            )}
+          </div>
+          <button className="rs-close" aria-label={t("close")} onClick={() => { setInv(null); setUp(null); }}>×</button>
+        </section>
+      )}
+      {up && (
+        <div className="lo-modal" onClick={() => setUp(null)}>
+          <div className="lo-replace" onClick={(e) => e.stopPropagation()}>
+            <p>{t("chooseUpgrade")}<b>{name(I[String("group" in up ? save.state.items[up.group] : save.heroes[up.hero]!.items[up.slot])])}</b></p>
+            <div className="lo-replace-list">
+              {upgradeOptions(D, save, up).map((to) => (
+                <div key={to} className={upTo === to ? "rs-pick on" : "rs-pick"}>{itemCard(to, () => setUpTo(to))}</div>
+              ))}
+            </div>
+            <button className="pm-btn lo-btn" disabled={upTo === null}
+              onClick={() => { change((s) => { upgradeItem(D, s, up, upTo!); }); setUp(null); }}>{t("confirm")}</button>
+          </div>
+        </div>
+      )}
+      {!first && <button className="rs-map" title={t("map")} aria-label={t("map")} onClick={onMap}><MapIcon /></button>}
+      <div className="rs-left">
+        <button className={`pm-btn lo-btn rs-gear${anyUpgrade ? " glow" : ""}`} onClick={() => { setHero(null); setInv(inv ? null : "hero"); }}>{t("items")}</button>
+        <span className="rs-lore">{t("lore")}: <b>{save.state.lore}</b></span>
+      </div>
+      <div className="cm-buttons">
+        {!allRoles && <span className="rs-need">{t("rolesNeeded")}</span>}
+        <button className="pm-btn lo-btn cm-quit" onClick={onQuit}>{t("saveQuit")}</button>
+        <button className="lo-corner lo-next cm-go" disabled={!allRoles || !!award} onClick={embarkNow}><span>{t(choosing ? "embark" : "continue")}</span></button>
+      </div>
+      {award && (
+        <div className="lo-modal">
+          <div className="lo-confirm">
+            <p>{t("titleAwarded")}: {name(D.models.TitleModel?.[String(award.title)])}</p>
+            <div><button className="pm-btn lo-btn" onClick={() => onEmbark(award.s)}>{t("continue")}</button></div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** The map button of the rest (the skin's "map" picture covers it) */
+function MapIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M6 14 L22 8 L42 14 L58 8 L58 50 L42 56 L22 50 L6 56 Z" />
+      <path className="fold" d="M22 8 L22 50 M42 14 L42 56" />
+    </svg>
   );
 }
 

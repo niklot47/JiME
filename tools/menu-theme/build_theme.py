@@ -91,7 +91,7 @@ def cut_sprites(sheet, step=4, pad=6, min_px=40):
     return boxes, labels, step
 
 
-def leaf_atlas(sheet_path, size=96):
+def leaf_atlas(sheet_path, size=96, name="leaves"):
     """Each leaf scaled to fit `size`, packed in rows: atlas webp + frames [x, y, w, h]"""
     sheet = Image.open(sheet_path).convert("RGBA")
     boxes, labels, step = cut_sprites(sheet)
@@ -122,7 +122,7 @@ def leaf_atlas(sheet_path, size=96):
         x, y = (i % cols) * size, (i // cols) * size
         atlas.paste(t, (x, y))
         frames.append([x, y, t.width, t.height])
-    rel = save_webp(atlas, f"{MENU}/leaves.webp", quality=88)
+    rel = save_webp(atlas, f"{MENU}/{name}.webp", quality=88)
     return rel, frames
 
 
@@ -201,22 +201,33 @@ def src(rel):
     return os.path.join(SRC, rel)
 
 
-def background():
-    """images/menu/menu.json for screens/menu/MenuBackground.tsx: layers, effects, camera"""
-    kind = THEME.get("menu", {}).get("background", "parallax")
+def background(sec, prefix="", parallax=None):
+    """
+    One background for screens/menu/MenuBackground.tsx (images/menu/menu.json, rest-forest.json, rest-cave.json):
+      {"background": "image", "image": file, "camera": {...}}   one picture, a slow camera
+      {"background": "parallax", "parallax": {layers, effects, camera}}   (the menu may keep its parallax at the top)
+      {"background": "scene", "scene": file.glb}   a 3D scene from Blender (SceneBackground.tsx: its camera, lights,
+                                                     animations; "Flicker*" objects get a flickering light)
+    prefix: of the written files (the camp's next to the menu's)
+    """
+    kind = sec.get("background", "parallax")
     if kind == "image":
-        img = Image.open(src(THEME["menu"]["image"])).convert("RGB")
-        return {"layers": [{"src": save_webp(img, f"{MENU}/image.webp", 82), "depth": 0.3, "z": 0}], "effects": [],
-                "camera": THEME["menu"].get("camera", {"rx": 1.2, "ry": 0.5, "angle": -28, "period": 90, "zoom": 1.05})}
+        img = Image.open(src(sec["image"])).convert("RGB")
+        return {"layers": [{"src": save_webp(img, f"{MENU}/{prefix}image.webp", 82), "depth": 0.3, "z": 0}], "effects": [],
+                "camera": sec.get("camera", {"rx": 1.2, "ry": 0.5, "angle": -28, "period": 90, "zoom": 1.05})}
+    if kind == "scene":
+        rel = f"{MENU}/{prefix}scene{os.path.splitext(sec['scene'])[1].lower()}"
+        shutil.copy2(src(sec["scene"]), os.path.join(OUT, rel))
+        return {"scene": rel}
     if kind != "parallax":
-        raise SystemExit(f"menu.background {kind!r}: not supported yet (parallax, image)")
-    P = THEME["parallax"]
+        raise SystemExit(f"background {kind!r}: one of image, parallax, scene")
+    P = sec.get("parallax") or parallax
     layers, effects, done = [], [], {}
     n = len(P["layers"])
     for i, L in enumerate(P["layers"]):
         img = Image.open(src(L["file"]))
         img = img.convert("RGBA" if img.mode == "RGBA" else "RGB")
-        rel = save_webp(img, f"{MENU}/layer{n - i}.webp", 80)
+        rel = save_webp(img, f"{MENU}/{prefix}layer{n - i}.webp", 80)
         done[L["file"]] = rel
         layers.append({"src": rel, "depth": L["depth"], "z": i * 10})
     leaves = {}
@@ -229,7 +240,7 @@ def background():
                 raise SystemExit(f"water: {layer} must be one of the parallax layers")
             pic = Image.open(src(layer))
             e["src"] = done[layer]
-            e["mask"] = save_webp(water_mask(pic, e.pop("regions"), e.pop("exclude", [])), f"{MENU}/water.webp", 90)
+            e["mask"] = save_webp(water_mask(pic, e.pop("regions"), e.pop("exclude", [])), f"{MENU}/{prefix}water.webp", 90)
         elif kind == "steam":
             pic = Image.open(src(e.pop("layer")))
             e["aspect"] = round(pic.width / pic.height, 4)
@@ -246,7 +257,7 @@ def background():
         elif kind == "leaves":
             sheet = e.pop("sheet")
             if sheet not in leaves:
-                leaves[sheet] = leaf_atlas(src(sheet))
+                leaves[sheet] = leaf_atlas(src(sheet), name=f"{prefix}leaves")
             e["atlas"], e["frames"] = leaves[sheet]
         effects.append(e)
     return {"layers": layers, "effects": effects, "camera": P.get("camera", {})}
@@ -256,8 +267,10 @@ def main():
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT)
-    menu = background()
-    write_json(f"{MENU}/menu.json", menu)
+    write_json(f"{MENU}/menu.json", background(THEME.get("menu", {}), "", THEME.get("parallax")))
+    # the camp of the rest: theme.json "rest": {"forest": {...}, "cave": {...}} like the menu's; none: a drawn camp
+    for area, sec in THEME.get("rest", {}).items():
+        write_json(f"{MENU}/rest-{area}.json", background(sec, f"rest-{area}-"))
     # the campaign map's 3D room (a glTF from Blender; naming convention in screens/menu/CampaignMap3D.tsx):
     # theme.json "campaignMap": {"scene": "map/room.glb"}; without it the map is the campaign's picture
     scene = THEME.get("campaignMap", {}).get("scene")
