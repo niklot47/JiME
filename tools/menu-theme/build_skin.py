@@ -143,14 +143,56 @@ def draw(name, w, h):
     return Image.new("RGBA", (w, h), (255, 0, 255, 255))
 
 
-def layout(max_w=1024):
-    """Shelf packing in the list's order (stable: the same regions land in the same places)"""
+def guide(size, regions):
+    """
+    The markup alone on a transparent picture of the atlas' size, to lay over the atlas as a layer in an image editor:
+    every region outlined (cyan) and named with its size, its fixed 9-slice borders dashed (magenta), and the windows that
+    must stay transparent or hold something drawn by the app (yellow, named: a portrait, the threat track ...).
+    regions: (name, (x, y), w, h, slice [top, right, bottom, left], hints [(label, x0, y0, x1, y1) in 0..1 of the region])
+    """
+    W, H = size
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(img)
+    small = font(13)
+    tiny = font(11)
+    cyan, magenta, yellow = (0, 230, 255, 255), (255, 0, 200, 255), (255, 220, 0, 255)
+
+    def dashed(p0, p1, fill):
+        (x0, y0), (x1, y1) = p0, p1
+        n = max(1, int(max(abs(x1 - x0), abs(y1 - y0)) // 6))
+        for i in range(n):
+            a, b = i / n, min(1, (i + 0.5) / n)
+            gd.line([(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a), (x0 + (x1 - x0) * b, y0 + (y1 - y0) * b)], fill=fill)
+
+    for name, (x, y), w, h, sl, hints in regions:
+        gd.rectangle([x - 1, y - 1, x + w, y + h], outline=cyan, width=1)
+        t, r, b, l = sl
+        for xx in [v for v in (x + l if l else None, x + w - r if r else None) if v is not None]:
+            dashed((xx, y), (xx, y + h), magenta)
+        for yy in [v for v in (y + t if t else None, y + h - b if b else None) if v is not None]:
+            dashed((x, yy), (x + w, yy), magenta)
+        for label, a0, b0, a1, b1 in hints:
+            r0 = (x + a0 * w, y + b0 * h, x + a1 * w, y + b1 * h)
+            for p, q in (((r0[0], r0[1]), (r0[2], r0[1])), ((r0[2], r0[1]), (r0[2], r0[3])),
+                         ((r0[2], r0[3]), (r0[0], r0[3])), ((r0[0], r0[3]), (r0[0], r0[1]))):
+                dashed(p, q, yellow)
+            gd.text((r0[0] + 3, r0[1] + 2), label, font=tiny, fill=yellow)
+        gd.text((x + 2, y + h + 1), f"{name} {w}x{h}", font=small, fill=cyan)
+    return img
+
+
+def layout(regions=None, max_w=1024, fit_labels=False):
+    """
+    Shelf packing in the list's order (stable: the same regions land in the same places). fit_labels: every slot is at
+    least as wide as the region's name in the guide (off for the menu skin, to keep its existing places)
+    """
     # room under each region for its name in the guide, and small regions get a wider slot for it
     x = y = GAP
     row = 0
     pos = {}
-    for name, w, h, _ in REGIONS:
-        slot = max(w, 110)
+    small = font(13)
+    for name, w, h, *_ in regions or REGIONS:
+        slot = max(w, int(small.getlength(f"{name} {w}x{h}")) + 6 if fit_labels else 110)
         if x + slot + GAP > max_w:
             x, y, row = GAP, y + row + GAP + 16, 0
         pos[name] = (x, y)
@@ -172,28 +214,7 @@ def build(out_dir, custom_atlas=None):
         for name, w, h, _ in REGIONS:
             atlas.alpha_composite(draw(name, w, h), pos[name])
     atlas.save(os.path.join(d, "atlas.png"), optimize=True)
-    # the guide: a dark checker under the atlas, every region outlined and named, the fixed borders dashed
-    guide = Image.new("RGBA", (W, H), (30, 30, 36, 255))
-    gd = ImageDraw.Draw(guide)
-    for yy in range(0, H, 16):
-        for xx in range(0, W, 16):
-            if (xx // 16 + yy // 16) % 2:
-                gd.rectangle([xx, yy, xx + 15, yy + 15], fill=(40, 40, 48, 255))
-    guide.alpha_composite(atlas)
-    gd = ImageDraw.Draw(guide)
-    small = font(13)
-    for name, w, h, sl in REGIONS:
-        x, y = pos[name]
-        gd.rectangle([x - 1, y - 1, x + w, y + h], outline=(0, 230, 255, 255), width=1)
-        t, r, b, l = sl
-        for xx in (x + l, x + w - r) if (l or r) else ():
-            for yy in range(y, y + h, 6):
-                gd.line([(xx, yy), (xx, min(y + h, yy + 3))], fill=(255, 0, 200, 255))
-        for yy in (y + t, y + h - b) if (t or b) else ():
-            for xx in range(x, x + w, 6):
-                gd.line([(xx, yy), (min(x + w, xx + 3), yy)], fill=(255, 0, 200, 255))
-        gd.text((x + 2, y + h + 1), f"{name} {w}x{h}", font=small, fill=(0, 230, 255, 255))
-    guide.convert("RGB").save(os.path.join(d, "guide.png"), optimize=True)
+    guide((W, H), [(name, pos[name], w, h, sl, ()) for name, w, h, sl in REGIONS]).save(os.path.join(d, "guide.png"), optimize=True)
     skin = {
         "atlas": "images/ui-skin/atlas.png", "scale": SCALE,
         "regions": {name: {"rect": [*pos[name], w, h], "slice": sl} for name, w, h, sl in REGIONS},

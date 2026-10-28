@@ -17,6 +17,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 from build_skin import build as build_skin  # noqa: E402
+from build_game_skin import build as build_game_skin  # noqa: E402
 from PIL import Image, ImageFilter
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -225,16 +226,18 @@ def main():
     write_json(f"{MENU}/menu.json", menu)
     # the interface skin: the user's repainted atlas if there is one (<src>/ui-skin/atlas.png), else the template;
     # the template and its guide also go to <src>/ui-skin/ to be repainted
-    custom = os.path.join(SRC, "ui-skin", "atlas.png")
-    build_skin(OUT, custom if os.path.exists(custom) else None)
-    if not os.path.exists(custom):
-        os.makedirs(os.path.dirname(custom), exist_ok=True)
-        for f in ("atlas.png", "guide.png"):
+    # (the same for the in-game sheet: <src>/ui-skin/game_atlas.png). The guides are always refreshed there.
+    os.makedirs(os.path.join(SRC, "ui-skin"), exist_ok=True)
+    for sheet, guide_png, build in (("atlas.png", "guide.png", build_skin), ("game_atlas.png", "game_guide.png", build_game_skin)):
+        custom = os.path.join(SRC, "ui-skin", sheet)
+        had = os.path.exists(custom)
+        build(OUT, custom if had else None)
+        for f in ((guide_png,) if had else (sheet, guide_png)):
             shutil.copy2(os.path.join(OUT, "images", "ui-skin", f), os.path.join(SRC, "ui-skin", f))
     manifest = {
         "formatVersion": 1, "id": PACK_ID,
         "name": {"ru": "Тема: Осенняя долина", "en": "Theme: Autumn valley", "it": "Tema: Valle d'autunno"},
-        "description": "The menus' background: parallax layers, fog, sun rays and falling leaves.",
+        "description": "The menus' background (parallax layers, fog, sun rays, falling leaves) and the interface skin of menus and game.",
         "version": "0.1.0", "priority": -20, "origin": "bundled", "contents": [{"type": "theme", "path": "images"}],
     }
     write_json("pack.json", manifest)

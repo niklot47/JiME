@@ -47,7 +47,7 @@
     "en": "Theme: Autumn valley",
     "it": "Tema: Valle d'autunno"
    },
-   "description": "The menus' background: parallax layers, fog, sun rays and falling leaves.",
+   "description": "The menus' background (parallax layers, fog, sun rays, falling leaves) and the interface skin of menus and game.",
    "version": "0.1.0",
    "priority": -20,
    "origin": "bundled",

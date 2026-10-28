@@ -1,0 +1,343 @@
+{
+ "Threat_Meter": {
+  "file": "images/ui/atlas/Threat_Meter.png",
+  "w": 1024,
+  "h": 74,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Enemy_Bar": {
+  "file": "images/ui/atlas/Enemy_Bar.png",
+  "w": 1024,
+  "h": 44,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Threat_Gradient": {
+  "file": "images/ui/atlas/Threat_Gradient.png",
+  "w": 64,
+  "h": 4,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Threat_Liquid": {
+  "file": "images/ui/atlas/Threat_Liquid.png",
+  "w": 256,
+  "h": 256,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Threat_Fire": {
+  "file": "images/ui/atlas/Threat_Fire.png",
+  "w": 128,
+  "h": 128,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Threat_Event2": {
+  "file": "images/ui/atlas/Threat_Event2.png",
+  "w": 127,
+  "h": 128,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "DarknessToken": {
+  "file": "images/ui/atlas/DarknessToken.png",
+  "w": 128,
+  "h": 128,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Button_Party": {
+  "file": "images/ui/atlas/Button_Party.png",
+  "w": 128,
+  "h": 128,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Button_EndRound": {
+  "file": "images/ui/atlas/Button_EndRound.png",
+  "w": 128,
+  "h": 128,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Button_Provoke": {
+  "file": "images/ui/atlas/Button_Provoke.png",
+  "w": 128,
+  "h": 128,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Options_Button_toggled": {
+  "file": "images/ui/atlas/Options_Button_toggled.png",
+  "w": 128,
+  "h": 128,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "header_icon_settings": {
+  "file": "images/ui/atlas/header_icon_settings.png",
+  "w": 62,
+  "h": 62,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Enemy_Frame_Normal": {
+  "file": "images/ui/atlas/Enemy_Frame_Normal.png",
+  "w": 195,
+  "h": 195,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Enemy_Frame_Elite": {
+  "file": "images/ui/atlas/Enemy_Frame_Elite.png",
+  "w": 197,
+  "h": 255,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Generic_Circle2": {
+  "file": "images/ui/atlas/Generic_Circle2.png",
+  "w": 64,
+  "h": 64,
+  "border": [
+   30,
+   30,
+   30,
+   30
+  ]
+ },
+ "Icon_Armor": {
+  "file": "images/ui/atlas/Icon_Armor.png",
+  "w": 63,
+  "h": 64,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Icon_Skull": {
+  "file": "images/ui/atlas/Icon_Skull.png",
+  "w": 64,
+  "h": 106,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Enemy_HealthBarBG": {
+  "file": "images/ui/atlas/Enemy_HealthBarBG.png",
+  "w": 256,
+  "h": 35,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Dialog_Round": {
+  "file": "images/ui/atlas/Dialog_Round.png",
+  "w": 220,
+  "h": 108,
+  "border": [
+   0,
+   0,
+   48,
+   48
+  ]
+ },
+ "Dialog_Chronicle": {
+  "file": "images/ui/atlas/Dialog_Chronicle.png",
+  "w": 537,
+  "h": 73,
+  "border": [
+   0,
+   0,
+   30,
+   30
+  ]
+ },
+ "Enemy_9_Slice": {
+  "file": "images/ui/atlas/Enemy_9_Slice.png",
+  "w": 256,
+  "h": 167,
+  "border": [
+   122,
+   122,
+   75,
+   75
+  ]
+ },
+ "Button_Generic": {
+  "file": "images/ui/atlas/Button_Generic.png",
+  "w": 80,
+  "h": 83,
+  "border": [
+   34,
+   34,
+   37,
+   37
+  ]
+ },
+ "Button_Arrowless": {
+  "file": "images/ui/atlas/Button_Arrowless.png",
+  "w": 221,
+  "h": 66,
+  "border": [
+   45,
+   45,
+   33,
+   33
+  ]
+ },
+ "Button_MessageBox": {
+  "file": "images/ui/atlas/Button_MessageBox.png",
+  "w": 230,
+  "h": 78,
+  "border": [
+   68,
+   68,
+   0,
+   0
+  ]
+ },
+ "Button_CombatDialog": {
+  "file": "images/ui/atlas/Button_CombatDialog.png",
+  "w": 152,
+  "h": 186,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Damage_Holder": {
+  "file": "images/ui/atlas/Damage_Holder.png",
+  "w": 244,
+  "h": 246,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "Frame_Empty": {
+  "file": "images/ui/atlas/Frame_Empty.png",
+  "w": 64,
+  "h": 37,
+  "border": [
+   32,
+   32,
+   9,
+   28
+  ]
+ },
+ "Frame_Lore": {
+  "file": "images/ui/atlas/Frame_Lore.png",
+  "w": 300,
+  "h": 101,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "StartingItemFrame": {
+  "file": "images/ui/atlas/StartingItemFrame.png",
+  "w": 412,
+  "h": 125,
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "HeroFrame": {
+  "file": "images/ui/atlas/HeroFrame.png",
+  "w": 216,
+  "h": 512,
+  "border": [
+   0,
+   0,
+   104,
+   48
+  ]
+ },
+ "Dialog_HeroMenu": {
+  "file": "images/ui/atlas/Dialog_HeroMenu.png",
+  "w": 785,
+  "h": 511,
+  "border": [
+   83,
+   0,
+   0,
+   0
+  ]
+ }
+}

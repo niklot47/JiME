@@ -10,7 +10,14 @@ import { bg, sliced, spriteUrl, type Atlas, type Say } from "./ui.ts";
  * track with the liquid texture moving in it and the burning edge, threat event markers (Threat_Event2) in front of the
  * frame at their thresholds, the darkness token on the left while darkness is in effect, the objective under the bar.
  */
-export function ThreatBar({ view, art, atlas, say }: { view: GameView; art: Record<string, string>; atlas: Atlas; say: Say }) {
+export function ThreatBar({ view, art: theme, atlas, say }: { view: GameView; art: Record<string, string>; atlas: Atlas; say: Say }) {
+  // the original theme's art (images/ui/ui.json), else the same parts from the atlas (own skin: build_game_skin.py)
+  const art: Record<string, string | undefined> = {
+    threatMeter: theme.threatMeter ?? atlas.Threat_Meter?.file,
+    threatGradient: theme.threatGradient ?? atlas.Threat_Gradient?.file,
+    threatLiquid: theme.threatLiquid ?? atlas.Threat_Liquid?.file,
+    threatFire: theme.threatFire ?? atlas.Threat_Fire?.file,
+  };
   const max = view.threatMax;
   const frac = max > 0 ? Math.min(1, view.threat / max) : 0;
   const url = (p?: string) => (p ? `url("${assetUrl(p)}")` : undefined);
