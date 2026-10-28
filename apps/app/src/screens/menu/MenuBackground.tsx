@@ -13,7 +13,7 @@ import { LOW_GFX } from "../../data/perf.ts";
 
 interface Layer { src: string; depth?: number; z?: number }
 interface Effect {
-  type: "fog" | "rays" | "leaves" | "water"; z?: number; src?: string; mask?: string; strength?: number; depth?: number; opacity?: number;
+  type: "fog" | "rays" | "leaves" | "water" | "steam"; width?: number; aspect?: number; z?: number; src?: string; mask?: string; strength?: number; depth?: number; opacity?: number;
   texture?: string; x?: number; y?: number; height?: number; speed?: number; flip?: boolean;
   atlas?: string; frames?: [number, number, number, number][]; count?: number; size?: [number, number]; wind?: number;
 }
@@ -102,12 +102,12 @@ void main() {
   vec4 m = texture2D(mask, uv);
   if (m.r < 0.01) { gl_FragColor = vec4(0.0); return; }
   float s = t * speed * mix(0.25, 1.0, m.g);
-  vec2 q = vec2(uv.x * 90.0, uv.y * 30.0 - s * 6.0);
+  vec2 q = vec2(uv.x * 170.0, uv.y * 60.0 - s * 2.2);
   float a = n(q) + 0.5 * n(q * 2.3 + 7.0);
   float b = n(q + 31.0) + 0.5 * n(q * 2.1 + 3.0);
   vec2 off = (vec2(a, b) - 0.75) * k * vec2(0.6, 1.4);
   vec4 c = texture2D(img, uv + off);
-  float streak = smoothstep(0.78, 1.0, n(vec2(uv.x * 220.0, uv.y * 14.0 - s * 9.0))) * 0.18;
+  float streak = smoothstep(0.8, 1.0, n(vec2(uv.x * 320.0, uv.y * 26.0 - s * 3.0))) * 0.12;
   float al = m.r * c.a;
   gl_FragColor = vec4((c.rgb + streak) * al, al);
 }`;
@@ -181,8 +181,72 @@ function Water({ e }: { e: Effect }) {
   return <canvas ref={canvas} className="pm-water" />;
 }
 
+/**
+ * Billowing steam (where a fall meets the river): soft puffs that rise, swell and fade, born along a short line at
+ * (x, y) of the layer's picture (fractions; the picture lies like background-size: cover, `aspect` = its width / height)
+ */
+function Steam({ e }: { e: Effect }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = canvas.current;
+    if (!cv || reduced()) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    // one soft puff, drawn once
+    const puff = document.createElement("canvas");
+    puff.width = puff.height = 128;
+    const pc = puff.getContext("2d")!;
+    const gr = pc.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, "rgba(255,246,236,0.55)"); gr.addColorStop(0.45, "rgba(255,240,226,0.25)"); gr.addColorStop(1, "rgba(255,236,220,0)");
+    pc.fillStyle = gr; pc.fillRect(0, 0, 128, 128);
+    const aspect = e.aspect ?? 16 / 9;
+    const n = Math.max(4, Math.round((e.count ?? 20) * (LOW_GFX ? 0.5 : 1)));
+    let W = 0, H = 0, dpr = 1, ox = 0, oy = 0, pw = 0, ph = 0;
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, LOW_GFX ? 1 : 1.5);
+      W = cv.clientWidth; H = cv.clientHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      // background-size: cover
+      if (W / H > aspect) { pw = W; ph = W / aspect; } else { ph = H; pw = H * aspect; }
+      ox = (W - pw) / 2; oy = (H - ph) / 2;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    const born = (age: number) => ({
+      u: (e.x ?? 0.5) + ((Math.random() - 0.5) * (e.width ?? 0.1)), age, life: 4 + Math.random() * 4,
+      r0: 0.012 + Math.random() * 0.01, grow: 0.025 + Math.random() * 0.03, rise: 0.012 + Math.random() * 0.016,
+      drift: (Math.random() - 0.5) * 0.01, spin: Math.random() * 6.3,
+    });
+    const all = Array.from({ length: n }, () => { const p = born(0); p.age = Math.random() * p.life; return p; });
+    let raf = 0, last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      for (let i = 0; i < all.length; i++) {
+        const p = all[i]!;
+        p.age += dt;
+        if (p.age > p.life) { all[i] = born(0); continue; }
+        const k = p.age / p.life;
+        const x = ox + (p.u + p.drift * p.age) * pw;
+        const y = oy + ((e.y ?? 0.7) - p.rise * p.age) * ph;
+        const r = (p.r0 + p.grow * k) * pw;
+        // in quickly, out slowly
+        ctx.globalAlpha = (e.opacity ?? 0.5) * Math.min(1, k * 5) * (1 - k) * (1 - k);
+        ctx.drawImage(puff, x - r, y - r * 0.8, r * 2, r * 1.6);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, [e]);
+  return <canvas ref={canvas} className="pm-water" />;
+}
+
 function EffectView({ e }: { e: Effect }) {
   if (e.type === "leaves") return <Leaves e={e} />;
+  if (e.type === "steam") return <Steam e={e} />;
   if (e.type === "water") return <Water e={e} />;
   if (e.type === "fog" && e.texture) {
     return (

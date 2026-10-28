@@ -120,10 +120,9 @@ def fog_texture(w=1024, h=384, seed=7):
     for cell, weight in [(128, 0.55), (64, 0.3), (24, 0.15)]:
         gw, gh = w // cell, max(2, h // cell)
         small = rng.random((gh, gw)).astype(np.float32)
-        # wrap horizontally: the first column repeats at the end before scaling
-        small = np.concatenate([small, small[:, :1]], axis=1)
-        img = Image.fromarray((small * 255).astype(np.uint8)).resize((w + cell, h), Image.BICUBIC).crop((0, 0, w, h))
-        img = img.filter(ImageFilter.GaussianBlur(cell / 2))
+        ring = np.concatenate([small, small, small], axis=1)
+        img = Image.fromarray((ring * 255).astype(np.uint8)).resize((3 * w, h), Image.BICUBIC)
+        img = img.filter(ImageFilter.GaussianBlur(cell / 2)).crop((w, 0, 2 * w, h))
         acc += np.asarray(img, np.float32) / 255 * weight
     acc = (acc - acc.min()) / (acc.max() - acc.min())
     acc = np.clip((acc - 0.35) * 1.8, 0, 1)
@@ -151,6 +150,10 @@ def rays_texture(sx, sy, w=1280, h=720, seed=3):
     fall = np.exp(-dist * 2.2) * np.clip(dist * 12, 0, 1)
     glow = np.exp(-(dist / 0.12) ** 2) * 0.8
     v = np.clip(beams * fall * 0.9 + glow, 0, 1)
+    # fade out at the picture's borders: the layer turns a little, its edge must not show
+    ex = np.clip(np.minimum(xx, w - 1 - xx) / (0.12 * w), 0, 1)
+    ey = np.clip(np.minimum(yy, h - 1 - yy) / (0.12 * h), 0, 1)
+    v *= (ex * ey) ** 1.5
     img = Image.fromarray((v * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3))
     v = np.asarray(img, np.float32) / 255
     rgb = np.dstack([v * 255, v * 214, v * 150]).astype(np.uint8)
@@ -169,7 +172,8 @@ def water_mask(img):
     yy /= h
     xx /= w
     water = (mx > 0.55) & (sat < 0.32) & (al > 0.5) & (b > r * 0.72)
-    region = ((xx > 0.33) & (xx < 0.84) & (yy > 0.40)) | ((xx > 0.38) & (xx < 0.95) & (yy > 0.85))
+    region = ((xx > 0.33) & (xx < 0.84) & (yy > 0.46)) | ((xx > 0.38) & (xx < 0.95) & (yy > 0.85))
+    region &= ~((xx > 0.73) & (xx < 0.84) & (yy < 0.6))
     m = Image.fromarray((water & region).astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(4))
     speed = np.clip((0.72 - yy) / 0.2, 0, 1) * 0.75 + 0.25
     g = Image.fromarray((speed * 255).astype(np.uint8))
@@ -188,11 +192,13 @@ def main():
         img = img.convert("RGBA" if img.mode == "RGBA" else "RGB")
         layers.append({"src": save_webp(img, f"{MENU}/layer{n}.webp", 80), "depth": depth[n], "z": (4 - n) * 10})
     effects_water = {"type": "water", "src": f"{MENU}/layer2.webp", "mask": save_webp(water_mask(Image.open(os.path.join(SRC, "2.png"))), f"{MENU}/water.webp", 90),
-                     "z": 21, "strength": 0.005, "speed": 1.0}
+                     "z": 21, "strength": 0.0025, "speed": 0.45}
     others = [f for f in os.listdir(SRC) if f.lower().endswith(".png") and f[:-4] not in ("1", "2", "3", "4")]
     rgba = [f for f in others if Image.open(os.path.join(SRC, f)).mode == "RGBA"]
+    l2 = Image.open(os.path.join(SRC, "2.png"))
     effects = [
         effects_water,
+        {"type": "steam", "z": 22, "x": 0.595, "y": 0.69, "width": 0.13, "count": 22, "aspect": round(l2.width / l2.height, 4), "opacity": 0.5},
         # the sun low over the far mountains, its rays through the valley
         {"type": "rays", "texture": save_webp(rays_texture(0.2, 0.2), f"{MENU}/rays.webp", 80), "z": 5, "x": 0.2, "y": 0.2, "opacity": 0.55},
         {"type": "fog", "texture": save_webp(fog_texture(), f"{MENU}/fog.webp", 85), "z": 15, "y": 0.42, "height": 0.35, "opacity": 0.55, "speed": 90},
