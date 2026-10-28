@@ -2,7 +2,7 @@
 // heroes, party name), saved campaigns, settings. The pictures and texts come from the packs; the look from styles.css
 // (.pm-*) and the background from MenuBackground (a theme's parallax layers).
 import { useMemo, useState } from "react";
-import { newCampaignSave, scopeProducts, type CampaignSave, type ContentSource, type Difficulty } from "@jime/engine";
+import { itemCounts, itemSubstitutes, newCampaignSave, scopeProducts, type CampaignSave, type ContentSource, type Difficulty } from "@jime/engine";
 import { setLang, useLang } from "../../data/lang.ts";
 import { inTauri, quitApp } from "../../data/host.ts";
 import { installTheme, loadPackSet, themeChoice } from "../../data/pack.ts";
@@ -13,7 +13,7 @@ import { MenuBackground } from "./MenuBackground.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
-type Page = "main" | "campaign" | "difficulty" | "heroes" | "party" | "load" | "settings";
+type Page = "main" | "campaign" | "difficulty" | "heroes" | "items" | "party" | "load" | "settings";
 const LANG_NAME: Record<string, string> = { ru: "Русский", en: "English", it: "Italiano", de: "Deutsch", fr: "Français", es: "Español", pl: "Polski", uk: "Українська" };
 
 /** HeroModel ids a campaign may use (its products, else every hero), sorted by name */
@@ -51,6 +51,10 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [heroes, setHeroes] = useState<number[]>([]);
   const [party, setParty] = useState("");
   const [shelf, setShelf] = useState(0); // the page of campaign thumbnails
+  // starting items per hero: [armor, weapon, second weapon] (StartingItemController), the slot being replaced
+  const [items, setItems] = useState<(number | null)[][]>([]);
+  const [replace, setReplace] = useState<{ hero: number; slot: number } | null>(null);
+  const [nameWarn, setNameWarn] = useState(false);
   const [langs, setLangs] = useState<string[]>(["ru", "en", "it"]);
   useEffect(() => { loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {}); }, []);
   useEffect(() => { sound.music(page === "main" || page === "load" || page === "settings" ? "TitlescreenMusic" : "NewGameMusic"); }, [page]);
@@ -65,7 +69,9 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const start = () => {
     const src = { db: () => ui.db } as unknown as ContentSource;
     const owned = ownedProducts();
-    const s = newCampaignSave(src, { campaign: campaign!, heroes, difficulty, partyName: party.trim(), language: lang, ...(owned ? { products: owned } : {}) });
+    const heroItems = heroes.map((_, i) => (items[i] ?? []).filter((x): x is number => x !== null));
+    const s = newCampaignSave(src, { campaign: campaign!, heroes, difficulty, partyName: party.trim(), language: lang, heroItems,
+      ...(owned ? { products: owned } : {}) });
     putSave(s);
     onPlay(s, true);
   };
@@ -195,16 +201,93 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
           })}
         </div>
         <button className="lo-corner lo-back" onClick={() => { setShelf(0); setPage("difficulty"); }}><span>{t("back")}</span></button>
-        <button className="lo-corner lo-next" disabled={!heroes.length} onClick={() => setPage("party")}><span>{t("toParty")}</span></button>
+        <button className="lo-corner lo-next" disabled={!heroes.length}
+          onClick={() => { setItems(defaultItems(ui, heroes, scopeProducts(ui.db, campaign, ownedProducts()))); setReplace(null); setPage("items"); }}>
+          <span>{t("toItems")}</span></button>
+      </div>
+    );
+  } else if (page === "items") {
+    // like the original: a column per hero (name, portrait, armor, weapon in hand and a second one), a click on an item
+    // opens the list of the cards it can be swapped for (same level and kind, copies left in the products)
+    const I = ui.db.models.ItemModel ?? {};
+    const products = scopeProducts(ui.db, campaign, ownedProducts());
+    const twoHanded = (id: number | null) => id !== null && !!Number(I[String(id)]?.Is2Handed ?? 0);
+    const hobbit = (h: number) => (Number(H[String(h)]?.Traits ?? 0) & 8) !== 0;
+    const itemCard = (id: number | null, onClick: () => void, key?: string | number) => {
+      const m = id !== null ? I[String(id)] : null;
+      const icon = id !== null ? ui.art.items[String(id)]?.Icon : undefined;
+      return (
+        <button key={key} className={`lo-item${m ? "" : " empty"}`} onClick={onClick}>
+          <span className="lo-item-icon">{icon && <img src={ui.pic(icon)} alt="" />}</span>
+          <b>{m ? ui.raw(m.NameKey) || m.m_Name : t("noneChosen")}</b>
+          {m && <i className="lo-item-level">{roman(Number(m.Level ?? 1))}</i>}
+          {twoHanded(id) && <i className="lo-item-2h" title={t("twoHanded")}>✋✋</i>}
+        </button>
+      );
+    };
+    const choose = (hero: number, slot: number, id: number) => {
+      setItems((all) => all.map((row, i) => {
+        if (i !== hero) return row;
+        const r = [...row];
+        if (slot > 0 && twoHanded(id)) { r[1] = id; r[2] = null; } else r[slot] = id;
+        return r;
+      }));
+      setReplace(null);
+    };
+    const subs = replace ? itemSubstitutes(ui.db, items.map((r) => r.filter((x): x is number => x !== null)), heroes[replace.hero]!,
+      replace.slot === 0 ? "armor" : "weapon", items[replace.hero]?.[replace.slot] ?? null, products) : [];
+    const repId = replace ? items[replace.hero]?.[replace.slot] ?? null : null;
+    body = (
+      <div className="lo-campaign lo-items">
+        <h2 className="lo-banner"><span>{t("toItems")}</span></h2>
+        <div className="lo-gear-cols">
+          {heroes.map((h, i) => {
+            const row = items[i] ?? [null, null, null];
+            const a = ui.art.heroes[String(h)];
+            const second = !twoHanded(row[1] ?? null) && (row[2] !== null || !hobbit(h));
+            return (
+              <div key={h} className="lo-gear-col">
+                <div className="lo-hero lo-gear-hero">
+                  <b className="lo-hero-name"><span>{ui.raw(H[String(h)]?.NameKey)}</span></b>
+                  <span className="lo-hero-pic">{(a?.portrait || a?.icon) ? <img src={ui.pic(a.portrait ?? a.icon)} alt="" /> : <i>{ui.raw(H[String(h)]?.NameKey).slice(0, 1)}</i>}</span>
+                </div>
+                <small>{t("armor")}</small>
+                {itemCard(row[0] ?? null, () => setReplace({ hero: i, slot: 0 }))}
+                <small>{t("inHands")}</small>
+                {itemCard(row[1] ?? null, () => setReplace({ hero: i, slot: 1 }))}
+                {second && itemCard(row[2] ?? null, () => setReplace({ hero: i, slot: 2 }))}
+              </div>
+            );
+          })}
+        </div>
+        {replace && (
+          <div className="lo-modal" onClick={() => setReplace(null)}>
+            <div className="lo-replace" onClick={(e) => e.stopPropagation()}>
+              <p>{repId !== null ? t("replaceItem") : t(replace.slot === 0 ? "chooseArmor" : "chooseItem")}
+                {repId !== null && <b>{ui.raw(I[String(repId)]?.NameKey)}</b>}</p>
+              <div className="lo-replace-list">
+                {subs.length ? subs.map((id) => itemCard(id, () => choose(replace.hero, replace.slot, id), id)) : <p className="muted">{t("noSubstitutes")}</p>}
+              </div>
+            </div>
+          </div>
+        )}
+        <button className="lo-corner lo-back" onClick={() => { setReplace(null); setPage("heroes"); }}><span>{t("back")}</span></button>
+        <button className="lo-corner lo-next" onClick={() => { setReplace(null); setNameWarn(false); setPage("party"); }}><span>{t("toParty")}</span></button>
       </div>
     );
   } else if (page === "party") {
+    // like the original: the title plate, one name field in the middle, back / start in the corners
+    const go = () => { if (!party.trim()) { setNameWarn(true); return; } start(); };
     body = (
-      <Step title={t("partyName")} sub={t("partyNameHint")} onBack={() => setPage("heroes")} onNext={start} nextLabel={t("start")} canNext={party.trim().length > 0} t={t}>
-        <input className="pm-input" autoFocus maxLength={30} value={party} onChange={(e) => setParty(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && party.trim()) start(); }} />
-        <p className="pm-summary">{ui.raw(C[String(campaign)]?.TitleKey)} · {heroes.map((h) => ui.raw(H[String(h)]?.NameKey)).join(", ")}</p>
-      </Step>
+      <div className="lo-campaign lo-party">
+        <h2 className="lo-banner"><span>{t("toParty")}</span></h2>
+        <input className="pm-input lo-name" autoFocus maxLength={24} value={party} placeholder={t("partyNamePlaceholder")}
+          onChange={(e) => { setNameWarn(false); setParty(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") go(); }} />
+        {nameWarn && <p className="lo-warn">{t("partyNameNeeded")}</p>}
+        <p className="lo-party-sum">{ui.raw(C[String(campaign)]?.TitleKey)} · {heroes.map((h) => ui.raw(H[String(h)]?.NameKey)).join(", ")}</p>
+        <button className="lo-corner lo-back" onClick={() => setPage("items")}><span>{t("back")}</span></button>
+        <button className="lo-corner lo-next" onClick={go}><span>{t("start")}</span></button>
+      </div>
     );
   } else if (page === "load") {
     body = (
@@ -245,6 +328,24 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
       <div className={`pm-page pm-page-${page}`} key={page}>{body}</div>
     </div>
   );
+}
+
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI"];
+const roman = (n: number) => ROMAN[n] ?? String(n);
+
+/** ItemSelectionSlot.DisplayHero: each hero's default armor / weapon / second weapon while copies are left */
+function defaultItems(ui: MenuUi, heroes: number[], products?: number[]): (number | null)[][] {
+  const max = itemCounts(ui.db, products);
+  const used = new Map<number, number>();
+  const take = (id: number | null) => {
+    if (id === null || (used.get(id) ?? 0) >= (max.get(id) ?? 0)) return null;
+    used.set(id, (used.get(id) ?? 0) + 1);
+    return id;
+  };
+  return heroes.map((h) => {
+    const m = ui.db.models.HeroModel?.[String(h)] ?? {};
+    return [take(refId(m.DefaultArmor)), take(refId(m.DefaultWeapon)), take(refId(m.DefaultSecondWeapon))];
+  });
 }
 
 /** The settings gear (the skin's "gear" picture covers it when there is one) */

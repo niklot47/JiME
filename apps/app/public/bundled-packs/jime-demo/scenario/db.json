@@ -186,6 +186,7 @@
     "_id": 9101,
     "NameKey": "ITEM_DEMO_BOW",
     "Level": 1,
+    "Type": 0,
     "Is2Handed": 1,
     "Upgrades": [
      {
@@ -201,6 +202,7 @@
     "_id": 9102,
     "NameKey": "ITEM_DEMO_HAMMER",
     "Level": 1,
+    "Type": 0,
     "Is2Handed": 1,
     "Upgrades": [
      {
@@ -216,6 +218,7 @@
     "_id": 9103,
     "NameKey": "ITEM_DEMO_STAFF",
     "Level": 1,
+    "Type": 0,
     "Is2Handed": 1,
     "Upgrades": [
      {
@@ -231,6 +234,7 @@
     "_id": 9104,
     "NameKey": "ITEM_DEMO_DAGGER",
     "Level": 1,
+    "Type": 0,
     "Upgrades": [
      {
       "ref": "ItemModel",
@@ -245,6 +249,7 @@
     "_id": 9111,
     "NameKey": "ITEM_DEMO_LEATHER",
     "Level": 1,
+    "Type": 1,
     "Upgrades": [],
     "UpgradeCost": 0
    },
@@ -253,6 +258,7 @@
     "_id": 9112,
     "NameKey": "ITEM_DEMO_MAIL",
     "Level": 1,
+    "Type": 1,
     "Upgrades": [],
     "UpgradeCost": 0
    },
@@ -261,6 +267,7 @@
     "_id": 9113,
     "NameKey": "ITEM_DEMO_CLOAK",
     "Level": 1,
+    "Type": 1,
     "Upgrades": [],
     "UpgradeCost": 0
    },
@@ -269,6 +276,7 @@
     "_id": 9121,
     "NameKey": "ITEM_DEMO_LONGBOW",
     "Level": 2,
+    "Type": 0,
     "Is2Handed": 1,
     "Upgrades": [],
     "UpgradeCost": 0
@@ -278,6 +286,7 @@
     "_id": 9122,
     "NameKey": "ITEM_DEMO_WARHAMMER",
     "Level": 2,
+    "Type": 0,
     "Is2Handed": 1,
     "Upgrades": [],
     "UpgradeCost": 0
@@ -287,6 +296,7 @@
     "_id": 9123,
     "NameKey": "ITEM_DEMO_RUNESTAFF",
     "Level": 2,
+    "Type": 0,
     "Is2Handed": 1,
     "Upgrades": [],
     "UpgradeCost": 0
@@ -296,6 +306,7 @@
     "_id": 9124,
     "NameKey": "ITEM_DEMO_FANG",
     "Level": 2,
+    "Type": 0,
     "Upgrades": [],
     "UpgradeCost": 0
    },
@@ -304,6 +315,7 @@
     "_id": 9131,
     "NameKey": "ITEM_DEMO_LANTERN",
     "Level": 1,
+    "Type": 2,
     "Upgrades": [],
     "UpgradeCost": 0
    },
@@ -312,6 +324,7 @@
     "_id": 9132,
     "NameKey": "ITEM_DEMO_FERRY_TOKEN",
     "Level": 1,
+    "Type": 2,
     "Upgrades": [],
     "UpgradeCost": 0
    }
@@ -1472,7 +1485,7 @@
        "name": "9111_ItemModel",
        "id": 9111
       },
-      "Quantity": 1
+      "Quantity": 2
      },
      {
       "Item": {

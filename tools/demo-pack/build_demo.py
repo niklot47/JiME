@@ -299,6 +299,9 @@ SYSTEM_GLOBALS = {
     "IsTutorial": {"type": "bool", "value": 0}, "CorruptionPresence": {"type": "bool", "value": 0},
     "DarknessMessageOverride": {"type": "string", "value": ""}, "PartyName": {"type": "string", "value": ""},
 }
+# ItemType (actions.ts): 0 weapon, 1 armor, 2 item, 3 mount; copies in the box (default 1)
+ITEM_TYPE = {9111: 1, 9112: 1, 9113: 1, 9131: 2, 9132: 2}
+ITEM_COPIES = {9111: 2}
 CUTSCENES = [(9001, "CAM_DEMO_PROLOGUE"), (9002, "CAM_DEMO_VICTORY"), (9003, "CAM_DEMO_DEFEAT")]
 
 
@@ -308,7 +311,7 @@ def build_db(tile_models, standard, tiles):
                                "DefaultArmor": ref("ItemModel", ar), "DefaultWeapon": ref("ItemModel", w), "Gender": 0, "Traits": 0,
                                "StartingSkills": [{"Skill": ref("SkillModel", s), "Quantity": 2 if n == 0 else 1} for n, s in enumerate(HERO_SKILLS[h])]}
                       for h, k, _, _, w, ar, race in HEROES}
-    M["ItemModel"] = {str(i): {"m_Name": f"{i}_{k}", "_id": i, "NameKey": k, "Level": lv, **({"Is2Handed": 1} if two else {}),
+    M["ItemModel"] = {str(i): {"m_Name": f"{i}_{k}", "_id": i, "NameKey": k, "Level": lv, "Type": ITEM_TYPE.get(i, 0), **({"Is2Handed": 1} if two else {}),
                                "Upgrades": [ref("ItemModel", u) for u in up], "UpgradeCost": cost}
                       for i, k, lv, two, up, cost in ITEMS}
     M["SkillModel"] = {str(i): {"m_Name": f"{i}_{k}", "_id": i, "NameKey": k, "SourceType": st} for i, k, st in SKILLS}
@@ -340,7 +343,7 @@ def build_db(tile_models, standard, tiles):
     M["ProductModel"] = {str(PRODUCT): {"m_Name": f"{PRODUCT}_Demo Set", "Standalone": 1, "NameKey": "PROD_DEMO_TITLE", "DescriptionKey": "PROD_DEMO_DESC", "ContentsKey": "PROD_DEMO_CONTENTS",
                                "Tiles": [ref("TileModel", c, c) for c in sorted(tile_models)],
                                "Enemies": [ref("EnemyModel", e[0]) for e in ENEMIES],
-                               "Items": [{"Item": ref("ItemModel", i[0]), "Quantity": 1} for i in ITEMS],
+                               "Items": [{"Item": ref("ItemModel", i[0]), "Quantity": ITEM_COPIES.get(i[0], 1)} for i in ITEMS],
                                "Heroes": [ref("HeroModel", h[0]) for h in HEROES],
                                "Skills": [{"Skill": ref("SkillModel", s[0]), "Quantity": 3} for s in SKILLS],
                                "Encounters": [ref("EncounterModel", e["id"], e["model"]["m_Name"]) for e in ENCOUNTERS],
