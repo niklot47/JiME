@@ -678,12 +678,21 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 /* ------------------------------------------------------------------ this app's own menus (screens/menu, .pm-*) */
 .pm-screen { position: fixed; inset: 0; overflow: hidden; background: #0d0b09; color: #eadfc6; font-family: "JiME Text", Georgia, "Times New Roman", serif;
   display: flex; align-items: center; justify-content: center; }
-.pm-bg { position: absolute; inset: 0; overflow: hidden; --px: 0; --py: 0; }
-.pm-bg.dim::after { content: ""; position: absolute; inset: 0; background: rgba(8, 6, 4, 0.55); transition: background 0.6s; }
-.pm-layer { position: absolute; inset: -6%; background-size: cover; background-position: center; will-change: transform;
-  transform: translate3d(calc(var(--px) * var(--d) * -2.5% + var(--ox, 0%)), calc(var(--py) * var(--d) * -1.5% + var(--oy, 0%)), 0); }
-.pm-layer.drift { animation: pm-drift 60s ease-in-out infinite alternate; }
-@keyframes pm-drift { from { margin-left: -3%; } to { margin-left: 3%; } }
+.pm-bg { position: absolute; inset: 0; overflow: hidden; background: #120d0a; }
+.pm-bg.dim::after { content: ""; position: absolute; inset: 0; background: rgba(8, 6, 4, 0.55); transition: background 0.6s; z-index: 2; }
+.pm-part { position: absolute; inset: 0; will-change: transform; pointer-events: none; }
+.pm-img { position: absolute; inset: 0; background-size: cover; background-position: center; }
+/* fog: a band with a strip twice the screen (two texture tiles) sliding by one tile */
+.pm-fog { position: absolute; left: 0; right: 0; overflow: hidden; }
+.pm-fog-strip { position: absolute; top: 0; bottom: 0; left: 0; width: 200%; background-size: 50% 100%; background-repeat: repeat-x;
+  animation: pm-fog linear infinite; }
+@keyframes pm-fog { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+/* sun rays: a light picture added on top (screen), turning a little and breathing */
+.pm-part-light { mix-blend-mode: screen; }
+.pm-rays { position: absolute; inset: 0; background-size: cover; background-position: center;
+  animation: pm-rays 23s ease-in-out infinite alternate; }
+@keyframes pm-rays { from { transform: rotate(-2deg); filter: brightness(0.85); } to { transform: rotate(2.5deg); filter: brightness(1.15); } }
+.pm-leaves { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* the stand-in landscape (no theme pictures) */
 .pm-sky { background: radial-gradient(ellipse at 70% 75%, #c0703a 0%, #6b3a2a 18%, #2a2030 45%, #0f0d18 75%); }
 .pm-hills { background-repeat: no-repeat; background-size: 100% 100%; }
@@ -693,7 +702,12 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
   radial-gradient(ellipse 65% 55% at 85% 100%, #0b0a0d 60%, transparent 61%), linear-gradient(transparent 70%, #0a090c 70%); }
 .pm-mist { background: radial-gradient(ellipse 40% 12% at 30% 72%, rgba(220, 200, 180, 0.10), transparent),
   radial-gradient(ellipse 50% 10% at 70% 80%, rgba(220, 200, 180, 0.08), transparent); }
-.pm-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.65) 100%); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .pm-fog-strip, .pm-rays { animation: none; } }
+.pm-vignette { position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%); pointer-events: none; }
+/* behind the main menu: a soft shade on the left, so the buttons read over a busy picture */
+.pm-shade { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 0.6s;
+  background: linear-gradient(90deg, rgba(10, 7, 4, 0.6) 0%, rgba(10, 7, 4, 0.35) 30%, transparent 50%); }
+.pm-screen:has(.pm-page-main) .pm-shade { opacity: 1; }
 .pm-page { position: relative; z-index: 1; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; animation: pm-in 0.35s ease-out; }
 @keyframes pm-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .pm-page-main { justify-content: flex-start; padding-left: 8vw; }
