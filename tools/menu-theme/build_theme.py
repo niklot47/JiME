@@ -157,6 +157,25 @@ def rays_texture(sx, sy, w=1280, h=720, seed=3):
     return Image.fromarray(rgb, "RGB")
 
 
+def water_mask(img):
+    """Where the falls and the river of the city layer are: bright, little saturated, not reddish pixels inside the
+    water's region; red = water (soft edge), green = speed (the falls fast, the river slower)"""
+    a = np.asarray(img.convert("RGBA")).astype(np.float32) / 255
+    r, b, al = a[..., 0], a[..., 2], a[..., 3]
+    mx, mn = a[..., :3].max(-1), a[..., :3].min(-1)
+    sat = (mx - mn) / np.maximum(mx, 1e-3)
+    h, w = r.shape
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    yy /= h
+    xx /= w
+    water = (mx > 0.55) & (sat < 0.32) & (al > 0.5) & (b > r * 0.72)
+    region = ((xx > 0.33) & (xx < 0.84) & (yy > 0.40)) | ((xx > 0.38) & (xx < 0.95) & (yy > 0.85))
+    m = Image.fromarray((water & region).astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(4))
+    speed = np.clip((0.72 - yy) / 0.2, 0, 1) * 0.75 + 0.25
+    g = Image.fromarray((speed * 255).astype(np.uint8))
+    return Image.merge("RGB", (m, g, Image.new("L", m.size, 0)))
+
+
 def main():
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
@@ -168,9 +187,12 @@ def main():
         img = Image.open(os.path.join(SRC, f"{n}.png"))
         img = img.convert("RGBA" if img.mode == "RGBA" else "RGB")
         layers.append({"src": save_webp(img, f"{MENU}/layer{n}.webp", 80), "depth": depth[n], "z": (4 - n) * 10})
+    effects_water = {"type": "water", "src": f"{MENU}/layer2.webp", "mask": save_webp(water_mask(Image.open(os.path.join(SRC, "2.png"))), f"{MENU}/water.webp", 90),
+                     "z": 21, "strength": 0.004, "speed": 1.0}
     others = [f for f in os.listdir(SRC) if f.lower().endswith(".png") and f[:-4] not in ("1", "2", "3", "4")]
     rgba = [f for f in others if Image.open(os.path.join(SRC, f)).mode == "RGBA"]
     effects = [
+        effects_water,
         # the sun low over the far mountains, its rays through the valley
         {"type": "rays", "texture": save_webp(rays_texture(0.2, 0.2), f"{MENU}/rays.webp", 80), "z": 5, "x": 0.2, "y": 0.2, "opacity": 0.55},
         {"type": "fog", "texture": save_webp(fog_texture(), f"{MENU}/fog.webp", 85), "z": 15, "y": 0.42, "height": 0.35, "opacity": 0.55, "speed": 90},

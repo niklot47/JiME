@@ -23,6 +23,14 @@
  ],
  "effects": [
   {
+   "type": "water",
+   "src": "images/menu/layer2.webp",
+   "mask": "images/menu/water.webp",
+   "z": 21,
+   "strength": 0.004,
+   "speed": 1.0
+  },
+  {
    "type": "rays",
    "texture": "images/menu/rays.webp",
    "z": 5,

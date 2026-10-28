@@ -692,7 +692,7 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .pm-rays { position: absolute; inset: 0; background-size: cover; background-position: center;
   animation: pm-rays 23s ease-in-out infinite alternate; }
 @keyframes pm-rays { from { transform: rotate(-2deg); filter: brightness(0.85); } to { transform: rotate(2.5deg); filter: brightness(1.15); } }
-.pm-leaves { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pm-leaves, .pm-water { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* the stand-in landscape (no theme pictures) */
 .pm-sky { background: radial-gradient(ellipse at 70% 75%, #c0703a 0%, #6b3a2a 18%, #2a2030 45%, #0f0d18 75%); }
 .pm-hills { background-repeat: no-repeat; background-size: 100% 100%; }

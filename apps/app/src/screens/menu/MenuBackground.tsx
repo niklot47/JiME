@@ -13,7 +13,7 @@ import { LOW_GFX } from "../../data/perf.ts";
 
 interface Layer { src: string; depth?: number; z?: number }
 interface Effect {
-  type: "fog" | "rays" | "leaves"; z?: number; depth?: number; opacity?: number;
+  type: "fog" | "rays" | "leaves" | "water"; z?: number; src?: string; mask?: string; strength?: number; depth?: number; opacity?: number;
   texture?: string; x?: number; y?: number; height?: number; speed?: number; flip?: boolean;
   atlas?: string; frames?: [number, number, number, number][]; count?: number; size?: [number, number]; wind?: number;
 }
@@ -88,8 +88,102 @@ function Leaves({ e }: { e: Effect }) {
   return <canvas ref={canvas} className="pm-leaves" />;
 }
 
+const WATER_VS = `attribute vec2 p; varying vec2 v; void main() { v = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }`;
+// the picture is drawn like CSS background-size: cover; inside the mask its pixels are fetched from a little higher
+// and to the side by two octaves of value noise scrolling down (falls fast, river slow), plus faint bright streaks
+const WATER_FS = `precision mediump float;
+varying vec2 v;
+uniform sampler2D img; uniform sampler2D mask; uniform float t; uniform float k; uniform float speed; uniform vec2 scale;
+float h(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
+void main() {
+  vec2 uv = vec2(0.5) + (vec2(v.x, 1.0 - v.y) - vec2(0.5)) * scale;
+  vec4 m = texture2D(mask, uv);
+  if (m.r < 0.01) { gl_FragColor = vec4(0.0); return; }
+  float s = t * speed * mix(0.25, 1.0, m.g);
+  vec2 q = vec2(uv.x * 90.0, uv.y * 30.0 - s * 6.0);
+  float a = n(q) + 0.5 * n(q * 2.3 + 7.0);
+  float b = n(q + 31.0) + 0.5 * n(q * 2.1 + 3.0);
+  vec2 off = (vec2(a, b) - 0.75) * k * vec2(0.6, 1.4);
+  vec4 c = texture2D(img, uv + off);
+  float streak = smoothstep(0.78, 1.0, n(vec2(uv.x * 220.0, uv.y * 14.0 - s * 9.0))) * 0.18;
+  float al = m.r * c.a;
+  gl_FragColor = vec4((c.rgb + streak) * al, al);
+}`;
+
+/** Flowing water over a layer: its picture again, only where the mask says water, displaced by moving noise */
+function Water({ e }: { e: Effect }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = canvas.current;
+    if (!cv || !e.src || !e.mask || reduced()) return;
+    const gl = cv.getContext("webgl", { premultipliedAlpha: true, alpha: true });
+    if (!gl) return;
+    const sh = (type: number, src: string) => { const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, WATER_VS));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, WATER_FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const u = (n: string) => gl.getUniformLocation(prog, n);
+    gl.uniform1i(u("img"), 0); gl.uniform1i(u("mask"), 1);
+    gl.uniform1f(u("k"), e.strength ?? 0.004); gl.uniform1f(u("speed"), e.speed ?? 1);
+    let aspect = 16 / 9, ready = 0, raf = 0;
+    const load = (src: string, unit: number, onSize?: (w: number, h: number) => void) => {
+      const im = new Image();
+      im.crossOrigin = "anonymous";
+      im.onload = () => {
+        const tex = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
+        for (const [p, val] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]] as const)
+          gl.texParameteri(gl.TEXTURE_2D, p, val);
+        onSize?.(im.naturalWidth, im.naturalHeight);
+        ready++;
+      };
+      im.src = assetUrl(src);
+    };
+    load(e.src, 0, (w, h) => { aspect = w / h; });
+    load(e.mask, 1);
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 1) * (LOW_GFX ? 0.5 : 0.75);
+      cv.width = Math.round(cv.clientWidth * dpr); cv.height = Math.round(cv.clientHeight * dpr);
+      gl.viewport(0, 0, cv.width, cv.height);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      if (ready === 2) {
+        // background-size: cover - the part of the picture the box shows
+        const box = cv.clientWidth / Math.max(1, cv.clientHeight);
+        gl.uniform2f(u("scale"), box > aspect ? 1 : box / aspect, box > aspect ? aspect / box : 1);
+        gl.uniform1f(u("t"), (now - t0) / 1000);
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    // (no loseContext here: React runs effects twice in development, and a lost context stays lost for the canvas)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); gl.deleteProgram(prog); gl.deleteBuffer(buf); };
+  }, [e]);
+  return <canvas ref={canvas} className="pm-water" />;
+}
+
 function EffectView({ e }: { e: Effect }) {
   if (e.type === "leaves") return <Leaves e={e} />;
+  if (e.type === "water") return <Water e={e} />;
   if (e.type === "fog" && e.texture) {
     return (
       <div className="pm-fog" style={{ top: `${(e.y ?? 0.5) * 100 - (e.height ?? 0.3) * 50}%`, height: `${(e.height ?? 0.3) * 100}%`, opacity: e.opacity ?? 0.5 }}>
