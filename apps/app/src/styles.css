@@ -817,7 +817,9 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
   background: var(--sk-checkbox) center / contain no-repeat; cursor: pointer; }
 .skinned .pm-member input[type=checkbox]:checked { background-image: var(--sk-checkbox-on); }
 .skinned .pm-member input[type=checkbox]:disabled { opacity: 0.45; cursor: default; }
-.skinned .pm-logo { width: min(300px, 70vw); aspect-ratio: 600 / 220; background: var(--sk-logo) left center / contain no-repeat;
+/* the logo keeps its image's proportions: a long one (4:1) gets wider, never taller than 140px */
+.skinned .pm-logo { --ar: var(--sk-logo-ar, 2.7273); aspect-ratio: var(--ar); max-width: calc(100vw - 84px);
+  width: min(calc(140px * var(--ar)), 620px); font-size: 1rem; background: var(--sk-logo) left center / contain no-repeat;
   color: transparent; text-shadow: none; overflow: hidden; }
 .skinned .pm-logo span { visibility: hidden; }
 .skinned .pm-screen { color: var(--sk-c-text, #eadfc6); }
