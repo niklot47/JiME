@@ -13,8 +13,10 @@ import { assetUrl, packJsonMerged } from "../../data/pack.ts";
 import { LOW_GFX } from "../../data/perf.ts";
 
 interface Layer { src: string; depth?: number; z?: number }
-interface Effect {
-  type: "fog" | "rays" | "leaves" | "water" | "steam"; width?: number; aspect?: number; z?: number; src?: string; mask?: string; strength?: number; depth?: number; opacity?: number;
+export interface Effect {
+  type: "fog" | "rays" | "leaves" | "water" | "steam" | "embers";
+  /** embers: their colour; hover: shown only while the layered art is hovered / chosen (LayeredArt) */
+  color?: string; hover?: boolean; width?: number; aspect?: number; z?: number; src?: string; mask?: string; strength?: number; depth?: number; opacity?: number;
   texture?: string; x?: number; y?: number; height?: number; speed?: number; flip?: boolean;
   atlas?: string; frames?: [number, number, number, number][]; count?: number; size?: [number, number]; wind?: number;
 }
@@ -260,7 +262,63 @@ function Steam({ e }: { e: Effect }) {
   return <canvas ref={canvas} className="pm-water" />;
 }
 
-function EffectView({ e }: { e: Effect }) {
+/**
+ * Embers / sparks rising from a line at (x, y) of the box (fractions), `width` wide: glowing dots that drift up,
+ * sway, flicker and fade; `color` their glow, `speed` how fast they rise
+ */
+function Embers({ e }: { e: Effect }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = canvas.current;
+    if (!cv || reduced()) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const col = e.color ?? "#ff9a40";
+    const n = Math.max(4, Math.round((e.count ?? 24) * (LOW_GFX ? 0.5 : 1)));
+    let W = 0, H = 0, dpr = 1;
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, LOW_GFX ? 1 : 1.5);
+      W = cv.clientWidth; H = cv.clientHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(cv);
+    const born = () => ({
+      x: (e.x ?? 0.5) + (Math.random() - 0.5) * (e.width ?? 0.4), y: e.y ?? 0.9, age: 0, life: 1.5 + Math.random() * 2.5,
+      vy: (0.12 + Math.random() * 0.2) * (e.speed ?? 1), sway: 0.01 + Math.random() * 0.03, f: 1 + Math.random() * 3, ph: Math.random() * 6.3,
+      r: (e.size?.[0] ?? 1.2) + Math.random() * ((e.size?.[1] ?? 3) - (e.size?.[0] ?? 1.2)),
+    });
+    const all = Array.from({ length: n }, () => { const p = born(); p.age = Math.random() * p.life; return p; });
+    let raf = 0, last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < all.length; i++) {
+        const p = all[i]!;
+        p.age += dt;
+        if (p.age > p.life) { all[i] = born(); continue; }
+        const k = p.age / p.life;
+        const x = (p.x + Math.sin(p.age * p.f + p.ph) * p.sway) * W, y = (p.y - p.vy * p.age) * H;
+        ctx.globalAlpha = (e.opacity ?? 0.9) * Math.min(1, k * 6) * (1 - k) * (0.7 + 0.3 * Math.sin(p.age * 20 + p.ph));
+        const g = ctx.createRadialGradient(x, y, 0, x, y, p.r * 3);
+        g.addColorStop(0, "#fff4d0"); g.addColorStop(0.3, col); g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(x - p.r * 3, y - p.r * 3, p.r * 6, p.r * 6);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [e]);
+  return <canvas ref={canvas} className="pm-water" />;
+}
+
+export function EffectView({ e }: { e: Effect }) {
+  if (e.type === "embers") return <Embers e={e} />;
   if (e.type === "leaves") return <Leaves e={e} />;
   if (e.type === "steam") return <Steam e={e} />;
   if (e.type === "water") return <Water e={e} />;

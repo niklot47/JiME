@@ -57,6 +57,21 @@ GAME = [
     ("Dialog_HeroMenu", 785, 511, [83, 0, 0, 0], []),
 ]
 
+USE = {
+    "Threat_Meter": "the threat bar's frame (the track window stays transparent)", "Enemy_Bar": "the bar of enemies at the bottom",
+    "Threat_Gradient": "the threat fill's colours left to right", "Threat_Liquid": "the moving texture in the threat fill (tiles)",
+    "Threat_Fire": "the burning edge of the threat fill", "Threat_Event2": "threat event markers on the bar", "DarknessToken": "the darkness mark",
+    "Button_Party": "the party button (bottom left)", "Button_EndRound": "end the round (bottom right)", "Button_Provoke": "provoke",
+    "Options_Button_toggled": "the settings button's plate", "header_icon_settings": "the gear on it",
+    "Enemy_Frame_Normal": "an enemy medallion (portrait inside)", "Enemy_Frame_Elite": "the named enemy's crown and banner",
+    "Generic_Circle2": "the glow of an enemy that can be attacked", "Icon_Armor": "armour", "Icon_Skull": "a defeated mark",
+    "Enemy_HealthBarBG": "an enemy's health bar", "Dialog_Round": "the phase plate", "Dialog_Chronicle": "chronicle rows",
+    "Enemy_9_Slice": "the enemy window", "Button_Generic": "green buttons of messages", "Button_Arrowless": "buttons of choices",
+    "Button_MessageBox": "message box buttons", "Button_CombatDialog": "the attack dialog's buttons", "Damage_Holder": "the damage value",
+    "Frame_Empty": "an empty slot", "Frame_Lore": "the lore frame", "StartingItemFrame": "item rows", "HeroFrame": "a hero's card in the party menu",
+    "Dialog_HeroMenu": "the party menu",
+}
+
 DARK = (34, 27, 20, 255)
 DARK2 = (22, 18, 13, 255)
 RIM = (107, 85, 54, 255)

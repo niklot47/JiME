@@ -6,6 +6,7 @@ import { adventureChoices, chapterOf, availableXP, canTakeRole, canUpgrade, emba
   xpRoles, type CampaignSave, type ItemPlace } from "@jime/engine";
 import { useTr } from "../../ui/i18n.ts";
 import { MenuBackground } from "./MenuBackground.tsx";
+import { sound } from "../../audio/sound.ts";
 import { CampaignMap2D, mapView } from "./CampaignMap2D.tsx";
 import { CampaignMap3D } from "./CampaignMap3D.tsx";
 import { loadCampaignMaps, loadMapScene, type CampaignMapData } from "../../data/pack.ts";
@@ -13,18 +14,29 @@ import type { MenuUi } from "./useMenuData.ts";
 
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
 
-/** A cutscene: its picture and text, then on */
-export function PlainCutscene({ ui, cutscene, title, onDone }: { ui: MenuUi; cutscene: number; title: string; onDone: () => void }) {
+/**
+ * A cutscene like the original's (CutsceneController): the picture across the screen, the campaign's title and the
+ * story on a panel at the left (it slides in, its text fades in), its own music, then the button from the right:
+ * "Embark" after the prologue, "Ending" at the end of the campaign. Without a picture the camp of the theme stands in.
+ */
+export function PlainCutscene({ ui, cutscene, title, onDone, ending = false }: {
+  ui: MenuUi; cutscene: number; title: string; onDone: () => void; ending?: boolean;
+}) {
   const t = useTr();
   const m = ui.db.models.CutsceneModel?.[String(cutscene)];
   const pic = ui.pic(ui.art.cutscenes[String(cutscene)]?.Texture);
+  // AudioController.PlayCutsceneMusic: the cutscene's own clip
+  const clip = String(m?.MusicClip?.Path ?? "").split("/").pop()?.replace(/\.[a-z0-9]+$/i, "") ?? "";
+  useEffect(() => { if (clip) sound.music(`clip:${clip}`); }, [clip]);
   return (
-    <div className="pm-screen pm-cutscene" style={pic ? { backgroundImage: `url("${pic}")` } : undefined}>
-      <div className="pm-cutscene-text">
+    <div className="pm-screen ct-screen">
+      {pic ? <div className="ct-art" style={{ backgroundImage: `url("${pic}")` }} /> : <MenuBackground which="rest-forest" />}
+      <aside className="ct-panel">
         <h2>{title}</h2>
-        <p dangerouslySetInnerHTML={{ __html: ui.say(m?.TextKey) }} />
-        <button className="pm-btn primary" onClick={onDone}>{t("continue")} →</button>
-      </div>
+        <div className="lo-rule" />
+        <div className="ct-text" dangerouslySetInnerHTML={{ __html: ui.say(m?.TextKey) }} />
+      </aside>
+      <button className="lo-corner lo-next ct-go" onClick={onDone}><span>{ui.raw(ending ? "UI_ENDING" : "UI_EMBARK") || t(ending ? "toMenu" : "embark")}</span></button>
     </div>
   );
 }

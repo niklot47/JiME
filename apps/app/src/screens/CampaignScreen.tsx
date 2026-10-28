@@ -53,7 +53,7 @@ function PlainCampaignScreen({ save: initial, intro = false, onBack }: CampaignP
   const title = ui.raw(C?.TitleKey);
   if (!resting) {
     const id = endingCutscene(C, save.status === "victory", save.cutscene);
-    return id !== null ? <PlainCutscene ui={ui} cutscene={id} title={title} onDone={toTitle} /> : <PlainEnding won={save.status === "victory"} onDone={toTitle} />;
+    return id !== null ? <PlainCutscene ui={ui} cutscene={id} title={title} ending onDone={toTitle} /> : <PlainEnding won={save.status === "victory"} onDone={toTitle} />;
   }
   const prologue = C?.CutscenePrologue?.id;
   if (scene === "prologue" && prologue !== undefined) return <PlainCutscene ui={ui} cutscene={Number(prologue)} title={title} onDone={() => fade(() => setScene("map"))} />;

@@ -122,7 +122,8 @@ def leaf_atlas(sheet_path, size=96, name="leaves"):
         x, y = (i % cols) * size, (i // cols) * size
         atlas.paste(t, (x, y))
         frames.append([x, y, t.width, t.height])
-    rel = save_webp(atlas, f"{MENU}/{name}.webp", quality=88)
+    # name: a file name next to the menu's pictures, or a whole pack path
+    rel = save_webp(atlas, name if "/" in name else f"{MENU}/{name}.webp", quality=88)
     return rel, frames
 
 
@@ -263,6 +264,73 @@ def background(sec, prefix="", parallax=None):
     return {"layers": layers, "effects": effects, "camera": P.get("camera", {})}
 
 
+def layered_art(folder, name):
+    """
+    A picture in layers (ui/art/<name>/): 1.png, 2.png ... from the back to the front (same size, transparent where the
+    layers behind show), and optionally layers.json:
+      {"layers": [{"file": "1.png", "depth": 0.1}, ...],     depth: how far it moves with the pointer (0 still .. 1)
+       "effects": [{"type": "fog" | "embers" | "steam" | "rays" | "leaves", "z": 15, ..., "hover": true}]}
+    Layer N (counting from 1 at the back) is drawn at z = N * 10: an effect with z 15 goes between layers 1 and 2.
+    "hover": the effect shows only while the card is hovered or chosen. Effects' own fields as in the menu's parallax
+    (fog: y, height, opacity, speed; embers: x, y, width, count, color, size [min, max], speed; steam: x, y, width,
+    count, opacity; rays: x, y, opacity; leaves: "sheet" a picture of leaves in this folder, count, size, wind).
+    """
+    cfg_path = os.path.join(folder, "layers.json")
+    cfg = json.load(open(cfg_path, encoding="utf-8")) if os.path.exists(cfg_path) else {}
+    files = cfg.get("layers") or [{"file": f} for f in sorted(
+        (f for f in os.listdir(folder) if os.path.splitext(f)[0].isdigit() and f.lower().endswith((".png", ".webp", ".jpg"))),
+        key=lambda f: int(os.path.splitext(f)[0]))]
+    n = len(files)
+    layers = []
+    aspect = 1.0
+    for i, L in enumerate(files):
+        img = Image.open(os.path.join(folder, L["file"]))
+        aspect = img.width / img.height
+        img = img.convert("RGBA" if img.mode in ("RGBA", "LA", "P") else "RGB")
+        img.thumbnail((1400, 1400), Image.LANCZOS)
+        rel = save_webp(img, f"images/ui-skin/art/{name}/{i + 1}.webp", 86)
+        layers.append({"src": rel, "depth": L.get("depth", round(i / max(1, n - 1), 3)), "z": (i + 1) * 10})
+    effects = []
+    for e in cfg.get("effects", []):
+        e = dict(e)
+        k = e["type"]
+        if k == "fog" and "texture" not in e:
+            rel = "images/ui-skin/art/fog.webp"
+            if not os.path.exists(os.path.join(OUT, rel)):
+                save_webp(fog_texture(), rel, 85)
+            e["texture"] = rel
+        elif k == "rays" and "texture" not in e:
+            e["texture"] = save_webp(rays_texture(e.get("x", 0.5), e.get("y", 0.2)), f"images/ui-skin/art/{name}/rays.webp", 80)
+        elif k == "steam":
+            e.setdefault("aspect", round(aspect, 4))
+        elif k == "leaves":
+            e["atlas"], e["frames"] = leaf_atlas(os.path.join(folder, e.pop("sheet")), name=f"images/ui-skin/art/{name}/leaves.webp")
+        effects.append(e)
+    print(f"  layered art {name}: {n} layers, {len(effects)} effects")
+    return {"layers": layers, "effects": effects}
+
+
+def regions_doc(path):
+    """guides/regions.md: every region of both sheets, its size, fixed borders and where the app uses it"""
+    from build_skin import REGIONS, USE
+    from build_game_skin import GAME, USE as GAME_USE
+    lines = ["# UI regions of the theme", "", "Sizes in the sheet's pixels; slice = the borders that do not stretch (top, right, bottom, left).",
+             "Menu sheet ui/atlas.png is drawn at 2x the screen size; the in-game sheet ui/game_atlas.png at 1x.",
+             "Any region can instead be its own picture of any size: ui/parts/<name>.png (+ <name>.json with its slice).", "",
+             "## Menus (ui/atlas.png, guide: guides/guide.png)", "", "| region | size | slice | where |", "|---|---|---|---|"]
+    for name, w, h, sl in REGIONS:
+        lines.append(f"| `{name}` | {w}x{h} | {sl} | {USE.get(name, USE.get(name.split('.')[0], ''))} |")
+    lines += ["", "## In game (ui/game_atlas.png, guide: guides/game_guide.png; the original's sprite names)", "",
+              "| region | size | slice (left, right, top, bottom) | where |", "|---|---|---|---|"]
+    for name, w, h, b, _ in GAME:
+        lines.append(f"| `{name}` | {w}x{h} | {b} | {GAME_USE.get(name, '')} |")
+    lines += ["", "## Pictures and layered pictures (ui/art/)", "",
+              "- `ui/art/<name>.png`: a picture (CSS --sk-art-<name>): difficulty-adventure, difficulty-normal, difficulty-hard.",
+              "- `ui/art/<name>/1.png, 2.png ...` + `layers.json`: a picture in layers with effects between them (see build_theme.layered_art).", ""]
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines))
+
+
 def main():
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
@@ -295,6 +363,12 @@ def main():
     # pictures (not frames) of the theme: ui/art/<name>.png -> skin region "art.<name>" (CSS --sk-art-<name>), e.g.
     # difficulty-adventure, difficulty-normal, difficulty-hard for the difficulty cards
     art_src = os.path.join(ui, "art")
+    layered = {}
+    if os.path.isdir(art_src):
+        for d in sorted(os.listdir(art_src)):
+            if os.path.isdir(os.path.join(art_src, d)):
+                layered[d] = layered_art(os.path.join(art_src, d), d)
+    write_json("images/ui-skin/layered.json", layered)
     if os.path.isdir(art_src):
         skin_path = os.path.join(OUT, "images", "ui-skin", "skin.json")
         skin = json.load(open(skin_path, encoding="utf-8"))
@@ -311,6 +385,7 @@ def main():
             fh.write("\n")
     os.makedirs(art_src, exist_ok=True)
     # (the app needs the menu atlas, the in-game sprites are cut out of their sheet)
+    regions_doc(os.path.join(guides, "regions.md"))
     for f in ("guide.png", "game_guide.png", "game_atlas.png"):
         os.remove(os.path.join(OUT, "images", "ui-skin", f))
     manifest = {

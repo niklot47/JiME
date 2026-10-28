@@ -1211,3 +1211,29 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
   .rs-change-role { margin-top: 0; width: auto; }
   .rs-left { bottom: auto; top: calc(20 * var(--u)); left: auto; right: 16px; align-items: flex-end; }
 }
+
+/* cutscenes like the original (PlainCutscene): the picture, the story panel on the left, the button on the right */
+.ct-screen { display: block; }
+.ct-art { position: absolute; inset: 0; background-size: cover; background-position: center; animation: ct-fade 0.7s ease-out both; }
+.ct-panel { position: absolute; left: calc(60 * var(--u)); top: calc(90 * var(--u)); bottom: calc(150 * var(--u)); width: calc(620 * var(--u));
+  min-width: min(300px, calc(100vw - 32px)); box-sizing: border-box; display: flex; flex-direction: column; gap: calc(10 * var(--u)); padding: calc(34 * var(--u));
+  background: rgba(8, 7, 6, 0.86); border: 2px solid #6b5536; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7); animation: ct-slide 0.8s 0.3s ease-out both; }
+.ct-panel h2 { margin: 0; text-align: center; font-family: "JiME Title", Georgia, serif; font-weight: normal; font-size: calc(46 * var(--u)); color: #f3e2b8; }
+.ct-text { flex: 1; min-height: 0; overflow-y: auto; font-size: max(13px, calc(25 * var(--u))); line-height: 1.5; color: #ece0c4; white-space: pre-line;
+  animation: ct-fade 0.7s 1s ease-out both; }
+.ct-go { animation: ct-in-right 0.6s 1.7s ease-out both; }
+@keyframes ct-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ct-slide { from { opacity: 0; transform: translateX(-120px); } to { opacity: 1; transform: none; } }
+@keyframes ct-in-right { from { opacity: 0; transform: translateX(120px); } to { opacity: 1; transform: none; } }
+.skinned .ct-panel { background: none; border-color: transparent; border-image: var(--sk-frame-art) var(--sk-frame-art-slice) / var(--sk-frame-art-w); }
+@media (max-aspect-ratio: 4/5) {
+  .ct-panel { left: 8px; right: 8px; width: auto; top: auto; bottom: calc(150 * var(--u)); max-height: 55%; }
+}
+
+/* layered theme pictures (LayeredArt): the layers and the effects between them, inside their card */
+.la { position: absolute; inset: 0; overflow: hidden; isolation: isolate; }
+.la-layer { position: absolute; inset: 0; background-size: cover; background-position: center; will-change: transform; transform: scale(1.08); }
+.la-fx { position: absolute; inset: 0; pointer-events: none; animation: ct-fade 0.4s ease-out both; }
+.la-fx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lo-diff .la { transition: filter 0.3s; filter: brightness(0.82); }
+.lo-diff .la.on { filter: none; }

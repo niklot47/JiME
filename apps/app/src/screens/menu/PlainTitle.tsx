@@ -13,6 +13,7 @@ import { useSound } from "../../audio/SoundPanel.tsx";
 import type { SoundSettings } from "../../audio/sound.ts";
 import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
+import { LayeredArt, useLayeredArt } from "./LayeredArt.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
@@ -151,7 +152,8 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
     // one's description at the bottom; the pictures are the theme's (ui/art/difficulty-<mode>.png), else a plain card
     const card = (d: Difficulty, name: "easy" | "normal" | "hard", cls: string) => (
       <button className={`lo-diff ${cls}${difficulty === d ? " on" : ""}`} onClick={() => setDifficulty(d)} onDoubleClick={() => setPage("heroes")}>
-        <span className="lo-diff-art" style={{ backgroundImage: `var(--sk-art-difficulty-${d}, none)` }} />
+        {/* the theme's layered picture (ui/art/difficulty-<mode>/), else its flat one (ui/art/difficulty-<mode>.png) */}
+        <DiffArt mode={d} on={difficulty === d} />
         <b>{t(name)}</b>
       </button>
     );
@@ -393,6 +395,12 @@ function defaultItems(ui: MenuUi, heroes: number[], products?: number[]): (numbe
     const m = ui.db.models.HeroModel?.[String(h)] ?? {};
     return [take(refId(m.DefaultArmor)), take(refId(m.DefaultWeapon)), take(refId(m.DefaultSecondWeapon))];
   });
+}
+
+function DiffArt({ mode, on }: { mode: Difficulty; on: boolean }) {
+  const art = useLayeredArt(`difficulty-${mode}`);
+  if (art) return <LayeredArt art={art} active={on} />;
+  return <span className="lo-diff-art" style={{ backgroundImage: `var(--sk-art-difficulty-${mode}, none)` }} />;
 }
 
 /** The settings gear (the skin's "gear" picture covers it when there is one) */

@@ -65,6 +65,19 @@ REGIONS = [
     # the rest: the map button
     ("map", 96, 96, [0, 0, 0, 0]),
 ]
+# where the app uses each region (guides/regions.md)
+USE = {
+    "button": "buttons of the menus (states: hover, pressed, disabled, primary)", "panel": "panels: settings, load, rest, gear, pop-ups",
+    "panel.header": "the header line of the old-style panels", "card": "cards: saves, campaign / adventure cards (hover, on)",
+    "input": "the party name field", "seg": "switches (language, look, map kind; .on = chosen)", "checkbox": "check boxes",
+    "badge": "the number on a chosen hero (old style)", "divider": "a divider line", "logo": "the title logo (or ui/parts/logo.png)",
+    "gear": "the settings button (title, top right)", "banner": "the title plate of every page", "frame.art": "big frames: campaign art, map details, cutscene story, hero slots",
+    "panel.text": "the campaign description", "frame.thumb": "frames of thumbnails, hero cards, difficulty cards (.on = chosen)",
+    "arrow": "paging arrows (right; mirrored for left)", "button.back": "the arrow button back (bottom left)",
+    "button.next": "the arrow button forward (bottom right)", "plate": "name plates: heroes, map chapter and place, rest titles",
+    "slot": "the chosen party's slots", "item": "item cards (the picture sits on the left 90 px)", "item.empty": "an empty item slot",
+    "level": "the item level diamond", "map": "the map button of the rest",
+}
 # regions that always take the element's whole height (top + bottom slices meet; only the middle stretches sideways)
 FIT_HEIGHT = ("banner", "plate", "button.back", "button.back.hover", "button.next", "button.next.hover")
 
