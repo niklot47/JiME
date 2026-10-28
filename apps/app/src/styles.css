@@ -825,3 +825,93 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .skinned .pm-logo span { visibility: hidden; }
 .skinned .pm-screen { color: var(--sk-c-text, #eadfc6); }
 .skinned .pm-panel > header h2, .skinned .pm-cutscene-text h2 { color: var(--sk-c-title, #f0dcae); }
+
+/* ------------------------------------------------------------------ like the original: title screen and campaign selection
+   Sizes in u = 1/1080 of the height of a 16:9 screen (the original's UI scales with the screen like that); the positions
+   are fixed, lists scroll or page instead of pushing the layout around. */
+.pm-screen { --u: calc(min(100vh, 56.25vw) / 1080); }
+.pm-page-main, .pm-page-campaign { display: block; padding: 0; }
+.lo-title, .lo-campaign { position: absolute; inset: 0; }
+.lo-title .lo-logo { position: absolute; left: calc(72 * var(--u)); top: calc(80 * var(--u)); margin: 0; font-size: calc(130 * var(--u)); line-height: 1; }
+.skinned .lo-title .pm-logo.lo-logo { width: min(calc(270 * var(--u) * var(--ar)), calc(980 * var(--u)), calc(100vw - 144 * var(--u))); }
+.lo-menu { position: absolute; left: calc(72 * var(--u)); top: calc(400 * var(--u)); bottom: calc(100 * var(--u)); width: calc(300 * var(--u));
+  display: flex; flex-direction: column; gap: calc(34 * var(--u)); overflow: hidden auto; scrollbar-width: none; }
+.lo-menu::-webkit-scrollbar { display: none; }
+.pm-btn.lo-btn, .lo-corner { flex: 0 0 auto; box-sizing: border-box; width: calc(286 * var(--u)); height: calc(72 * var(--u)); padding: 0 calc(18 * var(--u));
+  font-family: "JiME Title", Georgia, serif; font-size: calc(30 * var(--u)); line-height: 1; text-align: center; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; color: #f0dcae; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.9); }
+.lo-gear { position: absolute; top: calc(36 * var(--u)); right: calc(40 * var(--u)); width: calc(84 * var(--u)); height: calc(84 * var(--u)); min-width: 40px; min-height: 40px;
+  padding: calc(14 * var(--u)); border: none; border-radius: 50%; cursor: pointer; background: radial-gradient(#3a2e22, #1d1712 70%);
+  box-shadow: 0 0 0 2px #8a7445, 0 3px 10px rgba(0, 0, 0, 0.6); }
+.lo-gear svg { width: 100%; height: 100%; fill: #d9c48f; display: block; }
+.lo-gear svg .hole { fill: #1d1712; }
+@media (hover: hover) { .lo-gear:hover { filter: brightness(1.2); } }
+.lo-version { position: absolute; right: calc(40 * var(--u)); bottom: calc(24 * var(--u)); margin: 0; font-size: max(11px, calc(20 * var(--u))); }
+.skinned .lo-gear { background: var(--sk-gear) center / contain no-repeat; box-shadow: none; }
+.skinned .lo-gear svg { visibility: hidden; }
+
+/* campaign selection: title plate, the chosen campaign (text | picture), the thumbnails shelf, back / next in the corners */
+.lo-banner { position: absolute; left: 50%; top: calc(22 * var(--u)); transform: translateX(-50%); box-sizing: border-box; width: calc(767 * var(--u));
+  max-width: calc(100vw - 32px); height: calc(100 * var(--u)); margin: 0; display: flex; align-items: center; justify-content: center; padding: 0 calc(90 * var(--u));
+  font-family: "JiME Title", Georgia, serif; font-weight: normal; font-size: calc(40 * var(--u)); color: #f3e2b8; text-shadow: 0 2px 4px #000; white-space: nowrap;
+  background: linear-gradient(90deg, transparent, #5a1d12 12%, #6e2516 50%, #5a1d12 88%, transparent); }
+.lo-banner span { overflow: hidden; text-overflow: ellipsis; }
+.lo-show { position: absolute; left: 50%; top: calc(135 * var(--u)); transform: translateX(-50%); box-sizing: border-box; width: calc(1106 * var(--u));
+  max-width: calc(100vw - 32px); height: calc(615 * var(--u)); display: flex; gap: calc(6 * var(--u)); padding: calc(14 * var(--u));
+  background: rgba(16, 13, 10, 0.92); border: 2px solid #6b5536; }
+.lo-text { flex: 0 0 calc(440 * var(--u)); box-sizing: border-box; display: flex; flex-direction: column; padding: calc(24 * var(--u)) calc(28 * var(--u));
+  background: #050404; border: 2px solid #4a4038; overflow: hidden; }
+.lo-text h3 { margin: 0; text-align: center; font-family: "JiME Title", Georgia, serif; font-weight: normal; font-size: calc(40 * var(--u)); color: #f3e2b8; }
+.lo-rule { height: 2px; margin: calc(16 * var(--u)) calc(30 * var(--u)); background: linear-gradient(90deg, transparent, #c9a35a, transparent); }
+.lo-desc { flex: 1; overflow-y: auto; font-size: max(12px, calc(22 * var(--u))); line-height: 1.45; color: #e8dcc0; scrollbar-width: thin; }
+.lo-art { flex: 1; min-width: 0; background: #0b0907; overflow: hidden; }
+.lo-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lo-shelf { position: absolute; left: 50%; top: calc(772 * var(--u)); transform: translateX(-50%); display: flex; align-items: center; gap: calc(40 * var(--u)); }
+.lo-thumbs { display: flex; gap: calc(62 * var(--u)); }
+.lo-thumb { width: calc(300 * var(--u)); height: calc(176 * var(--u)); padding: calc(8 * var(--u)); box-sizing: border-box; cursor: pointer; overflow: hidden;
+  background: #120f0c; border: 2px solid #4c3c28; color: #f0dcae; font: inherit; font-size: calc(22 * var(--u)); }
+.lo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lo-thumb.on { border-color: #e2b766; box-shadow: 0 0 calc(14 * var(--u)) rgba(226, 183, 102, 0.7); }
+@media (hover: hover) { .lo-thumb:not(.on):hover { border-color: #8a7445; } }
+.lo-arrow { width: calc(60 * var(--u)); height: calc(120 * var(--u)); border: none; padding: 0; cursor: pointer; background: #d8d4cc;
+  clip-path: polygon(0 0, 100% 50%, 0 100%, 30% 50%); filter: drop-shadow(0 2px 3px #000); }
+.lo-arrow.left { transform: scaleX(-1); }
+.lo-arrow:disabled { visibility: hidden; }
+.lo-corner { position: absolute; bottom: calc(22 * var(--u)); width: calc(290 * var(--u)); height: calc(88 * var(--u)); border: none; cursor: pointer;
+  background: linear-gradient(#8a2e1c, #5c1a10); white-space: normal; font-size: calc(24 * var(--u)); line-height: 1.05; }
+.lo-corner span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lo-back { left: calc(57 * var(--u)); padding-left: calc(48 * var(--u)); clip-path: polygon(16% 0, 100% 0, 100% 100%, 16% 100%, 0 50%); }
+.lo-next { right: calc(57 * var(--u)); padding-right: calc(48 * var(--u)); clip-path: polygon(0 0, 84% 0, 100% 50%, 84% 100%, 0 100%); }
+.lo-corner:disabled { filter: grayscale(0.8) brightness(0.6); cursor: default; }
+@media (hover: hover) { .lo-corner:not(:disabled):hover { filter: brightness(1.2); } }
+/* the skin's pictures for them (theme atlas regions banner, frame.*, arrow, button.back / button.next) */
+.skinned .lo-banner { background: none; border-style: solid; border-color: transparent; border-image: var(--sk-banner) var(--sk-banner-slice) / var(--sk-banner-w); }
+.skinned .lo-show { background: none; border-color: transparent; border-image: var(--sk-frame-art) var(--sk-frame-art-slice) / var(--sk-frame-art-w); }
+.skinned .lo-text { border-color: transparent; border-image: var(--sk-panel-text) var(--sk-panel-text-slice) / var(--sk-panel-text-w); }
+.skinned .lo-thumb { border-color: transparent; border-image: var(--sk-frame-thumb) var(--sk-frame-thumb-slice) / var(--sk-frame-thumb-w); }
+.skinned .lo-thumb.on { box-shadow: none; border-image-source: var(--sk-frame-thumb-on); }
+.skinned .lo-arrow { clip-path: none; background: var(--sk-arrow) center / contain no-repeat; }
+.skinned .lo-corner { clip-path: none; background: none; border-style: solid; border-color: transparent; }
+.skinned .lo-back { border-image: var(--sk-button-back) var(--sk-button-back-slice) / var(--sk-button-back-w); }
+.skinned .lo-next { border-image: var(--sk-button-next) var(--sk-button-next-slice) / var(--sk-button-next-w); }
+@media (hover: hover) {
+  .skinned .lo-back:not(:disabled):hover { filter: none; border-image-source: var(--sk-button-back-hover); }
+  .skinned .lo-next:not(:disabled):hover { filter: none; border-image-source: var(--sk-button-next-hover); }
+}
+/* a tall narrow screen (phone upright): one column, everything centred and a bit larger */
+@media (max-aspect-ratio: 4/5) {
+  .pm-screen { --u: calc(100vw / 720); }
+  .lo-title .lo-logo { left: 50%; transform: translateX(-50%); top: calc(120 * var(--u)); }
+  .lo-menu { left: 50%; transform: translateX(-50%); top: calc(520 * var(--u)); align-items: center; }
+  .pm-btn.lo-btn { width: calc(400 * var(--u)); height: calc(84 * var(--u)); font-size: calc(36 * var(--u)); }
+  .lo-banner { width: calc(100vw - 32px); }
+  .lo-show { flex-direction: column-reverse; height: auto; bottom: calc(420 * var(--u)); width: calc(100vw - 32px); }
+  .lo-text { flex: 1 1 auto; min-height: 0; }
+  .lo-art { flex: 0 0 34%; }
+  .lo-shelf { top: auto; bottom: calc(150 * var(--u)); }
+  .lo-thumb { width: calc(170 * var(--u)); height: calc(110 * var(--u)); }
+  .lo-thumbs { gap: calc(16 * var(--u)); }
+  .lo-corner { width: calc(50vw - 24px); height: calc(96 * var(--u)); font-size: calc(30 * var(--u)); bottom: 16px; }
+  .lo-back { left: 16px; }
+  .lo-next { right: 16px; }
+}

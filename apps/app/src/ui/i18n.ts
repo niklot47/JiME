@@ -14,6 +14,7 @@ const DICT: Record<string, { ru: string; en: string; it: string }> = {
   start: { ru: "Начать", en: "Start", it: "Inizia" },
   chooseCampaign: { ru: "Выберите кампанию", en: "Choose a campaign", it: "Scegliete una campagna" },
   difficulty: { ru: "Сложность", en: "Difficulty", it: "Difficoltà" },
+  toDifficulty: { ru: "Выберите уровень сложности", en: "Choose the difficulty", it: "Scegliete la difficoltà" },
   easy: { ru: "Приключение", en: "Adventure", it: "Avventura" },
   easyDesc: { ru: "Для тех, кому важнее история, чем бои.", en: "For those who care more about the story than fights.", it: "Per chi tiene più alla storia che ai combattimenti." },
   normal: { ru: "Обычная", en: "Normal", it: "Normale" },

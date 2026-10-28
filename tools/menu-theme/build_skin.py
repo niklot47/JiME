@@ -42,7 +42,22 @@ REGIONS = [
     ("badge", 48, 48, [0, 0, 0, 0]),
     ("divider", 256, 16, [0, 40, 0, 40]),
     ("logo", 600, 220, [0, 0, 0, 0]),
+    # the layout like the original (title screen, campaign selection); new regions always go at the end of the list:
+    # the places of the earlier ones must not move (painted sheets keep working)
+    ("gear", 96, 96, [0, 0, 0, 0]),
+    ("banner", 400, 100, [49, 90, 49, 90]),
+    ("frame.art", 200, 200, [24, 24, 24, 24]),
+    ("panel.text", 160, 160, [12, 12, 12, 12]),
+    ("frame.thumb", 160, 96, [10, 10, 10, 10]),
+    ("frame.thumb.on", 160, 96, [10, 10, 10, 10]),
+    ("arrow", 60, 120, [0, 0, 0, 0]),
+    ("button.back", 290, 88, [43, 40, 43, 70]),
+    ("button.back.hover", 290, 88, [43, 40, 43, 70]),
+    ("button.next", 290, 88, [43, 70, 43, 40]),
+    ("button.next.hover", 290, 88, [43, 70, 43, 40]),
 ]
+# regions that always take the element's whole height (top + bottom slices meet; only the middle stretches sideways)
+FIT_HEIGHT = ("banner", "button.back", "button.back.hover", "button.next", "button.next.hover")
 
 INK = (234, 223, 198, 255)
 GOLD = (201, 163, 90, 255)
@@ -81,7 +96,7 @@ def rounded(w, h, r, top, bottom, border, bw=2, glow=None, inner=True):
 
 
 def draw(name, w, h):
-    if name.startswith("button"):
+    if name.startswith("button") and not name.startswith(("button.back", "button.next")):
         if ".primary" in name:
             hi = ".hover" in name
             return rounded(w, h, 12, (130 if hi else 110, 100 if hi else 83, 46 if hi else 38, 255), (92 if hi else 77, 70 if hi else 58, 33 if hi else 27, 255), (226, 190, 110, 255) if hi else GOLD)
@@ -133,6 +148,68 @@ def draw(name, w, h):
         d = ImageDraw.Draw(img)
         d.line([(4, h // 2), (w - 5, h // 2)], fill=(107, 85, 54, 255), width=2)
         d.polygon([(w // 2 - 7, h // 2), (w // 2, h // 2 - 7), (w // 2 + 7, h // 2), (w // 2, h // 2 + 7)], fill=GOLD)
+        return img
+    if name == "gear":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.ellipse([3, 3, w - 4, h - 4], fill=(36, 29, 22, 255), outline=GOLD, width=4)
+        cx = cy = w / 2
+        import math
+        pts = []
+        for i in range(16):
+            a = i * math.pi / 8
+            rr = w * 0.3 if i % 2 == 0 else w * 0.23
+            for da in (-0.14, 0.14):
+                pts.append((cx + rr * math.cos(a + da), cy + rr * math.sin(a + da)))
+        d.polygon(pts, fill=(217, 196, 143, 255))
+        d.ellipse([cx - w * 0.1, cy - w * 0.1, cx + w * 0.1, cy + w * 0.1], fill=(36, 29, 22, 255))
+        return img
+    if name == "banner":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        pts = [(0, h / 2), (36, 8), (w - 36, 8), (w, h / 2), (w - 36, h - 8), (36, h - 8)]
+        d.polygon(pts, fill=(104, 36, 22, 245), outline=GOLD)
+        d.line([(36, 14), (w - 36, 14)], fill=(255, 220, 160, 60), width=2)
+        d.line(pts + [pts[0]], fill=GOLD, width=3)
+        return img
+    if name == "frame.art":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, w - 1, h - 1], fill=(18, 15, 12, 240))
+        d.rectangle([2, 2, w - 3, h - 3], outline=GOLD, width=3)
+        d.rectangle([9, 9, w - 10, h - 10], outline=(107, 85, 54, 255), width=2)
+        for x, y in ((6, 6), (w - 7, 6), (6, h - 7), (w - 7, h - 7)):
+            d.rectangle([x - 4, y - 4, x + 4, y + 4], fill=GOLD)
+        return img
+    if name == "panel.text":
+        img = Image.new("RGBA", (w, h), (5, 4, 4, 250))
+        d = ImageDraw.Draw(img)
+        d.rectangle([1, 1, w - 2, h - 2], outline=(90, 80, 70, 255), width=2)
+        d.rectangle([6, 6, w - 7, h - 7], outline=(50, 44, 38, 255), width=1)
+        return img
+    if name.startswith("frame.thumb"):
+        on = name.endswith(".on")
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, w - 1, h - 1], outline=(226, 183, 102, 255) if on else (90, 72, 50, 255), width=4 if on else 3)
+        d.rectangle([5, 5, w - 6, h - 6], outline=(255, 230, 170, 120) if on else (40, 32, 24, 255), width=2)
+        return img
+    if name == "arrow":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.polygon([(4, 4), (w - 4, h / 2), (4, h - 4), (w * 0.32, h / 2)], fill=(216, 212, 204, 255), outline=(120, 110, 100, 255))
+        return img
+    if name.startswith("button.back") or name.startswith("button.next"):
+        hi = name.endswith(".hover")
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        tip = 40
+        if name.startswith("button.back"):
+            pts = [(0, h / 2), (tip, 2), (w - 3, 2), (w - 3, h - 3), (tip, h - 3)]
+        else:
+            pts = [(2, 2), (w - tip, 2), (w - 1, h / 2), (w - tip, h - 3), (2, h - 3)]
+        d.polygon(pts, fill=(150, 52, 30, 255) if hi else (120, 40, 24, 255))
+        d.line(pts + [pts[0]], fill=(226, 190, 110, 255) if hi else GOLD, width=4)
         return img
     if name == "logo":
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -204,7 +281,7 @@ def layout(regions=None, max_w=1024, fit_labels=False):
 
 # ---------------------------------------------------------------- parts: own pictures of any size instead of atlas rects
 # regions that keep their height (the picture is scaled to it, only the middle stretches sideways)
-ROW_KINDS = ("button", "seg", "input", "divider", "panel.header", "checkbox", "badge", "logo")
+ROW_KINDS = ("button", "seg", "input", "divider", "panel.header", "checkbox", "badge", "logo", "banner", "gear", "arrow")
 PART_SCALE = 3  # part pictures are stored at 3x the screen size (sharp on HiDPI, still small files)
 
 
@@ -295,7 +372,7 @@ def variant(img, suffix):
     return Image.fromarray(np.dstack([np.clip(rgb, 0, 255), al]).astype(np.uint8))
 
 
-def build_parts(parts_dir, out_d):
+def build_parts(parts_dir, out_d, preview_dir=None):
     """
     <parts_dir>/<region>.png (any size, e.g. button.png, panel.png): used instead of the atlas rect. Its 9-slice comes from
     <region>.json {"slice": [top, right, bottom, left]} in the picture's pixels; without one it is guessed and the json
@@ -339,7 +416,7 @@ def build_parts(parts_dir, out_d):
                     json.dump(cfg, f, indent=1)
             fit = cfg.get("fit")
             loaded[name] = (img, sl, fit)
-            _preview(img, sl, os.path.join(parts_dir, "_preview", f"{name}.png"))
+            _preview(img, sl, os.path.join(preview_dir or os.path.join(parts_dir, "_preview"), f"{name}.png"))
         # stored at PART_SCALE x the region's screen height
         th = max(4, round(h / SCALE * PART_SCALE))
         k = th / img.height
@@ -367,23 +444,57 @@ def _preview(img, sl, path):
     bg.convert("RGB").save(path)
 
 
-def build(out_dir, custom_atlas=None, parts_dir=None):
+def sheet_from(custom, regions, pos, size, draw_fn, legacy=None):
+    """
+    The template with the regions of a painted sheet taken over. Which regions the painted sheet has (and where) is
+    in <sheet>.regions.json next to it (written with every build); those come from it, the rest (regions added since)
+    from the template. So a sheet keeps working when new regions appear: the painted places stay where they were.
+    legacy: the region names of a sheet without that list (made before it existed).
+    """
+    W, H = size
+    sheet = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    own = Image.open(custom).convert("RGBA") if custom and os.path.exists(custom) else None
+    known = {}
+    if own:
+        side = os.path.splitext(custom)[0] + ".regions.json"
+        if os.path.exists(side):
+            known = {k: tuple(v) for k, v in json.load(open(side, encoding="utf-8")).items()}
+        else:
+            known = {n: (*pos[n], w, h) for n, w, h, *_ in regions if legacy is None or n in legacy}
+    for name, w, h, *_ in regions:
+        x, y = pos[name]
+        if own and known.get(name) == (x, y, w, h) and x + w <= own.width and y + h <= own.height:
+            sheet.paste(own.crop((x, y, x + w, y + h)), (x, y))
+        else:
+            sheet.alpha_composite(draw_fn(name, w, h), (x, y))
+    return sheet
+
+
+def write_regions(sheet_path, regions, pos):
+    """<sheet>.regions.json: the regions the sheet now holds (see sheet_from)"""
+    with open(os.path.splitext(sheet_path)[0] + ".regions.json", "w", encoding="utf-8", newline="\n") as f:
+        json.dump({n: [*pos[n], w, h] for n, w, h, *_ in regions}, f, indent=1)
+
+
+# the menu atlas' regions before the list of regions was kept next to the sheet
+LEGACY = {"button", "button.hover", "button.pressed", "button.disabled", "button.primary", "button.primary.hover", "panel",
+          "panel.header", "card", "card.hover", "card.on", "input", "seg", "seg.on", "checkbox", "checkbox.on", "badge",
+          "divider", "logo"}
+
+
+def build(out_dir, custom_atlas=None, parts_dir=None, preview_dir=None):
     d = os.path.join(out_dir, "images", "ui-skin")
     os.makedirs(d, exist_ok=True)
     pos, W, H = layout()
-    if custom_atlas and os.path.exists(custom_atlas):
-        atlas = Image.open(custom_atlas).convert("RGBA")
-        if atlas.size != (W, H):
-            raise SystemExit(f"{custom_atlas}: {atlas.size}, the template is {W}x{H} - keep the template's size and places")
-    else:
-        atlas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        for name, w, h, _ in REGIONS:
-            atlas.alpha_composite(draw(name, w, h), pos[name])
+    atlas = sheet_from(custom_atlas, REGIONS, pos, (W, H), draw, LEGACY)
+    if custom_atlas:
+        write_regions(custom_atlas, REGIONS, pos)
     atlas.save(os.path.join(d, "atlas.png"), optimize=True)
     guide((W, H), [(name, pos[name], w, h, sl, ()) for name, w, h, sl in REGIONS]).save(os.path.join(d, "guide.png"), optimize=True)
     skin = {
         "atlas": "images/ui-skin/atlas.png", "scale": SCALE,
-        "regions": {name: {"rect": [*pos[name], w, h], "slice": sl} for name, w, h, sl in REGIONS} | build_parts(parts_dir, d),
+        "regions": {name: {"rect": [*pos[name], w, h], "slice": sl, **({"fit": "height"} if name in FIT_HEIGHT else {})}
+                    for name, w, h, sl in REGIONS} | build_parts(parts_dir, d, preview_dir),
         "colors": {"text": "#eadfc6", "muted": "#b9a582", "accent": "#e2b766", "title": "#f0dcae"},
     }
     with open(os.path.join(d, "skin.json"), "w", encoding="utf-8", newline="\n") as f:

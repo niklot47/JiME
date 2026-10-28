@@ -20,7 +20,7 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from build_skin import GAP, GOLD, font, guide, layout, rounded
+from build_skin import GAP, GOLD, font, guide, layout, rounded, sheet_from, write_regions
 
 # name, w, h, border [left, right, top, bottom] (NGUI order, as images/ui/atlas/atlas.json), hints for the guide
 GAME = [
@@ -320,14 +320,9 @@ def build(out_dir, custom_sheet=None):
     os.makedirs(d, exist_ok=True)
     os.makedirs(a_dir, exist_ok=True)
     pos, W, H = layout(GAME, max_w=1024 + 2 * GAP, fit_labels=True)
-    if custom_sheet and os.path.exists(custom_sheet):
-        sheet = Image.open(custom_sheet).convert("RGBA")
-        if sheet.size != (W, H):
-            raise SystemExit(f"{custom_sheet}: {sheet.size}, the template is {W}x{H} - keep the template's size and places")
-    else:
-        sheet = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        for name, w, h, *_ in GAME:
-            sheet.alpha_composite(draw(name, w, h), pos[name])
+    sheet = sheet_from(custom_sheet, GAME, pos, (W, H), draw)
+    if custom_sheet:
+        write_regions(custom_sheet, GAME, pos)
     sheet.save(os.path.join(d, "game_atlas.png"), optimize=True)
     # guide slices are [top, right, bottom, left]
     guide((W, H), [(n, pos[n], w, h, [b[2], b[1], b[3], b[0]], hints) for n, w, h, b, hints in GAME]).save(

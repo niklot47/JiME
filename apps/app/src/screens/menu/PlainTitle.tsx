@@ -50,6 +50,7 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [heroes, setHeroes] = useState<number[]>([]);
   const [party, setParty] = useState("");
+  const [shelf, setShelf] = useState(0); // the page of campaign thumbnails
   const [langs, setLangs] = useState<string[]>(["ru", "en", "it"]);
   useEffect(() => { loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {}); }, []);
   useEffect(() => { sound.music(page === "main" || page === "load" || page === "settings" ? "TitlescreenMusic" : "NewGameMusic"); }, [page]);
@@ -72,36 +73,64 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
 
   let body;
   if (page === "main") {
+    // like the original's title screen: the logo top left, a column of same-size buttons under it (any number of them:
+    // the column scrolls instead of pushing anything around), the settings gear top right, the version bottom right
+    const latestName = latest ? `${ui.raw(C[String(latest.campaign)]?.TitleKey)}${latest.partyName ? ` · ${latest.partyName}` : ""}` : "";
     body = (
-      <nav className="pm-menu">
-        <h1 className="pm-logo">JiME <span>Reborn</span></h1>
-        {latest && <button className="pm-btn primary" onClick={() => onPlay(latest)}>{t("continue")}
-          <small>{ui.raw(C[String(latest.campaign)]?.TitleKey)}{latest.partyName ? ` · ${latest.partyName}` : ""}</small></button>}
-        <button className="pm-btn" disabled={saves.length >= MAX_SAVES} onClick={() => { setCampaign(null); setHeroes([]); setParty(""); setPage("campaign"); }}>{t("newCampaign")}</button>
-        <button className="pm-btn" disabled={!saves.length} onClick={() => setPage("load")}>{t("load")}</button>
-        <button className="pm-btn" onClick={() => setPage("settings")}>{t("settings")}</button>
-        <button className="pm-btn" onClick={onTools}>{t("tools")}</button>
-        {inTauri() && <button className="pm-btn" onClick={() => { void quitApp(); }}>{t("quit")}</button>}
-        <p className="pm-version">JiME Reborn {__APP_VERSION__}</p>
-      </nav>
+      <div className="lo-title">
+        <h1 className="pm-logo lo-logo">JiME <span>Reborn</span></h1>
+        <nav className="lo-menu">
+          {latest && <button className="pm-btn lo-btn" title={latestName} onClick={() => onPlay(latest)}>{t("continue")}</button>}
+          <button className="pm-btn lo-btn" disabled={saves.length >= MAX_SAVES}
+            onClick={() => { setCampaign(camps[0]?._id ?? null); setShelf(0); setHeroes([]); setParty(""); setPage("campaign"); }}>{t("newCampaign")}</button>
+          <button className="pm-btn lo-btn" disabled={!saves.length} onClick={() => setPage("load")}>{t("load")}</button>
+          <button className="pm-btn lo-btn" onClick={onTools}>{t("tools")}</button>
+          {inTauri() && <button className="pm-btn lo-btn" onClick={() => { void quitApp(); }}>{t("quit")}</button>}
+        </nav>
+        <button className="lo-gear" title={t("settings")} aria-label={t("settings")} onClick={() => setPage("settings")}><GearIcon /></button>
+        <p className="pm-version lo-version">JiME Reborn {__APP_VERSION__}</p>
+      </div>
     );
   } else if (page === "campaign") {
+    // like the original's campaign selection: a title plate, the chosen campaign (text on the left, its picture on the
+    // right), a shelf of thumbnails under it (SHELF per page, arrows when there are more), back / next in the corners
+    const SHELF = 3;
+    const pages = Math.max(1, Math.ceil(camps.length / SHELF));
+    const sh = Math.min(shelf, pages - 1);
+    const cur = C[String(campaign)] ?? null;
+    const art = cur ? ui.art.campaigns[String(cur._id)] : undefined;
     body = (
-      <Step title={t("chooseCampaign")} onBack={() => setPage("main")} onNext={() => setPage("difficulty")} canNext={campaign !== null} t={t}>
-        {!camps.length && <p className="muted">{t("noCampaigns")}</p>}
-        <div className="pm-cards">
-          {camps.map((c) => {
-            const a = ui.art.campaigns[String(c._id)];
-            return (
-              <button key={c._id} className={`pm-card${campaign === c._id ? " on" : ""}`} onClick={() => { setCampaign(c._id); setHeroes([]); }}>
-                {(a?.ThumbnailImage || a?.Image) && <img src={ui.pic(a.Image ?? a.ThumbnailImage)} alt="" />}
-                <b>{ui.raw(c.TitleKey) || c.m_Name}</b>
-                <span className="pm-desc" dangerouslySetInnerHTML={{ __html: ui.say(c.DescriptionKey) }} />
-              </button>
-            );
-          })}
+      <div className="lo-campaign">
+        <h2 className="lo-banner"><span>{t("chooseCampaign")}</span></h2>
+        <div className="lo-show">
+          <div className="lo-text">
+            {cur ? <>
+              <h3>{ui.raw(cur.TitleKey) || cur.m_Name}</h3>
+              <div className="lo-rule" />
+              <div className="lo-desc" dangerouslySetInnerHTML={{ __html: ui.say(cur.DescriptionKey) }} />
+            </> : <p className="muted">{t("noCampaigns")}</p>}
+          </div>
+          <div className="lo-art">{(art?.Image || art?.ThumbnailImage) && <img src={ui.pic(art.Image ?? art.ThumbnailImage)} alt="" />}</div>
         </div>
-      </Step>
+        <div className="lo-shelf">
+          <button className="lo-arrow left" aria-label="<" disabled={sh === 0} onClick={() => setShelf(sh - 1)} />
+          <div className="lo-thumbs">
+            {camps.slice(sh * SHELF, sh * SHELF + SHELF).map((c) => {
+              const a = ui.art.campaigns[String(c._id)];
+              const pic = a?.ThumbnailImage ?? a?.Image;
+              return (
+                <button key={c._id} className={`lo-thumb${campaign === c._id ? " on" : ""}`} title={ui.raw(c.TitleKey) || c.m_Name}
+                  onClick={() => { setCampaign(c._id); setHeroes([]); }}>
+                  {pic ? <img src={ui.pic(pic)} alt="" /> : <b>{ui.raw(c.TitleKey) || c.m_Name}</b>}
+                </button>
+              );
+            })}
+          </div>
+          <button className="lo-arrow right" aria-label=">" disabled={sh >= pages - 1} onClick={() => setShelf(sh + 1)} />
+        </div>
+        <button className="lo-corner lo-back" onClick={() => setPage("main")}><span>{t("back")}</span></button>
+        <button className="lo-corner lo-next" disabled={campaign === null} onClick={() => setPage("difficulty")}><span>{t("toDifficulty")}</span></button>
+      </div>
     );
   } else if (page === "difficulty") {
     const opts: [Difficulty, "easy" | "normal" | "hard", "easyDesc" | "normalDesc" | "hardDesc"][] = [["adventure", "easy", "easyDesc"], ["normal", "normal", "normalDesc"], ["hard", "hard", "hardDesc"]];
@@ -183,6 +212,18 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
       <MenuBackground dim={page !== "main"} />
       <div className={`pm-page pm-page-${page}`} key={page}>{body}</div>
     </div>
+  );
+}
+
+/** The settings gear (the skin's "gear" picture covers it when there is one) */
+function GearIcon() {
+  const teeth = Array.from({ length: 8 }, (_, i) => i * 45);
+  return (
+    <svg viewBox="-50 -50 100 100" aria-hidden="true">
+      {teeth.map((a) => <rect key={a} x={-8} y={-44} width={16} height={18} rx={3} transform={`rotate(${a})`} />)}
+      <circle r={30} />
+      <circle r={12} className="hole" />
+    </svg>
   );
 }
 

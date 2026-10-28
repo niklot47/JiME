@@ -1,0 +1,19 @@
+{
+ "formatVersion": 1,
+ "id": "jime-theme-like-original",
+ "name": {
+  "ru": "Тема: как в оригинале",
+  "en": "Theme: like the original",
+  "it": "Tema: come l'originale"
+ },
+ "description": "Menus laid out like the original game's, with this theme's own pictures.",
+ "version": "0.2.0",
+ "priority": -20,
+ "origin": "bundled",
+ "contents": [
+  {
+   "type": "theme",
+   "path": "images"
+  }
+ ]
+}

@@ -38,17 +38,17 @@
   }
  },
  {
-  "dir": "jime-theme-autumn",
+  "dir": "jime-theme-like-original",
   "manifest": {
    "formatVersion": 1,
-   "id": "jime-theme-autumn",
+   "id": "jime-theme-like-original",
    "name": {
-    "ru": "Тема: Осенняя долина",
-    "en": "Theme: Autumn valley",
-    "it": "Tema: Valle d'autunno"
+    "ru": "Тема: как в оригинале",
+    "en": "Theme: like the original",
+    "it": "Tema: come l'originale"
    },
-   "description": "The menus' background (parallax layers, fog, sun rays, falling leaves) and the interface skin of menus and game.",
-   "version": "0.1.0",
+   "description": "Menus laid out like the original game's, with this theme's own pictures.",
+   "version": "0.2.0",
    "priority": -20,
    "origin": "bundled",
    "contents": [

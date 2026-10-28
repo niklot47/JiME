@@ -1,11 +1,18 @@
 """
-Builds the bundled menu theme "jime-theme-autumn" from the user's parallax pictures:
-  <src>/1.png .. 4.png  - layers, front (1) to back (4), same size
-  <src>/<leaves>.png    - a sheet of leaves on transparent background (the largest other RGBA picture)
-Output: apps/app/public/bundled-packs/jime-theme-autumn/ (webp layers, a leaf atlas, a generated fog texture,
-images/menu/menu.json for screens/menu/MenuBackground.tsx) and the bundled packs' listings.
+Builds a theme pack from a theme folder (themes/<name>/, not committed):
 
-Usage: python tools/menu-theme/build_theme.py ["Paralax background"]
+  themes/<name>/theme.json        id, names, priority, private, the menu background and its effects (see like-original)
+  themes/<name>/background/       pictures of the menu background (parallax layers 1..4.png, leaves.png, an image)
+  themes/<name>/ui/atlas.png      the menus' skin sheet (template written there when missing), ui/parts/<region>.png
+                                  own pictures of single elements of any size (button.png, logo.png ...)
+  themes/<name>/ui/game_atlas.png the in-game skin sheet
+  themes/<name>/guides/           written: the sheets' markup (transparent layers), parts/ check pictures of the slices
+
+Output: the pack jime-theme-<id> in apps/app/public/bundled-packs/ (committed) or, with "private": true, in data/packs/
+(local only: for pictures that must not be distributed). menu.background: "parallax" (layers + effects), "image" (one
+picture, slow camera), later "scene" (a 3D scene).
+
+Usage: python tools/menu-theme/build_theme.py [themes/like-original]
 """
 import json
 import os
@@ -21,10 +28,12 @@ from build_game_skin import build as build_game_skin  # noqa: E402
 from PIL import Image, ImageFilter
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-SRC = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "Paralax background"))
+SRC = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "themes", "like-original"))
+THEME = json.load(open(os.path.join(SRC, "theme.json"), encoding="utf-8"))
+PACK_ID = f"jime-theme-{THEME['id']}"
 BUNDLED = os.path.join(REPO, "apps", "app", "public", "bundled-packs")
-PACK_ID = "jime-theme-autumn"
-OUT = os.path.join(BUNDLED, PACK_ID)
+PACKS = os.path.join(REPO, "data", "packs") if THEME.get("private") else BUNDLED
+OUT = os.path.join(PACKS, PACK_ID)
 MENU = "images/menu"
 
 
@@ -164,7 +173,7 @@ def rays_texture(sx, sy, w=1280, h=720, seed=3):
     return Image.fromarray(rgb, "RGB")
 
 
-def water_mask(img):
+def water_mask(img, regions, exclude):
     """Where the falls and the river of the city layer are: bright, little saturated, not reddish pixels inside the
     water's region; red = water (soft edge), green = speed (the falls fast, the river slower)"""
     a = np.asarray(img.convert("RGBA")).astype(np.float32) / 255
@@ -176,73 +185,100 @@ def water_mask(img):
     yy /= h
     xx /= w
     water = (mx > 0.55) & (sat < 0.32) & (al > 0.5) & (b > r * 0.72)
-    region = ((xx > 0.33) & (xx < 0.84) & (yy > 0.46)) | ((xx > 0.38) & (xx < 0.95) & (yy > 0.85))
-    region &= ~((xx > 0.73) & (xx < 0.84) & (yy < 0.6))
+    inside = lambda r: (xx > r[0]) & (yy > r[1]) & (xx < r[2]) & (yy < r[3])  # noqa: E731
+    region = np.zeros_like(water)
+    for r in regions:
+        region |= inside(r)
+    for r in exclude:
+        region &= ~inside(r)
     m = Image.fromarray((water & region).astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(4))
     speed = np.clip((0.72 - yy) / 0.2, 0, 1) * 0.75 + 0.25
     g = Image.fromarray((speed * 255).astype(np.uint8))
     return Image.merge("RGB", (m, g, Image.new("L", m.size, 0)))
 
 
+def src(rel):
+    return os.path.join(SRC, rel)
+
+
+def background():
+    """images/menu/menu.json for screens/menu/MenuBackground.tsx: layers, effects, camera"""
+    kind = THEME.get("menu", {}).get("background", "parallax")
+    if kind == "image":
+        img = Image.open(src(THEME["menu"]["image"])).convert("RGB")
+        return {"layers": [{"src": save_webp(img, f"{MENU}/image.webp", 82), "depth": 0.3, "z": 0}], "effects": [],
+                "camera": THEME["menu"].get("camera", {"rx": 1.2, "ry": 0.5, "angle": -28, "period": 90, "zoom": 1.05})}
+    if kind != "parallax":
+        raise SystemExit(f"menu.background {kind!r}: not supported yet (parallax, image)")
+    P = THEME["parallax"]
+    layers, effects, done = [], [], {}
+    n = len(P["layers"])
+    for i, L in enumerate(P["layers"]):
+        img = Image.open(src(L["file"]))
+        img = img.convert("RGBA" if img.mode == "RGBA" else "RGB")
+        rel = save_webp(img, f"{MENU}/layer{n - i}.webp", 80)
+        done[L["file"]] = rel
+        layers.append({"src": rel, "depth": L["depth"], "z": i * 10})
+    leaves = {}
+    for e in P.get("effects", []):
+        e = dict(e)
+        kind = e["type"]
+        if kind == "water":
+            layer = e.pop("layer")
+            if layer not in done:
+                raise SystemExit(f"water: {layer} must be one of the parallax layers")
+            pic = Image.open(src(layer))
+            e["src"] = done[layer]
+            e["mask"] = save_webp(water_mask(pic, e.pop("regions"), e.pop("exclude", [])), f"{MENU}/water.webp", 90)
+        elif kind == "steam":
+            pic = Image.open(src(e.pop("layer")))
+            e["aspect"] = round(pic.width / pic.height, 4)
+        elif kind == "rays":
+            name = f"{MENU}/rays.webp"
+            if not os.path.exists(os.path.join(OUT, name)):
+                save_webp(rays_texture(e["x"], e["y"]), name, 80)
+            e["texture"] = name
+        elif kind == "fog":
+            name = f"{MENU}/fog.webp"
+            if not os.path.exists(os.path.join(OUT, name)):
+                save_webp(fog_texture(), name, 85)
+            e["texture"] = name
+        elif kind == "leaves":
+            sheet = e.pop("sheet")
+            if sheet not in leaves:
+                leaves[sheet] = leaf_atlas(src(sheet))
+            e["atlas"], e["frames"] = leaves[sheet]
+        effects.append(e)
+    return {"layers": layers, "effects": effects, "camera": P.get("camera", {})}
+
+
 def main():
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT)
-    layers = []
-    # back to front: 4 (sky), 3 (valley), 2 (the city), 1 (the tree on the rock)
-    depth = {4: 0.08, 3: 0.3, 2: 0.6, 1: 1.0}
-    for n in (4, 3, 2, 1):
-        img = Image.open(os.path.join(SRC, f"{n}.png"))
-        img = img.convert("RGBA" if img.mode == "RGBA" else "RGB")
-        layers.append({"src": save_webp(img, f"{MENU}/layer{n}.webp", 80), "depth": depth[n], "z": (4 - n) * 10})
-    effects_water = {"type": "water", "src": f"{MENU}/layer2.webp", "mask": save_webp(water_mask(Image.open(os.path.join(SRC, "2.png"))), f"{MENU}/water.webp", 90),
-                     "z": 21, "strength": 0.0025, "speed": 0.585}
-    others = [f for f in os.listdir(SRC) if f.lower().endswith(".png") and f[:-4] not in ("1", "2", "3", "4")]
-    rgba = [f for f in others if Image.open(os.path.join(SRC, f)).mode == "RGBA"]
-    l2 = Image.open(os.path.join(SRC, "2.png"))
-    effects = [
-        effects_water,
-        {"type": "steam", "z": 22, "x": 0.595, "y": 0.69, "width": 0.13, "count": 22, "aspect": round(l2.width / l2.height, 4), "opacity": 0.5},
-        # the sun low over the far mountains, its rays through the valley
-        {"type": "rays", "texture": save_webp(rays_texture(0.2, 0.2), f"{MENU}/rays.webp", 80), "z": 5, "x": 0.2, "y": 0.2, "opacity": 0.85},
-        # fog over the far valley (above the city's roofs), in front of the city lower down, and over the river
-        {"type": "fog", "texture": save_webp(fog_texture(), f"{MENU}/fog.webp", 85), "z": 15, "y": 0.36, "height": 0.3, "opacity": 0.75, "speed": 90},
-        {"type": "fog", "texture": f"{MENU}/fog.webp", "z": 23, "y": 0.6, "height": 0.32, "opacity": 0.55, "speed": 140, "flip": True},
-        {"type": "fog", "texture": f"{MENU}/fog.webp", "z": 24, "y": 0.82, "height": 0.25, "opacity": 0.45, "speed": 110},
-        {"type": "rays", "texture": f"{MENU}/rays.webp", "z": 27, "x": 0.2, "y": 0.2, "opacity": 0.5},
-    ]
-    if rgba:
-        sheet = max(rgba, key=lambda f: os.path.getsize(os.path.join(SRC, f)))
-        atlas, frames = leaf_atlas(os.path.join(SRC, sheet))
-        # two layers of leaves: smaller, slower ones behind the tree on the rock, big ones in front of it
-        effects.append({"type": "leaves", "z": 28, "atlas": atlas, "frames": frames, "count": 18, "size": [16, 34], "wind": 0.25, "speed": 0.7})
-        effects.append({"type": "leaves", "z": 35, "atlas": atlas, "frames": frames, "count": 12, "size": [40, 76], "wind": 0.35})
-    menu = {
-        "layers": layers,
-        "effects": effects,
-        # a slow camera move: an ellipse laid on the screen diagonal (radii in % of the screen, one turn in `period` s)
-        "camera": {"rx": 2.2, "ry": 0.9, "angle": -28, "period": 70, "zoom": 1.1},
-    }
+    menu = background()
     write_json(f"{MENU}/menu.json", menu)
-    # the interface skin: the user's repainted atlas if there is one (<src>/ui-skin/atlas.png), else the template;
-    # the template and its guide also go to <src>/ui-skin/ to be repainted
-    # (the same for the in-game sheet: <src>/ui-skin/game_atlas.png). The guides are always refreshed there.
-    os.makedirs(os.path.join(SRC, "ui-skin"), exist_ok=True)
+    # the interface skins: the theme's sheets (templates written there when missing, or extended with new regions),
+    # its own element pictures (ui/parts), the markup to guides/
+    ui, guides = src("ui"), src("guides")
+    os.makedirs(ui, exist_ok=True)
+    os.makedirs(guides, exist_ok=True)
     for sheet, guide_png, build in (("atlas.png", "guide.png", build_skin), ("game_atlas.png", "game_guide.png", build_game_skin)):
-        custom = os.path.join(SRC, "ui-skin", sheet)
-        had = os.path.exists(custom)
+        custom = os.path.join(ui, sheet)
         if build is build_skin:
-            # own pictures of single elements, any size: <src>/ui-skin/parts/button.png ... (see build_skin.build_parts)
-            build(OUT, custom if had else None, os.path.join(SRC, "ui-skin", "parts"))
+            build(OUT, custom, os.path.join(ui, "parts"), os.path.join(guides, "parts"))
         else:
-            build(OUT, custom if had else None)
-        for f in ((guide_png,) if had else (sheet, guide_png)):
-            shutil.copy2(os.path.join(OUT, "images", "ui-skin", f), os.path.join(SRC, "ui-skin", f))
+            build(OUT, custom)
+        # the sheet as built (a template, or the theme's own extended by new regions) goes back as the one to paint
+        shutil.copy2(os.path.join(OUT, "images", "ui-skin", sheet), custom)
+        shutil.copy2(os.path.join(OUT, "images", "ui-skin", guide_png), os.path.join(guides, guide_png))
+    # (the app needs the menu atlas, the in-game sprites are cut out of their sheet)
+    for f in ("guide.png", "game_guide.png", "game_atlas.png"):
+        os.remove(os.path.join(OUT, "images", "ui-skin", f))
     manifest = {
-        "formatVersion": 1, "id": PACK_ID,
-        "name": {"ru": "Тема: Осенняя долина", "en": "Theme: Autumn valley", "it": "Tema: Valle d'autunno"},
-        "description": "The menus' background (parallax layers, fog, sun rays, falling leaves) and the interface skin of menus and game.",
-        "version": "0.1.0", "priority": -20, "origin": "bundled", "contents": [{"type": "theme", "path": "images"}],
+        "formatVersion": 1, "id": PACK_ID, "name": THEME["name"], "description": THEME.get("description", ""),
+        "version": THEME.get("version", "0.1.0"), "priority": THEME.get("priority", -20),
+        "origin": "user" if THEME.get("private") else "bundled", "contents": [{"type": "theme", "path": "images"}],
     }
     write_json("pack.json", manifest)
     files = sorted(os.path.relpath(os.path.join(b, f), OUT).replace("\\", "/") for b, _, fs in os.walk(OUT) for f in fs)
@@ -256,7 +292,7 @@ def main():
         json.dump(lst, f, ensure_ascii=False, indent=1)
         f.write("\n")
     size = sum(os.path.getsize(os.path.join(OUT, f)) for f in files)
-    print(f"{PACK_ID}: {len(files)} files, {size / 1024:.0f} KB, leaves: {len(effects[-1].get('frames', []))}")
+    print(f"{PACK_ID} -> {os.path.relpath(OUT, REPO)}: {len(files)} files, {size / 1024:.0f} KB")
 
 
 if __name__ == "__main__":
