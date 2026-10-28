@@ -790,3 +790,35 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
   .pm-body { padding: 10px 12px; }
   .pm-panel > header, .pm-panel > footer { padding: 10px 12px; }
 }
+
+/* ------------------------------------------------------------------ the skin (ui/skin.ts): regions of the theme's atlas */
+.skinned .pm-btn, .skinned .pm-panel, .skinned .pm-card, .skinned .pm-adv, .skinned .pm-choice, .skinned .pm-hero, .skinned .pm-input,
+.skinned .pm-seg button, .skinned .pm-saves li, .skinned .pm-member, .skinned .pm-cutscene-text, .skinned .pm-member select {
+  border-style: solid; border-color: transparent; box-shadow: none; backdrop-filter: none; }
+.skinned .pm-btn { background: none; border-image: var(--sk-button) var(--sk-button-slice) / var(--sk-button-w); }
+@media (hover: hover) { .skinned .pm-btn:not(:disabled):hover { filter: none; border-image-source: var(--sk-button-hover); } }
+.skinned .pm-btn:not(:disabled):active { border-image-source: var(--sk-button-pressed); }
+.skinned .pm-btn:disabled { opacity: 1; color: rgba(234, 223, 198, 0.45); border-image-source: var(--sk-button-disabled); }
+.skinned .pm-btn.primary { border-image-source: var(--sk-button-primary); }
+@media (hover: hover) { .skinned .pm-btn.primary:not(:disabled):hover { border-image-source: var(--sk-button-primary-hover); } }
+.skinned .pm-panel, .skinned .pm-cutscene-text { background: none; border-image: var(--sk-panel) var(--sk-panel-slice) / var(--sk-panel-w); }
+.skinned .pm-panel > header, .skinned .pm-panel > footer { border: none; }
+.skinned .pm-panel > header { border-image: var(--sk-panel-header) var(--sk-panel-header-slice) / var(--sk-panel-header-w); border-style: solid; border-color: transparent; }
+.skinned .pm-card, .skinned .pm-adv, .skinned .pm-choice, .skinned .pm-hero, .skinned .pm-saves li, .skinned .pm-member {
+  background: none; border-image: var(--sk-card) var(--sk-card-slice) / var(--sk-card-w); }
+@media (hover: hover) { .skinned :is(.pm-card, .pm-adv, .pm-choice, .pm-hero):hover { border-image-source: var(--sk-card-hover); } }
+.skinned :is(.pm-card, .pm-adv, .pm-choice, .pm-hero).on { box-shadow: none; border-image-source: var(--sk-card-on); }
+.skinned .pm-card img, .skinned .pm-adv img { border-radius: 10px 10px 0 0; width: calc(100% - 8px); margin: 4px 4px 0; }
+.skinned .pm-input, .skinned .pm-member select { background: none; border-image: var(--sk-input) var(--sk-input-slice) / var(--sk-input-w); }
+.skinned .pm-seg button { background: none; border-image: var(--sk-seg) var(--sk-seg-slice) / var(--sk-seg-w); }
+.skinned .pm-seg button.on { border-image-source: var(--sk-seg-on); }
+.skinned .pm-badge { background: var(--sk-badge) center / contain no-repeat; }
+.skinned .pm-member input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; margin: 0;
+  background: var(--sk-checkbox) center / contain no-repeat; cursor: pointer; }
+.skinned .pm-member input[type=checkbox]:checked { background-image: var(--sk-checkbox-on); }
+.skinned .pm-member input[type=checkbox]:disabled { opacity: 0.45; cursor: default; }
+.skinned .pm-logo { width: min(300px, 70vw); aspect-ratio: 600 / 220; background: var(--sk-logo) left center / contain no-repeat;
+  color: transparent; text-shadow: none; overflow: hidden; }
+.skinned .pm-logo span { visibility: hidden; }
+.skinned .pm-screen { color: var(--sk-c-text, #eadfc6); }
+.skinned .pm-panel > header h2, .skinned .pm-cutscene-text h2 { color: var(--sk-c-title, #f0dcae); }

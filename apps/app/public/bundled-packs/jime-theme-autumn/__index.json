@@ -8,5 +8,8 @@
  "images/menu/menu.json",
  "images/menu/rays.webp",
  "images/menu/water.webp",
+ "images/ui-skin/atlas.png",
+ "images/ui-skin/guide.png",
+ "images/ui-skin/skin.json",
  "pack.json"
 ]

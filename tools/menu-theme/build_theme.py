@@ -14,6 +14,9 @@ import sys
 from collections import deque
 
 import numpy as np
+
+sys.path.insert(0, os.path.dirname(__file__))
+from build_skin import build as build_skin  # noqa: E402
 from PIL import Image, ImageFilter
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -220,6 +223,14 @@ def main():
         "camera": {"rx": 2.2, "ry": 0.9, "angle": -28, "period": 70, "zoom": 1.1},
     }
     write_json(f"{MENU}/menu.json", menu)
+    # the interface skin: the user's repainted atlas if there is one (<src>/ui-skin/atlas.png), else the template;
+    # the template and its guide also go to <src>/ui-skin/ to be repainted
+    custom = os.path.join(SRC, "ui-skin", "atlas.png")
+    build_skin(OUT, custom if os.path.exists(custom) else None)
+    if not os.path.exists(custom):
+        os.makedirs(os.path.dirname(custom), exist_ok=True)
+        for f in ("atlas.png", "guide.png"):
+            shutil.copy2(os.path.join(OUT, "images", "ui-skin", f), os.path.join(SRC, "ui-skin", f))
     manifest = {
         "formatVersion": 1, "id": PACK_ID,
         "name": {"ru": "Тема: Осенняя долина", "en": "Theme: Autumn valley", "it": "Tema: Valle d'autunno"},

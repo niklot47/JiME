@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { TextDb } from "@jime/content-tools/text";
 import { installFonts, loadDb, loadHeroArt, loadModelArt, loadText, assetUrl, type HeroArt, type ModelArt } from "../../data/pack.ts";
 import { textHtml } from "../../text/markup.ts";
+import { installSkin } from "../../ui/skin.ts";
 
 export interface MenuUi {
   db: any;
@@ -26,6 +27,7 @@ export function useMenuData(lang: string): { ui: MenuUi | null; error: string | 
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     void installFonts();
+    void installSkin();
     Promise.all([loadDb(), loadModelArt("campaigns"), loadModelArt("adventures"), loadModelArt("items"), loadModelArt("cutscenes"), loadHeroArt()])
       .then(([d, c, a, i, cs, h]) => { setDb(d); setArt({ campaigns: c, adventures: a, items: i, cutscenes: cs, heroes: h }); })
       .catch((e) => setError(String(e)));
