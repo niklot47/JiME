@@ -1232,8 +1232,21 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 
 /* layered theme pictures (LayeredArt): the layers and the effects between them, inside their card */
 .la { position: absolute; inset: 0; overflow: hidden; isolation: isolate; }
-.la-layer { position: absolute; inset: 0; background-size: cover; background-position: center; will-change: transform; transform: scale(1.08); }
+/* a framed picture: the card is its frame, the parts outside stick out of the card */
+.la.framed { overflow: visible; transition: filter 0.3s; }
+.la-box { position: absolute; }
+.la:not(.framed) .la-box { inset: -4%; }
+.la-layer { position: absolute; inset: 0; will-change: transform; }
+.la-pic { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; }
 .la-fx { position: absolute; inset: 0; pointer-events: none; animation: ct-fade 0.4s ease-out both; }
 .la-fx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .lo-diff .la { transition: filter 0.3s; filter: brightness(0.82); }
 .lo-diff .la.on { filter: none; }
+/* a card with a framed layered picture: the picture is the card (no frame, background or shadow of its own), the
+   chosen one glows around its outline; the parts outside the frame may cover the neighbours */
+.lo-diff.layered { overflow: visible; border-color: transparent !important; border-image: none !important; background: none; box-shadow: none; }
+.lo-diff.layered .la.framed { filter: brightness(0.8) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); }
+.lo-diff.layered.on .la.framed { filter: drop-shadow(0 0 calc(10 * var(--u)) rgba(255, 210, 120, 0.9)) drop-shadow(0 0 calc(24 * var(--u)) rgba(226, 160, 70, 0.6)); }
+@media (hover: hover) { .lo-diff.layered:hover .la.framed { filter: brightness(1.05) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); } .lo-diff.layered:hover .lo-diff-art { transform: none; } }
+.lo-diff.layered:hover, .lo-diff.layered.on { z-index: 2; }
+.lo-diff.layered b { background: none; z-index: 3; }

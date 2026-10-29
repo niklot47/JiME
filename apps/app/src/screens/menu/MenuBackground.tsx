@@ -14,7 +14,9 @@ import { LOW_GFX } from "../../data/perf.ts";
 
 interface Layer { src: string; depth?: number; z?: number }
 export interface Effect {
-  type: "fog" | "rays" | "leaves" | "water" | "steam" | "embers";
+  type: "fog" | "rays" | "leaves" | "water" | "steam" | "embers" | "distort";
+  /** distort: how fast the waver rises (heat haze; 0 = it only sways), the noise's fineness, a brightness flicker */
+  rise?: number; scale?: number; flicker?: number;
   /** embers: their colour; hover: shown only while the layered art is hovered / chosen (LayeredArt) */
   color?: string; hover?: boolean; width?: number; aspect?: number; z?: number; src?: string; mask?: string; strength?: number; depth?: number; opacity?: number;
   texture?: string; x?: number; y?: number; height?: number; speed?: number; flip?: boolean;
@@ -317,7 +319,90 @@ function Embers({ e }: { e: Effect }) {
   return <canvas ref={canvas} className="pm-water" />;
 }
 
+const DISTORT_FS = `precision mediump float;
+varying vec2 v;
+uniform sampler2D img; uniform float t; uniform float k; uniform float speed; uniform float rise; uniform float freq; uniform float flick;
+float h(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
+void main() {
+  vec2 uv = vec2(v.x, 1.0 - v.y);
+  float s = t * speed;
+  // the noise drifts up by rise (flames, heat) and turns slowly (fur in the wind)
+  vec2 q = uv * freq + vec2(0.35 * sin(s * 0.7), s * rise);
+  vec2 off = vec2(n(q) + 0.5 * n(q * 2.1 + 5.0) - 0.75, n(q + 17.0) + 0.5 * n(q * 1.9 + 9.0) - 0.75) * k;
+  off.x += sin(uv.y * freq * 0.5 + s * 1.3) * k * 0.35;
+  vec4 c = texture2D(img, uv + off);
+  float b = 1.0 + flick * (n(vec2(s * 3.0, 0.0)) - 0.5) * 2.0;
+  gl_FragColor = vec4(c.rgb * c.a * b, c.a);
+}`;
+
+/** A layer drawn again, wavering: its pixels fetched from a little aside by moving noise (heat haze over fire, fur
+ *  in the wind); the canvas covers the layer exactly (the layered picture's box) */
+function Distort({ e }: { e: Effect }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = canvas.current;
+    if (!cv || !e.src) return;
+    const gl = cv.getContext("webgl", { premultipliedAlpha: true, alpha: true });
+    if (!gl) return;
+    const sh = (type: number, src: string) => { const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, WATER_VS));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, DISTORT_FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const u = (n: string) => gl.getUniformLocation(prog, n);
+    gl.uniform1i(u("img"), 0);
+    gl.uniform1f(u("k"), e.strength ?? 0.004); gl.uniform1f(u("speed"), reduced() ? 0 : e.speed ?? 1);
+    gl.uniform1f(u("rise"), e.rise ?? 0); gl.uniform1f(u("freq"), e.scale ?? 40); gl.uniform1f(u("flick"), e.flicker ?? 0);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    let ready = false, raf = 0;
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => {
+      const tex = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
+      for (const [pp, val] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]] as const)
+        gl.texParameteri(gl.TEXTURE_2D, pp, val);
+      ready = true;
+    };
+    im.src = assetUrl(e.src);
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * (LOW_GFX ? 0.6 : 1);
+      cv.width = Math.max(1, Math.round(cv.clientWidth * dpr)); cv.height = Math.max(1, Math.round(cv.clientHeight * dpr));
+      gl.viewport(0, 0, cv.width, cv.height);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(cv);
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      if (ready) {
+        gl.uniform1f(u("t"), (now - t0) / 1000);
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); gl.deleteProgram(prog); gl.deleteBuffer(buf); };
+  }, [e]);
+  return <canvas ref={canvas} className="pm-water" />;
+}
+
 export function EffectView({ e }: { e: Effect }) {
+  if (e.type === "distort") return <Distort e={e} />;
   if (e.type === "embers") return <Embers e={e} />;
   if (e.type === "leaves") return <Leaves e={e} />;
   if (e.type === "steam") return <Steam e={e} />;

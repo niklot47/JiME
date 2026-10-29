@@ -1,11 +1,28 @@
 // A picture of the theme made of layers with effects between them (themes/<name>/ui/art/<art>/ 1.png, 2.png ... +
-// layers.json, built into images/ui-skin/layered.json): e.g. the difficulty cards. The layers move apart a little with
-// the pointer over the card (depth), effects marked "hover" show only while it is hovered or chosen.
-import { useEffect, useRef, useState } from "react";
+// layers.json, built into images/ui-skin/layered.json): e.g. the difficulty cards.
+//   size + frame  the picture's size and the card's edges in it (px): the frame fills the card (kept in proportion,
+//                 centred), what lies outside it (a blade, a whip of fire) sticks out of the card
+//   layers        each moves a little with the pointer over the card (depth); "flicker" varies its opacity (fire
+//                 glints), "blend" its blending (screen / lighten / multiply ...)
+//   effects       between the layers by z (fog, leaves, embers, steam, rays, distort = a layer redrawn wavering);
+//                 an effect with a depth moves with the layers of that depth; "hover": only while hovered or chosen
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { assetUrl, packJsonMerged } from "../../data/pack.ts";
 import { EffectView, type Effect } from "./MenuBackground.tsx";
 
-export interface LayeredArtData { layers: { src: string; depth?: number; z?: number }[]; effects?: Effect[] }
+export interface LayeredLayer {
+  src: string; depth?: number; z?: number;
+  flicker?: { min?: number; max?: number; speed?: number };
+  blend?: CSSProperties["mixBlendMode"];
+}
+export interface LayeredArtData {
+  layers: LayeredLayer[];
+  effects?: Effect[];
+  /** the picture's size (px) */
+  size?: [number, number];
+  /** the card's edges in the picture: left, top, right, bottom (px) */
+  frame?: [number, number, number, number];
+}
 
 let all: Promise<Record<string, LayeredArtData>> | null = null;
 export const loadLayeredArt = () => (all ??= packJsonMerged<Record<string, LayeredArtData>>("images/ui-skin/layered.json").catch(() => ({} as Record<string, LayeredArtData>)));
@@ -17,13 +34,49 @@ export function useLayeredArt(name: string): LayeredArtData | null | undefined {
   return a;
 }
 
-export function LayeredArt({ art, active = false }: { art: LayeredArtData; active?: boolean }) {
-  const box = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState(false);
+/** A layer whose opacity wanders between min and max (two slow sines and a fast shimmer, like firelight) */
+function Flicker({ layer }: { layer: LayeredLayer }) {
+  const el = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const el = box.current;
+    const f = layer.flicker!;
+    const lo = f.min ?? 0.35, hi = f.max ?? 1, sp = f.speed ?? 1, ph = Math.random() * 10;
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const t = ((now - t0) / 1000) * sp + ph;
+      const k = 0.5 + 0.28 * Math.sin(t * 2.3) + 0.14 * Math.sin(t * 5.9 + 1.3) + 0.08 * Math.sin(t * 17.1 + 0.7);
+      if (el.current) el.current.style.opacity = (lo + (hi - lo) * Math.min(1, Math.max(0, k))).toFixed(3);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [layer]);
+  return <div ref={el} className="la-pic" style={{ backgroundImage: `url("${assetUrl(layer.src)}")` }} />;
+}
+
+export function LayeredArt({ art, active = false }: { art: LayeredArtData; active?: boolean }) {
+  const card = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState(false);
+  const [box, setBox] = useState<CSSProperties>({ inset: 0 });
+  // the picture's box: its frame fitted into the card (contain), the rest outside the card
+  useLayoutEffect(() => {
+    const el = card.current;
+    if (!el || !art.size || !art.frame) return;
+    const [pw, ph] = art.size, [x0, y0, x1, y1] = art.frame;
+    const fit = () => {
+      const W = el.clientWidth, H = el.clientHeight;
+      const s = Math.min(W / Math.max(1, x1 - x0), H / Math.max(1, y1 - y0));
+      setBox({ left: (W - (x1 - x0) * s) / 2 - x0 * s, top: (H - (y1 - y0) * s) / 2 - y0 * s, width: pw * s, height: ph * s });
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [art]);
+  // the pointer parallax (re-reads the moving parts each frame: hover effects come and go)
+  useEffect(() => {
+    const el = card.current;
     if (!el) return;
-    const items = [...el.querySelectorAll<HTMLElement>("[data-depth]")].map((n) => ({ n, d: Number(n.dataset.depth) }));
     let raf = 0, tx = 0, ty = 0, px = 0, py = 0;
     const move = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
@@ -32,7 +85,10 @@ export function LayeredArt({ art, active = false }: { art: LayeredArtData; activ
     const leave = () => { tx = 0; ty = 0; };
     const tick = () => {
       px += (tx - px) * 0.08; py += (ty - py) * 0.08;
-      for (const { n, d } of items) n.style.transform = `translate3d(${(-px * 3 * d).toFixed(2)}%, ${(-py * 2 * d).toFixed(2)}%, 0) scale(1.08)`;
+      el.querySelectorAll<HTMLElement>("[data-depth]").forEach((n) => {
+        const d = Number(n.dataset.depth);
+        n.style.transform = `translate3d(${(-px * 2.5 * d).toFixed(2)}%, ${(-py * 1.8 * d).toFixed(2)}%, 0)`;
+      });
       raf = requestAnimationFrame(tick);
     };
     el.addEventListener("pointermove", move);
@@ -42,14 +98,30 @@ export function LayeredArt({ art, active = false }: { art: LayeredArtData; activ
   }, [art]);
   const parts = [
     ...art.layers.map((l, i) => ({ z: l.z ?? (i + 1) * 10, layer: l, effect: null as Effect | null })),
-    ...(art.effects ?? []).map((e) => ({ z: e.z ?? 100, layer: null, effect: e })),
+    ...(art.effects ?? []).map((e) => ({ z: e.z ?? 100, layer: null as LayeredLayer | null, effect: e })),
   ].sort((a, b) => a.z - b.z);
   const on = hover || active;
+  const framed = !!(art.size && art.frame);
   return (
-    <div ref={box} className={`la${on ? " on" : ""}`} onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
-      {parts.map((p, i) => p.layer
-        ? <div key={i} className="la-layer" data-depth={p.layer.depth ?? 0} style={{ backgroundImage: `url("${assetUrl(p.layer.src)}")` }} />
-        : (!p.effect!.hover || on) && <div key={i} className={`la-fx${p.effect!.type === "rays" ? " pm-part-light" : ""}`}><EffectView e={p.effect!} /></div>)}
+    <div ref={card} className={`la${on ? " on" : ""}${framed ? " framed" : ""}`} onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
+      <div className="la-box" style={box}>
+        {parts.map((p, i) => {
+          if (p.layer) {
+            const l = p.layer;
+            return (
+              <div key={i} className="la-layer" data-depth={l.depth ?? 0} style={l.blend ? { mixBlendMode: l.blend } : undefined}>
+                {l.flicker ? <Flicker layer={l} /> : <div className="la-pic" style={{ backgroundImage: `url("${assetUrl(l.src)}")` }} />}
+              </div>
+            );
+          }
+          const e = p.effect!;
+          if (e.hover && !on) return null;
+          const cls = `la-fx${e.type === "rays" ? " pm-part-light" : ""}`;
+          return e.depth !== undefined
+            ? <div key={i} className={cls} data-depth={e.depth}><EffectView e={e} /></div>
+            : <div key={i} className={cls}><EffectView e={e} /></div>;
+        })}
+      </div>
     </div>
   );
 }

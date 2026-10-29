@@ -268,12 +268,20 @@ def layered_art(folder, name):
     """
     A picture in layers (ui/art/<name>/): 1.png, 2.png ... from the back to the front (same size, transparent where the
     layers behind show), and optionally layers.json:
-      {"layers": [{"file": "1.png", "depth": 0.1}, ...],     depth: how far it moves with the pointer (0 still .. 1)
+      {"frame": [left, top, right, bottom],          the card's edges in the picture (px): the frame fills the card,
+                                                     what lies outside it sticks out of the card
+       "layers": [{"file": "1.png", "depth": 0.1,    depth: how far it moves with the pointer (0 still .. 1)
+                   "flicker": {"min": 0.3, "max": 1, "speed": 1},   its opacity wanders (fire glints)
+                   "blend": "screen",                its blending (screen, lighten, multiply, overlay ...)
+                   "distort": {"strength": 0.004, "speed": 1, "rise": 0, "scale": 40, "flicker": 0}},
+                                                     drawn wavering instead (heat haze: rise > 0; fur, cloth: rise 0)
        "effects": [{"type": "fog" | "embers" | "steam" | "rays" | "leaves", "z": 15, ..., "hover": true}]}
     Layer N (counting from 1 at the back) is drawn at z = N * 10: an effect with z 15 goes between layers 1 and 2.
-    "hover": the effect shows only while the card is hovered or chosen. Effects' own fields as in the menu's parallax
-    (fog: y, height, opacity, speed; embers: x, y, width, count, color, size [min, max], speed; steam: x, y, width,
-    count, opacity; rays: x, y, opacity; leaves: "sheet" a picture of leaves in this folder, count, size, wind).
+    "hover": the effect shows only while the card is hovered or chosen; "depth" on an effect: it moves like the layers
+    of that depth. Effects' fields as in the menu's parallax, x / y / width fractions of the whole picture (fog: y,
+    height, opacity, speed, flip; embers: x, y, width, count, color, size [min, max] px, speed; steam: x, y, width,
+    count, opacity; rays: x, y, opacity; leaves: "sheet" a picture of one or more leaves in this folder, count,
+    size [min, max] px, wind, speed).
     """
     cfg_path = os.path.join(folder, "layers.json")
     cfg = json.load(open(cfg_path, encoding="utf-8")) if os.path.exists(cfg_path) else {}
@@ -281,16 +289,26 @@ def layered_art(folder, name):
         (f for f in os.listdir(folder) if os.path.splitext(f)[0].isdigit() and f.lower().endswith((".png", ".webp", ".jpg"))),
         key=lambda f: int(os.path.splitext(f)[0]))]
     n = len(files)
-    layers = []
-    aspect = 1.0
+    layers, effects = [], []
+    size = None
+    # the stored pictures: at most 1400 px on their long side (the frame is kept in the original's pixels)
     for i, L in enumerate(files):
         img = Image.open(os.path.join(folder, L["file"]))
-        aspect = img.width / img.height
+        size = size or [img.width, img.height]
         img = img.convert("RGBA" if img.mode in ("RGBA", "LA", "P") else "RGB")
         img.thumbnail((1400, 1400), Image.LANCZOS)
         rel = save_webp(img, f"images/ui-skin/art/{name}/{i + 1}.webp", 86)
-        layers.append({"src": rel, "depth": L.get("depth", round(i / max(1, n - 1), 3)), "z": (i + 1) * 10})
-    effects = []
+        depth = L.get("depth", round(i / max(1, n - 1), 3))
+        z = (i + 1) * 10
+        if "distort" in L:
+            effects.append({"type": "distort", "src": rel, "z": z, "depth": depth, **L["distort"]})
+            continue
+        layer = {"src": rel, "depth": depth, "z": z}
+        for k in ("flicker", "blend"):
+            if k in L:
+                layer[k] = L[k]
+        layers.append(layer)
+    aspect = size[0] / size[1] if size else 1.0
     for e in cfg.get("effects", []):
         e = dict(e)
         k = e["type"]
@@ -306,8 +324,11 @@ def layered_art(folder, name):
         elif k == "leaves":
             e["atlas"], e["frames"] = leaf_atlas(os.path.join(folder, e.pop("sheet")), name=f"images/ui-skin/art/{name}/leaves.webp")
         effects.append(e)
-    print(f"  layered art {name}: {n} layers, {len(effects)} effects")
-    return {"layers": layers, "effects": effects}
+    out = {"layers": layers, "effects": effects}
+    if size and cfg.get("frame"):
+        out["size"], out["frame"] = size, cfg["frame"]
+    print(f"  layered art {name}: {n} layers, {len(effects)} effects{', frame' if 'frame' in out else ''}")
+    return out
 
 
 def regions_doc(path):

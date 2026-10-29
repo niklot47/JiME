@@ -13,7 +13,7 @@ import { useSound } from "../../audio/SoundPanel.tsx";
 import type { SoundSettings } from "../../audio/sound.ts";
 import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
-import { LayeredArt, useLayeredArt } from "./LayeredArt.tsx";
+import { LayeredArt, loadLayeredArt, useLayeredArt } from "./LayeredArt.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
@@ -60,6 +60,8 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [replace, setReplace] = useState<{ hero: number; slot: number } | null>(null);
   const [nameWarn, setNameWarn] = useState(false);
   const [ask, setAsk] = useState<string | null>(null); // the save slot asked to be deleted
+  const [layeredArt, setLayeredArt] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => { void loadLayeredArt().then(setLayeredArt); }, []);
   const [map, setMap] = useState<MapKind>(mapKind);
   const [mapScene, setMapScene] = useState<string | null>(null);
   useEffect(() => { void loadMapScene().then(setMapScene); }, []);
@@ -151,12 +153,13 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
     // like the original: the wide picture on top (adventure mode), normal and hard side by side under it, the chosen
     // one's description at the bottom; the pictures are the theme's (ui/art/difficulty-<mode>.png), else a plain card
     const card = (d: Difficulty, name: "easy" | "normal" | "hard", cls: string) => (
-      <button className={`lo-diff ${cls}${difficulty === d ? " on" : ""}`} onClick={() => setDifficulty(d)} onDoubleClick={() => setPage("heroes")}>
+      <button className={`lo-diff ${cls}${difficulty === d ? " on" : ""}${layered[d] ? " layered" : ""}`} onClick={() => setDifficulty(d)} onDoubleClick={() => setPage("heroes")}>
         {/* the theme's layered picture (ui/art/difficulty-<mode>/), else its flat one (ui/art/difficulty-<mode>.png) */}
         <DiffArt mode={d} on={difficulty === d} />
         <b>{t(name)}</b>
       </button>
     );
+    const layered = { adventure: !!layeredArt?.["difficulty-adventure"], normal: !!layeredArt?.["difficulty-normal"], hard: !!layeredArt?.["difficulty-hard"] } as Record<Difficulty, boolean>;
     const desc = difficulty === "adventure" ? "easyDesc" : difficulty === "hard" ? "hardDesc" : "normalDesc";
     body = (
       <div className="lo-campaign lo-difficulty">

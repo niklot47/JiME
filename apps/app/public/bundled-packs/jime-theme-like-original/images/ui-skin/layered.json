@@ -1,1 +1,205 @@
-{}
+{
+ "difficulty-adventure": {
+  "layers": [
+   {
+    "src": "images/ui-skin/art/difficulty-adventure/1.webp",
+    "depth": 0.25,
+    "z": 10
+   },
+   {
+    "src": "images/ui-skin/art/difficulty-adventure/2.webp",
+    "depth": 0.9,
+    "z": 20
+   }
+  ],
+  "effects": [
+   {
+    "type": "fog",
+    "z": 15,
+    "y": 0.62,
+    "height": 0.42,
+    "opacity": 0.85,
+    "speed": 55,
+    "texture": "images/ui-skin/art/fog.webp"
+   },
+   {
+    "type": "fog",
+    "z": 15,
+    "y": 0.82,
+    "height": 0.36,
+    "opacity": 0.7,
+    "speed": 80,
+    "flip": true,
+    "texture": "images/ui-skin/art/fog.webp"
+   },
+   {
+    "type": "fog",
+    "z": 25,
+    "y": 0.97,
+    "height": 0.2,
+    "opacity": 0.35,
+    "speed": 95,
+    "hover": true,
+    "texture": "images/ui-skin/art/fog.webp"
+   }
+  ],
+  "size": [
+   2147,
+   646
+  ],
+  "frame": [
+   0,
+   118,
+   2146,
+   645
+  ]
+ },
+ "difficulty-hard": {
+  "layers": [
+   {
+    "src": "images/ui-skin/art/difficulty-hard/1.webp",
+    "depth": 0.35,
+    "z": 10
+   },
+   {
+    "src": "images/ui-skin/art/difficulty-hard/2.webp",
+    "depth": 0.35,
+    "z": 20,
+    "flicker": {
+     "min": 0.25,
+     "max": 1,
+     "speed": 1.4
+    },
+    "blend": "screen"
+   }
+  ],
+  "effects": [
+   {
+    "type": "distort",
+    "src": "images/ui-skin/art/difficulty-hard/3.webp",
+    "z": 30,
+    "depth": 0.35,
+    "strength": 0.007,
+    "speed": 1,
+    "rise": 1.6,
+    "scale": 48,
+    "flicker": 0.12
+   },
+   {
+    "type": "embers",
+    "z": 35,
+    "x": 0.5,
+    "y": 0.95,
+    "width": 0.9,
+    "count": 14,
+    "color": "#ff6a1a",
+    "size": [
+     1,
+     2.5
+    ],
+    "speed": 0.8
+   },
+   {
+    "type": "embers",
+    "z": 35,
+    "x": 0.5,
+    "y": 0.9,
+    "width": 0.9,
+    "count": 24,
+    "color": "#ffa040",
+    "size": [
+     1.2,
+     3
+    ],
+    "speed": 1.1,
+    "hover": true
+   }
+  ],
+  "size": [
+   1254,
+   1254
+  ],
+  "frame": [
+   115,
+   108,
+   1144,
+   1149
+  ]
+ },
+ "difficulty-normal": {
+  "layers": [
+   {
+    "src": "images/ui-skin/art/difficulty-normal/1.webp",
+    "depth": 0.2,
+    "z": 10
+   },
+   {
+    "src": "images/ui-skin/art/difficulty-normal/2.webp",
+    "depth": 0.7,
+    "z": 20
+   }
+  ],
+  "effects": [
+   {
+    "type": "distort",
+    "src": "images/ui-skin/art/difficulty-normal/3.webp",
+    "z": 30,
+    "depth": 0.7,
+    "strength": 0.006,
+    "speed": 0.6,
+    "rise": 0,
+    "scale": 22
+   },
+   {
+    "type": "leaves",
+    "z": 15,
+    "count": 9,
+    "size": [
+     10,
+     18
+    ],
+    "wind": 0.25,
+    "speed": 0.45,
+    "atlas": "images/ui-skin/art/difficulty-normal/leaves.webp",
+    "frames": [
+     [
+      0,
+      0,
+      72,
+      96
+     ]
+    ]
+   },
+   {
+    "type": "leaves",
+    "z": 35,
+    "count": 5,
+    "size": [
+     16,
+     28
+    ],
+    "wind": 0.35,
+    "speed": 0.6,
+    "atlas": "images/ui-skin/art/difficulty-normal/leaves.webp",
+    "frames": [
+     [
+      0,
+      0,
+      72,
+      96
+     ]
+    ]
+   }
+  ],
+  "size": [
+   1293,
+   1201
+  ],
+  "frame": [
+   127,
+   32,
+   1162,
+   1163
+  ]
+ }
+}
