@@ -5,11 +5,12 @@
 // click on it again unchooses it; Continue waits for a choice. Leaving, they fly out the way they came.
 import { useEffect, useState } from "react";
 import type { Difficulty } from "@jime/engine";
-import { LayeredArt, useLayeredArt } from "./LayeredArt.tsx";
+import { LayeredArt, preloadLayeredArt, useLayeredArt } from "./LayeredArt.tsx";
 import type { TrKey } from "../../ui/i18n.ts";
 
-/** the entrance (s) before the chosen card's effects may show; the exit */
-const ENTER_S = 1.5, LEAVE_S = 0.45;
+/** the entrance (s) before the chosen card's effects may show; the exit; the longest wait for the pictures */
+const ENTER_S = 1.5, LEAVE_S = 0.45, LOAD_MAX_S = 4;
+export const DIFFICULTY_ART = ["difficulty-adventure", "difficulty-normal", "difficulty-hard"];
 
 function Card({ mode, name, cls, on, ready, t, onPick, onGo }: {
   mode: Difficulty; name: TrKey; cls: string; on: boolean; ready: boolean; t: (k: TrKey) => string; onPick: () => void; onGo: () => void;
@@ -32,7 +33,20 @@ export function DifficultyStep({ difficulty, setDifficulty, onBack, onNext, t }:
 }) {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  useEffect(() => { const id = setTimeout(() => setReady(true), ENTER_S * 1000); return () => clearTimeout(id); }, []);
+  // the cards fly in once their pictures are decoded (else they would come in half drawn)
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let done = false;
+    const go = () => { if (!done) { done = true; setLoaded(true); } };
+    void preloadLayeredArt(DIFFICULTY_ART).then(go);
+    const id = setTimeout(go, LOAD_MAX_S * 1000);
+    return () => clearTimeout(id);
+  }, []);
+  useEffect(() => {
+    if (!loaded) return;
+    const id = setTimeout(() => setReady(true), ENTER_S * 1000);
+    return () => clearTimeout(id);
+  }, [loaded]);
   const leave = (go: () => void) => { if (leaving) return; setLeaving(true); setTimeout(go, LEAVE_S * 1000); };
   const pick = (d: Difficulty) => setDifficulty(difficulty === d ? null : d);
   const name: Record<Difficulty, TrKey> = { adventure: "easy", normal: "normal", hard: "hard" };
@@ -44,7 +58,7 @@ export function DifficultyStep({ difficulty, setDifficulty, onBack, onNext, t }:
   return (
     <div className={`lo-campaign lo-difficulty${leaving ? " leaving" : ""}`}>
       <h2 className="lo-banner"><span>{t("toDifficulty")}</span></h2>
-      <div className={`lo-diffs${difficulty ? " chosen" : ""}`}>
+      <div className={`lo-diffs${difficulty ? " chosen" : ""}${loaded ? " go" : ""}`}>
         {card("adventure", "wide")}
         {card("normal", "half left")}
         {card("hard", "half right")}

@@ -13,7 +13,8 @@ import { useSound } from "../../audio/SoundPanel.tsx";
 import type { SoundSettings } from "../../audio/sound.ts";
 import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
-import { DifficultyStep } from "./DifficultyStep.tsx";
+import { DIFFICULTY_ART, DifficultyStep } from "./DifficultyStep.tsx";
+import { preloadLayeredArt } from "./LayeredArt.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
@@ -64,6 +65,8 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [map, setMap] = useState<MapKind>(mapKind);
   const [mapScene, setMapScene] = useState<string | null>(null);
   useEffect(() => { void loadMapScene().then(setMapScene); }, []);
+  // the difficulty cards' layers: decoded while the player looks at the campaigns (the next page shows them)
+  useEffect(() => { if (page === "campaign") void preloadLayeredArt(DIFFICULTY_ART); }, [page]);
   const snd = useSound();
   const [langs, setLangs] = useState<string[]>(["ru", "en", "it"]);
   useEffect(() => { loadPackSet().then((s) => { if (s.langs.length) setLangs(s.langs); }).catch(() => {}); }, []);

@@ -1262,9 +1262,11 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .lo-diff-slot:has(.lo-diff.on) { z-index: 3; }
 .lo-diff.on { transform: scale(1.094); }
 /* CoroutineShow: from the left / right / above to a little past their places (they knock together), a shake, settle */
-.lo-diff-slot.left { animation: dif-in-l 1.4s 0.1s both; }
-.lo-diff-slot.right { animation: dif-in-r 1.4s 0.1s both; }
-.lo-diff-slot.wide { animation: dif-in-t 1.4s 0.1s both; }
+/* (waiting for the pictures: out of sight; .go starts the entrance) */
+.lo-diffs:not(.go) .lo-diff-slot { visibility: hidden; }
+.lo-diffs.go .lo-diff-slot.left { animation: dif-in-l 1.4s 0.1s both; }
+.lo-diffs.go .lo-diff-slot.right { animation: dif-in-r 1.4s 0.1s both; }
+.lo-diffs.go .lo-diff-slot.wide { animation: dif-in-t 1.4s 0.1s both; }
 @keyframes dif-in-l { 0% { transform: translateX(-110vw); animation-timing-function: ease-in; } 40% { transform: translateX(calc(16 * var(--u))); }
   48% { transform: translateX(calc(16 * var(--u))) rotate(-3deg); } 56% { transform: translateX(calc(16 * var(--u))) rotate(2deg); }
   62% { transform: translateX(calc(16 * var(--u))) rotate(0deg); animation-timing-function: ease-out; } 100% { transform: none; } }

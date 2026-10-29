@@ -32,6 +32,28 @@ export interface LayeredArtData {
 let all: Promise<Record<string, LayeredArtData>> | null = null;
 export const loadLayeredArt = () => (all ??= packJsonMerged<Record<string, LayeredArtData>>("images/ui-skin/layered.json").catch(() => ({} as Record<string, LayeredArtData>)));
 
+/** decoded pictures, kept (so the browser keeps them ready) */
+const warm = new Map<string, Promise<void>>();
+function decode(src: string): Promise<void> {
+  let p = warm.get(src);
+  if (!p) {
+    const im = new Image();
+    im.decoding = "async";
+    im.src = assetUrl(src);
+    p = im.decode().catch(() => {}).then(() => { (im as any)._keep = im; });
+    warm.set(src, p);
+  }
+  return p;
+}
+
+/** Load and decode the pictures of the named layered arts ahead (e.g. the difficulty cards while choosing the campaign) */
+export async function preloadLayeredArt(names: string[]): Promise<void> {
+  const m = await loadLayeredArt();
+  const srcs = names.flatMap((n) => [...(m[n]?.layers ?? []).map((l) => l.src),
+    ...(m[n]?.effects ?? []).flatMap((e) => [e.src, e.texture, e.atlas].filter((x): x is string => !!x))]);
+  await Promise.all(srcs.map(decode));
+}
+
 /** The layered art `name` of the theme, or null while loading / when the theme has none (the caller's fallback) */
 export function useLayeredArt(name: string): LayeredArtData | null | undefined {
   const [a, setA] = useState<LayeredArtData | null | undefined>(undefined);
@@ -84,10 +106,11 @@ export function LayeredArt({ art, active = false, hoverFx = true }: {
     ro.observe(el);
     return () => ro.disconnect();
   }, [art]);
-  // the pointer parallax (re-reads the moving parts each frame: hover effects come and go)
+  // the pointer parallax (re-reads the moving parts each frame: hover effects come and go); not for a framed picture
+  // (its layers would slide out of the frame where they should not, and its parts outside the frame would move)
   useEffect(() => {
     const el = card.current;
-    if (!el) return;
+    if (!el || (art.size && art.frame)) return;
     let raf = 0, tx = 0, ty = 0, px = 0, py = 0;
     const move = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
