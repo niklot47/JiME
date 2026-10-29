@@ -3,7 +3,8 @@
 //   size + frame  the picture's size and the card's edges in it (px): the frame fills the card exactly (stretched a
 //                 little if their proportions differ), what lies outside it (a blade, a whip of fire) sticks out of
 //                 the card; effects stay inside the frame (unless "clip": false); frameSkin: a skin region drawn as
-//                 the card's border at frameZ (default 15: over the back layer, under the figures)
+//                 the card's border around the frame (the frame fits its inner part) at frameZ (default 5: under
+//                 every layer, so what sticks out of the frame lies over the border)
 //   layers        each moves a little with the pointer over the card (depth); "flicker" varies its opacity (fire
 //                 glints), "blend" its blending (screen / lighten / multiply ...)
 //   effects       between the layers by z (fog, leaves, embers, steam, rays, distort = a layer redrawn wavering);
@@ -11,6 +12,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { assetUrl, packJsonMerged } from "../../data/pack.ts";
 import { EffectView, type Effect } from "./MenuBackground.tsx";
+import { installSkin } from "../../ui/skin.ts";
 
 export interface LayeredLayer {
   src: string; depth?: number; z?: number;
@@ -91,17 +93,29 @@ export function LayeredArt({ art, active = false, hoverFx = true }: {
   const card = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState(false);
   const [box, setBox] = useState<CSSProperties>({ inset: 0 });
+  // the border's widths (px: top, right, bottom, left): the picture's frame fits inside them
+  const [ins, setIns] = useState<[number, number, number, number]>([0, 0, 0, 0]);
   // the picture's box: its frame fitted into the card (contain), the rest outside the card
   useLayoutEffect(() => {
     const el = card.current;
     if (!el || !art.size || !art.frame) return;
     const [pw, ph] = art.size, [x0, y0, x1, y1] = art.frame;
     const fit = () => {
-      const W = el.clientWidth, H = el.clientHeight;
+      // the skin border's widths (its --sk-<region>-w), when it has one: the frame goes inside it
+      let b: [number, number, number, number] = [0, 0, 0, 0];
+      if (art.frameSkin) {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(`--sk-${art.frameSkin.replace(/\./g, "-")}-w`);
+        const n = v.split(/\s+/).map((s) => parseFloat(s)).filter((x) => !Number.isNaN(x));
+        if (n.length === 4) b = n as [number, number, number, number];
+      }
+      setIns(b);
+      const W = el.clientWidth - b[1] - b[3], H = el.clientHeight - b[0] - b[2];
       const sx = W / Math.max(1, x1 - x0), sy = H / Math.max(1, y1 - y0);
-      setBox({ left: -x0 * sx, top: -y0 * sy, width: pw * sx, height: ph * sy });
+      setBox({ left: b[3] - x0 * sx, top: b[0] - y0 * sy, width: pw * sx, height: ph * sy });
     };
     fit();
+    // (the skin's variables may come a moment later)
+    void installSkin().then(fit);
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
@@ -144,7 +158,9 @@ export function LayeredArt({ art, active = false, hoverFx = true }: {
   const clip = fr ? `inset(${fr.t}% ${fr.r}% ${fr.b}% ${fr.l}%)` : undefined;
   const border = fr && art.frameSkin ? (() => {
     const v = art.frameSkin!.replace(/\./g, "-");
-    return { z: art.frameZ ?? 15, style: { left: `${fr.l}%`, top: `${fr.t}%`, right: `${fr.r}%`, bottom: `${fr.b}%`,
+    // around the frame (the picture's frame is the border's inner part)
+    return { z: art.frameZ ?? 5, style: { left: `calc(${fr.l}% - ${ins[3]}px)`, top: `calc(${fr.t}% - ${ins[0]}px)`,
+      right: `calc(${fr.r}% - ${ins[1]}px)`, bottom: `calc(${fr.b}% - ${ins[2]}px)`,
       borderImage: `var(--sk-${v}) var(--sk-${v}-slice) / var(--sk-${v}-w)` } as CSSProperties };
   })() : null;
   return (
