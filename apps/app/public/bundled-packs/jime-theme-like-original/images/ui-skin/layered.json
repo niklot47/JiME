@@ -52,7 +52,9 @@
    118,
    2146,
    645
-  ]
+  ],
+  "frameSkin": "frame.diff.adventure",
+  "frameZ": 25
  },
  "difficulty-hard": {
   "layers": [
@@ -124,7 +126,9 @@
    108,
    1144,
    1149
-  ]
+  ],
+  "frameSkin": "frame.diff.hard",
+  "frameZ": 15
  },
  "difficulty-normal": {
   "layers": [
@@ -200,6 +204,8 @@
    32,
    1162,
    1163
-  ]
+  ],
+  "frameSkin": "frame.diff.normal",
+  "frameZ": 25
  }
 }

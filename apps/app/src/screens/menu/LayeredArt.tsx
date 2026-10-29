@@ -1,7 +1,9 @@
 // A picture of the theme made of layers with effects between them (themes/<name>/ui/art/<art>/ 1.png, 2.png ... +
 // layers.json, built into images/ui-skin/layered.json): e.g. the difficulty cards.
-//   size + frame  the picture's size and the card's edges in it (px): the frame fills the card (kept in proportion,
-//                 centred), what lies outside it (a blade, a whip of fire) sticks out of the card
+//   size + frame  the picture's size and the card's edges in it (px): the frame fills the card exactly (stretched a
+//                 little if their proportions differ), what lies outside it (a blade, a whip of fire) sticks out of
+//                 the card; effects stay inside the frame (unless "clip": false); frameSkin: a skin region drawn as
+//                 the card's border at frameZ (default 15: over the back layer, under the figures)
 //   layers        each moves a little with the pointer over the card (depth); "flicker" varies its opacity (fire
 //                 glints), "blend" its blending (screen / lighten / multiply ...)
 //   effects       between the layers by z (fog, leaves, embers, steam, rays, distort = a layer redrawn wavering);
@@ -22,6 +24,9 @@ export interface LayeredArtData {
   size?: [number, number];
   /** the card's edges in the picture: left, top, right, bottom (px) */
   frame?: [number, number, number, number];
+  /** the skin region drawn as the card's border (9-slice over the frame), and its z among the layers */
+  frameSkin?: string;
+  frameZ?: number;
 }
 
 let all: Promise<Record<string, LayeredArtData>> | null = null;
@@ -54,7 +59,13 @@ function Flicker({ layer }: { layer: LayeredLayer }) {
   return <div ref={el} className="la-pic" style={{ backgroundImage: `url("${assetUrl(layer.src)}")` }} />;
 }
 
-export function LayeredArt({ art, active = false }: { art: LayeredArtData; active?: boolean }) {
+export function LayeredArt({ art, active = false, hoverFx = true }: {
+  art: LayeredArtData;
+  /** chosen: its "hover" effects show */
+  active?: boolean;
+  /** false: the "hover" effects only for the chosen one (not while the pointer is over it) */
+  hoverFx?: boolean;
+}) {
   const card = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState(false);
   const [box, setBox] = useState<CSSProperties>({ inset: 0 });
@@ -65,8 +76,8 @@ export function LayeredArt({ art, active = false }: { art: LayeredArtData; activ
     const [pw, ph] = art.size, [x0, y0, x1, y1] = art.frame;
     const fit = () => {
       const W = el.clientWidth, H = el.clientHeight;
-      const s = Math.min(W / Math.max(1, x1 - x0), H / Math.max(1, y1 - y0));
-      setBox({ left: (W - (x1 - x0) * s) / 2 - x0 * s, top: (H - (y1 - y0) * s) / 2 - y0 * s, width: pw * s, height: ph * s });
+      const sx = W / Math.max(1, x1 - x0), sy = H / Math.max(1, y1 - y0);
+      setBox({ left: -x0 * sx, top: -y0 * sy, width: pw * sx, height: ph * sy });
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -100,12 +111,24 @@ export function LayeredArt({ art, active = false }: { art: LayeredArtData; activ
     ...art.layers.map((l, i) => ({ z: l.z ?? (i + 1) * 10, layer: l, effect: null as Effect | null })),
     ...(art.effects ?? []).map((e) => ({ z: e.z ?? 100, layer: null as LayeredLayer | null, effect: e })),
   ].sort((a, b) => a.z - b.z);
-  const on = hover || active;
+  const on = (hoverFx && hover) || active;
   const framed = !!(art.size && art.frame);
+  // the frame inside the picture's box (%): where the effects are clipped and the border lies
+  const fr = framed ? (() => {
+    const [pw, ph] = art.size!, [x0, y0, x1, y1] = art.frame!;
+    return { l: (x0 / pw) * 100, t: (y0 / ph) * 100, r: (1 - x1 / pw) * 100, b: (1 - y1 / ph) * 100 };
+  })() : null;
+  const clip = fr ? `inset(${fr.t}% ${fr.r}% ${fr.b}% ${fr.l}%)` : undefined;
+  const border = fr && art.frameSkin ? (() => {
+    const v = art.frameSkin!.replace(/\./g, "-");
+    return { z: art.frameZ ?? 15, style: { left: `${fr.l}%`, top: `${fr.t}%`, right: `${fr.r}%`, bottom: `${fr.b}%`,
+      borderImage: `var(--sk-${v}) var(--sk-${v}-slice) / var(--sk-${v}-w)` } as CSSProperties };
+  })() : null;
   return (
     <div ref={card} className={`la${on ? " on" : ""}${framed ? " framed" : ""}`} onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
       <div className="la-box" style={box}>
-        {parts.map((p, i) => {
+        {[...parts, ...(border ? [{ z: border.z, layer: null, effect: null }] : [])].sort((a, b) => a.z - b.z).map((p, i) => {
+          if (!p.layer && !p.effect) return <div key={i} className="la-frame" style={border!.style} />;
           if (p.layer) {
             const l = p.layer;
             return (
@@ -117,9 +140,11 @@ export function LayeredArt({ art, active = false }: { art: LayeredArtData; activ
           const e = p.effect!;
           if (e.hover && !on) return null;
           const cls = `la-fx${e.type === "rays" ? " pm-part-light" : ""}`;
+          // (a distorted layer is the picture itself: it may stick out like the others)
+          const st = clip && e.type !== "distort" && (e as any).clip !== false ? { clipPath: clip } : undefined;
           return e.depth !== undefined
-            ? <div key={i} className={cls} data-depth={e.depth}><EffectView e={e} /></div>
-            : <div key={i} className={cls}><EffectView e={e} /></div>;
+            ? <div key={i} className={cls} style={st} data-depth={e.depth}><EffectView e={e} /></div>
+            : <div key={i} className={cls} style={st}><EffectView e={e} /></div>;
         })}
       </div>
     </div>

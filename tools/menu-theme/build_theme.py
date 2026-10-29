@@ -270,6 +270,7 @@ def layered_art(folder, name):
     layers behind show), and optionally layers.json:
       {"frame": [left, top, right, bottom],          the card's edges in the picture (px): the frame fills the card,
                                                      what lies outside it sticks out of the card
+       "frameSkin": "frame.diff.hard", "frameZ": 15,  a skin region drawn as the card's border over the frame, at z
        "layers": [{"file": "1.png", "depth": 0.1,    depth: how far it moves with the pointer (0 still .. 1)
                    "flicker": {"min": 0.3, "max": 1, "speed": 1},   its opacity wanders (fire glints)
                    "blend": "screen",                its blending (screen, lighten, multiply, overlay ...)
@@ -327,6 +328,9 @@ def layered_art(folder, name):
     out = {"layers": layers, "effects": effects}
     if size and cfg.get("frame"):
         out["size"], out["frame"] = size, cfg["frame"]
+        for k in ("frameSkin", "frameZ"):
+            if k in cfg:
+                out[k] = cfg[k]
     print(f"  layered art {name}: {n} layers, {len(effects)} effects{', frame' if 'frame' in out else ''}")
     return out
 

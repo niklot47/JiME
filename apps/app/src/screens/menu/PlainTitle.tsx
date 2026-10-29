@@ -13,7 +13,7 @@ import { useSound } from "../../audio/SoundPanel.tsx";
 import type { SoundSettings } from "../../audio/sound.ts";
 import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
-import { LayeredArt, loadLayeredArt, useLayeredArt } from "./LayeredArt.tsx";
+import { DifficultyStep } from "./DifficultyStep.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
@@ -51,7 +51,8 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [page, setPage] = useState<Page>("main");
   const [saves, setSaves] = useState<CampaignSave[]>(() => listSaves());
   const [campaign, setCampaign] = useState<number | null>(null);
-  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  // none until the player picks one (the original's Continue waits for it)
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [heroes, setHeroes] = useState<number[]>([]);
   const [party, setParty] = useState("");
   const [shelf, setShelf] = useState(0); // the page of campaign thumbnails
@@ -60,8 +61,6 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [replace, setReplace] = useState<{ hero: number; slot: number } | null>(null);
   const [nameWarn, setNameWarn] = useState(false);
   const [ask, setAsk] = useState<string | null>(null); // the save slot asked to be deleted
-  const [layeredArt, setLayeredArt] = useState<Record<string, unknown> | null>(null);
-  useEffect(() => { void loadLayeredArt().then(setLayeredArt); }, []);
   const [map, setMap] = useState<MapKind>(mapKind);
   const [mapScene, setMapScene] = useState<string | null>(null);
   useEffect(() => { void loadMapScene().then(setMapScene); }, []);
@@ -81,7 +80,7 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
     const src = { db: () => ui.db } as unknown as ContentSource;
     const owned = ownedProducts();
     const heroItems = heroes.map((_, i) => (items[i] ?? []).filter((x): x is number => x !== null));
-    const s = newCampaignSave(src, { campaign: campaign!, heroes, difficulty, partyName: party.trim(), language: lang, heroItems,
+    const s = newCampaignSave(src, { campaign: campaign!, heroes, difficulty: difficulty ?? "normal", partyName: party.trim(), language: lang, heroItems,
       ...(owned ? { products: owned } : {}) });
     putSave(s);
     onPlay(s, true);
@@ -99,7 +98,7 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
         <nav className="lo-menu">
           {latest && <button className="pm-btn lo-btn" title={latestName} onClick={() => onPlay(latest)}>{t("continue")}</button>}
           <button className="pm-btn lo-btn" disabled={saves.length >= MAX_SAVES}
-            onClick={() => { setCampaign(camps[0]?._id ?? null); setShelf(0); setHeroes([]); setParty(""); setPage("campaign"); }}>{t("newCampaign")}</button>
+            onClick={() => { setCampaign(camps[0]?._id ?? null); setDifficulty(null); setShelf(0); setHeroes([]); setParty(""); setPage("campaign"); }}>{t("newCampaign")}</button>
           <button className="pm-btn lo-btn" disabled={!saves.length} onClick={() => setPage("load")}>{t("load")}</button>
           <button className="pm-btn lo-btn" onClick={onTools}>{t("tools")}</button>
           {inTauri() && <button className="pm-btn lo-btn" onClick={() => { void quitApp(); }}>{t("quit")}</button>}
@@ -150,30 +149,8 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
       </div>
     );
   } else if (page === "difficulty") {
-    // like the original: the wide picture on top (adventure mode), normal and hard side by side under it, the chosen
-    // one's description at the bottom; the pictures are the theme's (ui/art/difficulty-<mode>.png), else a plain card
-    const card = (d: Difficulty, name: "easy" | "normal" | "hard", cls: string) => (
-      <button className={`lo-diff ${cls}${difficulty === d ? " on" : ""}${layered[d] ? " layered" : ""}`} onClick={() => setDifficulty(d)} onDoubleClick={() => setPage("heroes")}>
-        {/* the theme's layered picture (ui/art/difficulty-<mode>/), else its flat one (ui/art/difficulty-<mode>.png) */}
-        <DiffArt mode={d} on={difficulty === d} />
-        <b>{t(name)}</b>
-      </button>
-    );
-    const layered = { adventure: !!layeredArt?.["difficulty-adventure"], normal: !!layeredArt?.["difficulty-normal"], hard: !!layeredArt?.["difficulty-hard"] } as Record<Difficulty, boolean>;
-    const desc = difficulty === "adventure" ? "easyDesc" : difficulty === "hard" ? "hardDesc" : "normalDesc";
-    body = (
-      <div className="lo-campaign lo-difficulty">
-        <h2 className="lo-banner"><span>{t("toDifficulty")}</span></h2>
-        <div className="lo-diffs">
-          {card("adventure", "easy", "wide")}
-          {card("normal", "normal", "half")}
-          {card("hard", "hard", "half")}
-        </div>
-        <p className="lo-hint"><b>{t(difficulty === "adventure" ? "easy" : difficulty === "hard" ? "hard" : "normal")}.</b> {t(desc)}</p>
-        <button className="lo-corner lo-back" onClick={() => setPage("campaign")}><span>{t("back")}</span></button>
-        <button className="lo-corner lo-next" onClick={() => setPage("heroes")}><span>{t("toHeroes")}</span></button>
-      </div>
-    );
+    body = <DifficultyStep difficulty={difficulty} setDifficulty={setDifficulty} t={t}
+      onBack={() => { setShelf(0); setPage("campaign"); }} onNext={() => { setShelf(0); setPage("heroes"); }} />;
   } else if (page === "heroes") {
     // like the original: a row of HERO_ROW portrait cards with their names (paged by the arrows), the chosen heroes
     // in the five slots under it (click a slot to take the hero out again)
@@ -398,12 +375,6 @@ function defaultItems(ui: MenuUi, heroes: number[], products?: number[]): (numbe
     const m = ui.db.models.HeroModel?.[String(h)] ?? {};
     return [take(refId(m.DefaultArmor)), take(refId(m.DefaultWeapon)), take(refId(m.DefaultSecondWeapon))];
   });
-}
-
-function DiffArt({ mode, on }: { mode: Difficulty; on: boolean }) {
-  const art = useLayeredArt(`difficulty-${mode}`);
-  if (art) return <LayeredArt art={art} active={on} />;
-  return <span className="lo-diff-art" style={{ backgroundImage: `var(--sk-art-difficulty-${mode}, none)` }} />;
 }
 
 /** The settings gear (the skin's "gear" picture covers it when there is one) */

@@ -64,6 +64,10 @@ REGIONS = [
     ("level", 48, 48, [0, 0, 0, 0]),
     # the rest: the map button
     ("map", 96, 96, [0, 0, 0, 0]),
+    # the difficulty cards' borders (over a layered picture's frame): steel with a coloured ornamented band below
+    ("frame.diff.adventure", 240, 240, [22, 22, 34, 22]),
+    ("frame.diff.normal", 240, 240, [22, 22, 34, 22]),
+    ("frame.diff.hard", 240, 240, [22, 22, 34, 22]),
 ]
 # where the app uses each region (guides/regions.md)
 USE = {
@@ -77,6 +81,7 @@ USE = {
     "button.next": "the arrow button forward (bottom right)", "plate": "name plates: heroes, map chapter and place, rest titles",
     "slot": "the chosen party's slots", "item": "item cards (the picture sits on the left 90 px)", "item.empty": "an empty item slot",
     "level": "the item level diamond", "map": "the map button of the rest",
+    "frame.diff": "the borders of the difficulty cards (layers.json frameSkin, over the back layer, under the figures)",
 }
 # regions that always take the element's whole height (top + bottom slices meet; only the middle stretches sideways)
 FIT_HEIGHT = ("banner", "plate", "button.back", "button.back.hover", "button.next", "button.next.hover")
@@ -259,6 +264,26 @@ def draw(name, w, h):
         d = ImageDraw.Draw(img)
         c = w / 2
         d.polygon([(c, 1), (w - 2, c), (c, h - 2), (1, c)], fill=(243, 234, 216, 255), outline=(176, 139, 74, 255), width=3)
+        return img
+    if name.startswith("frame.diff."):
+        band = {"adventure": ((40, 120, 120), (120, 210, 200)), "normal": ((50, 110, 50), (140, 210, 110)),
+                "hard": ((130, 30, 22), (240, 110, 60))}[name.split(".")[-1]]
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        # steel: a dark outline, a light bevel, the band, an inner dark line
+        steel = [(40, 42, 46), (150, 154, 160), (110, 114, 120), (175, 178, 184), (90, 94, 100), (30, 32, 35)]
+        for i, c in enumerate(steel):
+            d.rectangle([i * 2, i * 2, w - 1 - i * 2, h - 1 - i * 2], outline=(*c, 255), width=2)
+        # rivets in the corners
+        for x, y in ((6, 6), (w - 7, 6), (6, h - 7), (w - 7, h - 7)):
+            d.ellipse([x - 4, y - 4, x + 4, y + 4], fill=(200, 204, 210, 255), outline=(40, 42, 46, 255))
+        # the band at the bottom: the difficulty's colour with a running ornament
+        y0, y1 = h - 34, h - 12
+        dk, lt = band
+        d.rectangle([12, y0, w - 13, y1], fill=(*dk, 255), outline=(30, 32, 35, 255))
+        for x in range(14, w - 14, 12):
+            d.polygon([(x, y0 + 11), (x + 6, y0 + 4), (x + 12, y0 + 11), (x + 6, y0 + 18)], outline=(*lt, 255))
+        d.line([(12, y0 + 2), (w - 13, y0 + 2)], fill=(*lt, 160), width=1)
         return img
     if name == "map":
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))

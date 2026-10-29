@@ -1250,3 +1250,45 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 @media (hover: hover) { .lo-diff.layered:hover .la.framed { filter: brightness(1.05) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); } .lo-diff.layered:hover .lo-diff-art { transform: none; } }
 .lo-diff.layered:hover, .lo-diff.layered.on { z-index: 2; }
 .lo-diff.layered b { background: none; z-index: 3; }
+
+/* difficulty like the original (DifficultyStep): normal and hard the same size, the two with the gap between them as
+   wide as adventure; the chosen card grows above the others; the entrance and the exit fly */
+.lo-diffs { top: calc(165 * var(--u)); width: calc(900 * var(--u)); grid-template-rows: auto auto; column-gap: calc(80 * var(--u)); row-gap: calc(26 * var(--u)); }
+.lo-diff-slot { position: relative; }
+.lo-diff-slot.wide { grid-column: 1 / 3; aspect-ratio: 4.07; }
+.lo-diff-slot.half { aspect-ratio: 0.95; }
+.lo-diff-slot > .lo-diff, .lo-diff-slot > .lo-diff.half { position: absolute; inset: 0; width: 100%; height: 100%; justify-self: auto;
+  transition: transform 0.35s ease-out, filter 0.35s; }
+.lo-diff-slot:has(.lo-diff.on) { z-index: 3; }
+.lo-diff.on { transform: scale(1.094); }
+/* CoroutineShow: from the left / right / above to a little past their places (they knock together), a shake, settle */
+.lo-diff-slot.left { animation: dif-in-l 1.4s 0.1s both; }
+.lo-diff-slot.right { animation: dif-in-r 1.4s 0.1s both; }
+.lo-diff-slot.wide { animation: dif-in-t 1.4s 0.1s both; }
+@keyframes dif-in-l { 0% { transform: translateX(-110vw); animation-timing-function: ease-in; } 40% { transform: translateX(calc(16 * var(--u))); }
+  48% { transform: translateX(calc(16 * var(--u))) rotate(-3deg); } 56% { transform: translateX(calc(16 * var(--u))) rotate(2deg); }
+  62% { transform: translateX(calc(16 * var(--u))) rotate(0deg); animation-timing-function: ease-out; } 100% { transform: none; } }
+@keyframes dif-in-r { 0% { transform: translateX(110vw); animation-timing-function: ease-in; } 40% { transform: translateX(calc(-16 * var(--u))); }
+  48% { transform: translateX(calc(-16 * var(--u))) rotate(3deg); } 56% { transform: translateX(calc(-16 * var(--u))) rotate(-2deg); }
+  62% { transform: translateX(calc(-16 * var(--u))) rotate(0deg); animation-timing-function: ease-out; } 100% { transform: none; } }
+@keyframes dif-in-t { 0% { transform: translateY(-100vh); animation-timing-function: ease-in; } 40% { transform: translateY(calc(40 * var(--u))); }
+  48% { transform: translateY(calc(40 * var(--u))) rotate(1.5deg); } 56% { transform: translateY(calc(40 * var(--u))) rotate(-1deg); }
+  62% { transform: translateY(calc(40 * var(--u))) rotate(0deg); animation-timing-function: ease-out; } 100% { transform: none; } }
+/* leaving: back the way they came, the plate, the text and the buttons fade */
+.lo-difficulty.leaving .lo-diff-slot.left { animation: dif-out-l 0.45s ease-in both; }
+.lo-difficulty.leaving .lo-diff-slot.right { animation: dif-out-r 0.45s ease-in both; }
+.lo-difficulty.leaving .lo-diff-slot.wide { animation: dif-out-t 0.45s ease-in both; }
+@keyframes dif-out-l { to { transform: translateX(-110vw); } }
+@keyframes dif-out-r { to { transform: translateX(110vw); } }
+@keyframes dif-out-t { to { transform: translateY(-100vh); } }
+.lo-difficulty .lo-banner, .lo-difficulty .lo-hint { animation: ct-fade 0.4s ease-out both; }
+.lo-difficulty .lo-back { animation: ct-slide 0.35s ease-out both; }
+.lo-difficulty .lo-next { animation: ct-in-right 0.35s ease-out both; }
+.lo-difficulty.leaving .lo-banner, .lo-difficulty.leaving .lo-hint, .lo-difficulty.leaving .lo-corner { animation: dif-fade-out 0.35s ease-in both; }
+@keyframes dif-fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lo-diff-slot, .lo-difficulty .lo-banner, .lo-difficulty .lo-hint, .lo-difficulty .lo-corner { animation: none !important; } }
+/* the card's border of the skin (frameSkin), between the layers */
+.la-frame { position: absolute; border-style: solid; border-color: transparent; border-width: 1px; box-sizing: border-box; pointer-events: none; }
+@media (max-aspect-ratio: 4/5) {
+  .lo-diffs { width: calc(100vw - 32px); column-gap: calc(24 * var(--u)); grid-template-rows: auto auto; }
+}
