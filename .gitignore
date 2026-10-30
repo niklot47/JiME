@@ -26,3 +26,6 @@ New_screenshot/
 /Paralax background/
 /themes/*/*
 !/themes/*/theme.json
+
+# the user's scans of the game (FFG content, never committed)
+/scans/

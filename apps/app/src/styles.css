@@ -1294,3 +1294,23 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 @media (max-aspect-ratio: 4/5) {
   .lo-diffs { width: calc(100vw - 32px); column-gap: calc(24 * var(--u)); grid-template-rows: auto auto; }
 }
+
+/* the campaign page's motion like the original's (CampaignSelectController / CampaignDisplay): the title plate from
+   above, back from the left, continue from the right; each campaign shown anew: the art fades in (0.35 s), the text's
+   backing slides in from the left (0.4 s after 0.2), the title (after 0.6) and the description (after 0.95) fade in;
+   the chosen thumbnail's glow pulses */
+.lo-campaigns .lo-banner { animation: lo-from-top 0.35s ease-out both; }
+.lo-campaigns .lo-back { animation: ct-slide 0.35s ease-out both; }
+.lo-campaigns .lo-next { animation: ct-in-right 0.35s ease-out both; }
+.lo-campaigns .lo-art { animation: ct-fade 0.35s linear both; }
+.lo-campaigns .lo-text { animation: lo-from-left 0.4s 0.2s ease-out both; }
+.lo-campaigns .lo-text h3, .lo-campaigns .lo-text .lo-rule { animation: ct-fade 0.35s 0.6s linear both; }
+.lo-campaigns .lo-text .lo-desc { animation: ct-fade 0.35s 0.95s linear both; }
+.lo-campaigns .lo-shelf { animation: ct-fade 0.4s linear both; }
+.lo-campaigns .lo-thumb.on { animation: lo-pulse 1.6s ease-in-out infinite; }
+@keyframes lo-from-top { from { transform: translate(-50%, calc(-160 * var(--u))); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes lo-from-left { from { transform: translateX(calc(-325 * var(--u))); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes lo-pulse { 0%, 100% { box-shadow: 0 0 calc(10 * var(--u)) rgba(226, 183, 102, 0.55); } 50% { box-shadow: 0 0 calc(26 * var(--u)) rgba(255, 210, 120, 0.95); } }
+.skinned .lo-campaigns .lo-thumb.on { animation: lo-pulse-skin 1.6s ease-in-out infinite; }
+@keyframes lo-pulse-skin { 0%, 100% { filter: drop-shadow(0 0 calc(6 * var(--u)) rgba(226, 183, 102, 0.5)); } 50% { filter: drop-shadow(0 0 calc(16 * var(--u)) rgba(255, 210, 120, 0.95)); } }
+@media (prefers-reduced-motion: reduce) { .lo-campaigns * { animation: none !important; } }

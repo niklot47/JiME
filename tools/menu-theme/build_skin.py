@@ -65,9 +65,9 @@ REGIONS = [
     # the rest: the map button
     ("map", 96, 96, [0, 0, 0, 0]),
     # the difficulty cards' borders (over a layered picture's frame): steel with a coloured ornamented band below
-    ("frame.diff.adventure", 240, 240, [22, 22, 34, 22]),
-    ("frame.diff.normal", 240, 240, [22, 22, 34, 22]),
-    ("frame.diff.hard", 240, 240, [22, 22, 34, 22]),
+    ("frame.diff.adventure", 240, 240, [12, 12, 34, 12]),
+    ("frame.diff.normal", 240, 240, [12, 12, 34, 12]),
+    ("frame.diff.hard", 240, 240, [12, 12, 34, 12]),
 ]
 # where the app uses each region (guides/regions.md)
 USE = {

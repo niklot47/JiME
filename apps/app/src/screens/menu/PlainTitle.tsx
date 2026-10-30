@@ -119,17 +119,19 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
     const cur = C[String(campaign)] ?? null;
     const art = cur ? ui.art.campaigns[String(cur._id)] : undefined;
     body = (
-      <div className="lo-campaign">
+      <div className="lo-campaign lo-campaigns">
         <h2 className="lo-banner"><span>{t("chooseCampaign")}</span></h2>
+        {/* CampaignDisplay, each campaign shown anew: its art fades in, the text's backing slides in from the left,
+            then the title and the description fade in */}
         <div className="lo-show">
-          <div className="lo-text">
+          <div className="lo-text" key={`t${campaign}`}>
             {cur ? <>
               <h3>{ui.raw(cur.TitleKey) || cur.m_Name}</h3>
               <div className="lo-rule" />
               <div className="lo-desc" dangerouslySetInnerHTML={{ __html: ui.say(cur.DescriptionKey) }} />
             </> : <p className="muted">{t("noCampaigns")}</p>}
           </div>
-          <div className="lo-art">{(art?.Image || art?.ThumbnailImage) && <img src={ui.pic(art.Image ?? art.ThumbnailImage)} alt="" />}</div>
+          <div className="lo-art" key={`a${campaign}`}>{(art?.Image || art?.ThumbnailImage) && <img src={ui.pic(art.Image ?? art.ThumbnailImage)} alt="" />}</div>
         </div>
         <div className="lo-shelf">
           <button className="lo-arrow left" aria-label="<" disabled={sh === 0} onClick={() => setShelf(sh - 1)} />
