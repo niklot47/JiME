@@ -857,20 +857,28 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
   background: linear-gradient(90deg, transparent, #5a1d12 12%, #6e2516 50%, #5a1d12 88%, transparent); }
 .lo-banner span { overflow: hidden; text-overflow: ellipsis; }
 .lo-show { position: absolute; left: 50%; top: calc(135 * var(--u)); transform: translateX(-50%); box-sizing: border-box; width: calc(1106 * var(--u));
-  max-width: calc(100vw - 32px); height: calc(615 * var(--u)); display: flex; gap: calc(6 * var(--u)); padding: calc(14 * var(--u));
+  max-width: calc(100vw - 32px); height: calc(615 * var(--u));
   background: rgba(16, 13, 10, 0.92); border: 2px solid #6b5536; }
-.lo-text { flex: 0 0 calc(440 * var(--u)); box-sizing: border-box; display: flex; flex-direction: column; padding: calc(24 * var(--u)) calc(28 * var(--u));
-  background: #050404; border: 2px solid #4a4038; overflow: hidden; }
+/* the view inside the frame: the art fills it, the text's backing slides in over the art and never shows outside it */
+.lo-view { position: absolute; inset: calc(14 * var(--u)); overflow: hidden; background: #0b0907; }
+.lo-text { position: absolute; left: 0; top: 0; bottom: 0; z-index: 1; width: calc(440 * var(--u)); max-width: 60%; box-sizing: border-box;
+  display: flex; flex-direction: column; padding: calc(24 * var(--u)) calc(28 * var(--u)); isolation: isolate; }
+/* the backing on its own layer: half transparent (the skin's panel picture too), the art shows through it */
+.lo-text::before { content: ""; position: absolute; inset: 0; z-index: -1; box-sizing: border-box; pointer-events: none;
+  background: #050404; border: 2px solid #4a4038; opacity: 0.72; }
 .lo-text h3 { margin: 0; text-align: center; font-family: "JiME Title", Georgia, serif; font-weight: normal; font-size: calc(40 * var(--u)); color: #f3e2b8; }
 .lo-rule { height: 2px; margin: calc(16 * var(--u)) calc(30 * var(--u)); background: linear-gradient(90deg, transparent, #c9a35a, transparent); }
 .lo-desc { flex: 1; overflow-y: auto; font-size: max(12px, calc(22 * var(--u))); line-height: 1.45; color: #e8dcc0; scrollbar-width: thin; }
-.lo-art { flex: 1; min-width: 0; background: #0b0907; overflow: hidden; }
+.lo-art { position: absolute; inset: 0; overflow: hidden; }
 .lo-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lo-shelf { position: absolute; left: 50%; top: calc(772 * var(--u)); transform: translateX(-50%); display: flex; align-items: center; gap: calc(40 * var(--u)); }
 .lo-thumbs { display: flex; gap: calc(62 * var(--u)); }
-.lo-thumb { width: calc(300 * var(--u)); height: calc(176 * var(--u)); padding: calc(8 * var(--u)); box-sizing: border-box; cursor: pointer; overflow: hidden;
+.lo-thumb { width: calc(300 * var(--u)); height: calc(176 * var(--u)); padding: calc(8 * var(--u)); box-sizing: border-box; cursor: pointer; position: relative;
   background: #120f0c; border: 2px solid #4c3c28; color: #f0dcae; font: inherit; font-size: calc(22 * var(--u)); }
 .lo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lo-thumb b { display: block; overflow: hidden; max-height: 100%; }
+/* EdgeSparks' canvas: placed and sized by the component around its parent */
+.edge-sparks { position: absolute; pointer-events: none; z-index: 2; }
 .lo-thumb.on { border-color: #e2b766; box-shadow: 0 0 calc(14 * var(--u)) rgba(226, 183, 102, 0.7); }
 @media (hover: hover) { .lo-thumb:not(.on):hover { border-color: #8a7445; } }
 .lo-arrow { width: calc(60 * var(--u)); height: calc(120 * var(--u)); border: none; padding: 0; cursor: pointer; background: #d8d4cc;
@@ -887,7 +895,7 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 /* the skin's pictures for them (theme atlas regions banner, frame.*, arrow, button.back / button.next) */
 .skinned .lo-banner { background: none; border-style: solid; border-color: transparent; border-image: var(--sk-banner) var(--sk-banner-slice) / var(--sk-banner-w); }
 .skinned .lo-show { background: none; border-color: transparent; border-image: var(--sk-frame-art) var(--sk-frame-art-slice) / var(--sk-frame-art-w); }
-.skinned .lo-text { border-color: transparent; border-image: var(--sk-panel-text) var(--sk-panel-text-slice) / var(--sk-panel-text-w); }
+.skinned .lo-text::before { border-color: transparent; border-image: var(--sk-panel-text) var(--sk-panel-text-slice) / var(--sk-panel-text-w); }
 .skinned .lo-thumb { border-color: transparent; border-image: var(--sk-frame-thumb) var(--sk-frame-thumb-slice) / var(--sk-frame-thumb-w); }
 .skinned .lo-thumb.on { box-shadow: none; border-image-source: var(--sk-frame-thumb-on); }
 .skinned .lo-arrow { clip-path: none; background: var(--sk-arrow) center / contain no-repeat; }

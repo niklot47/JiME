@@ -15,6 +15,7 @@ import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
 import { DIFFICULTY_ART, DifficultyStep } from "./DifficultyStep.tsx";
 import { preloadLayeredArt } from "./LayeredArt.tsx";
+import { EdgeSparks } from "./EdgeSparks.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
@@ -121,9 +122,10 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
     body = (
       <div className="lo-campaign lo-campaigns">
         <h2 className="lo-banner"><span>{t("chooseCampaign")}</span></h2>
-        {/* CampaignDisplay, each campaign shown anew: its art fades in, the text's backing slides in from the left,
-            then the title and the description fade in */}
-        <div className="lo-show">
+        {/* CampaignDisplay, each campaign shown anew: its art fades in over the whole view, the text's half transparent
+            backing slides in over it from the left (clipped by the view), then the title and the description fade in */}
+        <div className="lo-show"><div className="lo-view">
+          <div className="lo-art" key={`a${campaign}`}>{(art?.Image || art?.ThumbnailImage) && <img src={ui.pic(art.Image ?? art.ThumbnailImage)} alt="" />}</div>
           <div className="lo-text" key={`t${campaign}`}>
             {cur ? <>
               <h3>{ui.raw(cur.TitleKey) || cur.m_Name}</h3>
@@ -131,8 +133,7 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
               <div className="lo-desc" dangerouslySetInnerHTML={{ __html: ui.say(cur.DescriptionKey) }} />
             </> : <p className="muted">{t("noCampaigns")}</p>}
           </div>
-          <div className="lo-art" key={`a${campaign}`}>{(art?.Image || art?.ThumbnailImage) && <img src={ui.pic(art.Image ?? art.ThumbnailImage)} alt="" />}</div>
-        </div>
+        </div></div>
         <div className="lo-shelf">
           <button className="lo-arrow left" aria-label="<" disabled={sh === 0} onClick={() => setShelf(sh - 1)} />
           <div className="lo-thumbs">
@@ -143,6 +144,7 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
                 <button key={c._id} className={`lo-thumb${campaign === c._id ? " on" : ""}`} title={ui.raw(c.TitleKey) || c.m_Name}
                   onClick={() => { setCampaign(c._id); setHeroes([]); }}>
                   {pic ? <img src={ui.pic(pic)} alt="" /> : <b>{ui.raw(c.TitleKey) || c.m_Name}</b>}
+                  {campaign === c._id && <EdgeSparks />}
                 </button>
               );
             })}
