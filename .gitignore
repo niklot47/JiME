@@ -29,3 +29,6 @@ New_screenshot/
 
 # the user's scans of the game (FFG content, never committed)
 /scans/
+
+# the title logo is the user's own art in the style of a trademark: built locally, never committed
+/apps/app/public/bundled-packs/jime-theme-like-original/images/ui-skin/parts/logo.png
