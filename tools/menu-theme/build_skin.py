@@ -68,6 +68,10 @@ REGIONS = [
     ("frame.diff.adventure", 240, 240, [12, 12, 34, 12]),
     ("frame.diff.normal", 240, 240, [12, 12, 34, 12]),
     ("frame.diff.hard", 240, 240, [12, 12, 34, 12]),
+    # hero cards (selection, starting gear): the original's HeroFrame, steel around the name plate and the portrait;
+    # the frame of an item's picture (left on the item card)
+    ("frame.hero", 230, 440, [16, 16, 16, 16]),
+    ("frame.icon", 90, 72, [10, 10, 10, 10]),
 ]
 # where the app uses each region (guides/regions.md)
 USE = {
@@ -82,6 +86,8 @@ USE = {
     "slot": "the chosen party's slots", "item": "item cards (the picture sits on the left 90 px)", "item.empty": "an empty item slot",
     "level": "the item level diamond", "map": "the map button of the rest",
     "frame.diff": "the borders of the difficulty cards (layers.json frameSkin, over the back layer, under the figures)",
+    "frame.hero": "hero cards: hero selection, starting gear (around the name plate and the portrait)",
+    "frame.icon": "the frame over an item's picture on its card",
 }
 # regions that always take the element's whole height (top + bottom slices meet; only the middle stretches sideways)
 FIT_HEIGHT = ("banner", "plate", "button.back", "button.back.hover", "button.next", "button.next.hover")
@@ -284,6 +290,25 @@ def draw(name, w, h):
         for x in range(14, w - 14, 12):
             d.polygon([(x, y0 + 11), (x + 6, y0 + 4), (x + 12, y0 + 11), (x + 6, y0 + 18)], outline=(*lt, 255))
         d.line([(12, y0 + 2), (w - 13, y0 + 2)], fill=(*lt, 160), width=1)
+        return img
+    if name == "frame.hero":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        steel = [(34, 36, 40), (120, 124, 130), (160, 164, 170), (104, 108, 114), (60, 63, 68), (26, 28, 31)]
+        for i, c in enumerate(steel):
+            d.rectangle([i * 2, i * 2, w - 1 - i * 2, h - 1 - i * 2], outline=(*c, 255), width=2)
+        for x, y in ((7, 7), (w - 8, 7), (7, h - 8), (w - 8, h - 8)):
+            d.polygon([(x, y - 5), (x + 5, y), (x, y + 5), (x - 5, y)], fill=(190, 194, 200, 255), outline=(30, 32, 35, 255))
+        return img
+    if name == "frame.icon":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, w - 1, h - 1], outline=(120, 88, 38, 255), width=2)
+        d.rectangle([2, 2, w - 3, h - 3], outline=(226, 190, 110, 255), width=3)
+        d.rectangle([5, 5, w - 6, h - 6], outline=(150, 112, 50, 255), width=1)
+        # notched gold corners
+        for x, y, sx, sy in ((0, 0, 1, 1), (w - 1, 0, -1, 1), (0, h - 1, 1, -1), (w - 1, h - 1, -1, -1)):
+            d.polygon([(x, y), (x + 9 * sx, y), (x, y + 9 * sy)], fill=(240, 210, 130, 255))
         return img
     if name == "map":
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))

@@ -25,6 +25,7 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BUNDLED = os.path.join(REPO, "apps", "app", "public", "bundled-packs")
 PACK_ID = "jime-demo"
 OUT = os.path.join(BUNDLED, PACK_ID)
+ART = os.path.join(os.path.dirname(os.path.abspath(__file__)), "art")  # own pictures (the campaign's splash)
 LANGS = ("ru", "en", "it")
 SHEET = "Demo"
 
@@ -54,6 +55,13 @@ def save_png(img, rel):
     p = os.path.join(OUT, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     img.save(p, optimize=True)
+    return rel
+
+
+def save_jpg(img, rel, quality=86):
+    p = os.path.join(OUT, rel)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    img.save(p, quality=quality, optimize=True, progressive=True)
     return rel
 
 
@@ -364,9 +372,19 @@ def build_art(db):
     letters = {"ENEMY_DEMO_BANDIT": "Р", "ENEMY_DEMO_WOLF": "В", "ENEMY_DEMO_SHADE": "Т"}
     write_json("images/enemies/enemies.json", {str(i): save_png(portrait(letters[k], (110, 50, 45), 128), f"images/enemies/{i}.png") for i, k, *_ in ENEMIES})
     write_json("images/items/items.json", {str(i): {"Icon": save_png(portrait(TEXTS[k]["ru"][0], (90, 80, 60), 96), f"images/items/{i}.png")} for i, k, *_ in ITEMS})
-    camp = card(1024, 576, TEXTS["CAM_DEMO_TITLE"]["ru"], "JiME Reborn · демо", (40, 52, 70), (20, 18, 22))
-    write_json("images/campaigns/campaigns.json", {str(CAMPAIGN): {"Image": save_png(camp, f"images/campaigns/{CAMPAIGN}.png"),
-                                                                    "ThumbnailImage": save_png(camp.resize((256, 144)), f"images/campaigns/{CAMPAIGN}_thumb.png")}})
+    # the campaign's splash: tools/demo-pack/art/campaign.(png|jpg|webp) (16:9, the important part on the right), else drawn
+    own = next((os.path.join(ART, f) for f in sorted(os.listdir(ART)) if os.path.splitext(f)[0] == "campaign") , None) if os.path.isdir(ART) else None
+    if own:
+        camp = Image.open(own).convert("RGB")
+        camp.thumbnail((1920, 1080), Image.LANCZOS)
+        thumb = camp.copy()
+        thumb.thumbnail((480, 270), Image.LANCZOS)
+        write_json("images/campaigns/campaigns.json", {str(CAMPAIGN): {"Image": save_jpg(camp, f"images/campaigns/{CAMPAIGN}.jpg"),
+                                                                        "ThumbnailImage": save_jpg(thumb, f"images/campaigns/{CAMPAIGN}_thumb.jpg")}})
+    else:
+        camp = card(1024, 576, TEXTS["CAM_DEMO_TITLE"]["ru"], "JiME Reborn · демо", (40, 52, 70), (20, 18, 22))
+        write_json("images/campaigns/campaigns.json", {str(CAMPAIGN): {"Image": save_png(camp, f"images/campaigns/{CAMPAIGN}.png"),
+                                                                        "ThumbnailImage": save_png(camp.resize((256, 144)), f"images/campaigns/{CAMPAIGN}_thumb.png")}})
     advs = {}
     for a in ADVENTURES:
         img = card(1024, 576, TEXTS[a["model"]["NameKey"]]["ru"], TEXTS[a["model"]["LocationKey"]]["ru"], (60, 70, 50), (25, 22, 18))

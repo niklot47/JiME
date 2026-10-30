@@ -19,6 +19,8 @@ export interface Effect {
   type: "fog" | "rays" | "leaves" | "water" | "steam" | "embers" | "distort" | "clouds";
   /** clouds: tile width (share of the box), tiles moved per cycle, a vertical fade when there is no mask */
   tile?: number; dx?: number; dy?: number; fadeFrom?: number; fadeTo?: number;
+  /** clouds: where they show, top to bottom (0..1): gone above band[0], full from band[1] to band[2], gone below band[3] */
+  band?: [number, number, number, number];
   /** distort: how fast the waver rises (heat haze; 0 = it only sways), the noise's fineness, a brightness flicker */
   rise?: number; scale?: number; flicker?: number;
   /** embers: their colour; hover: shown only while the layered art is hovered / chosen (LayeredArt) */
@@ -430,7 +432,9 @@ function Clouds({ e }: { e: Effect }) {
     return () => { cancelAnimationFrame(raf); ro.disconnect(); };
   }, [e]);
   if (!e.texture) return null;
+  const b = e.band;
   const mask = e.mask ? `url("${assetUrl(e.mask)}")`
+    : b ? `linear-gradient(to bottom, transparent ${b[0] * 100}%, #000 ${b[1] * 100}%, #000 ${b[2] * 100}%, transparent ${b[3] * 100}%)`
     : `linear-gradient(to bottom, #000 ${(e.fadeFrom ?? 1) * 100}%, transparent ${(e.fadeTo ?? 1) * 100}%)`;
   return <div ref={ref} className="pm-clouds" style={{ opacity: e.opacity ?? 0.7, backgroundImage: `url("${assetUrl(e.texture)}")`,
     maskImage: mask, WebkitMaskImage: mask, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", ...(e.mask ? { maskMode: "luminance" } : {}) } as React.CSSProperties} />;

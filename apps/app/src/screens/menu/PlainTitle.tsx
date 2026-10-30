@@ -247,12 +247,15 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
             const second = !twoHanded(row[1] ?? null) && (row[2] !== null || !hobbit(h));
             return (
               <div key={h} className="lo-gear-col">
+                {/* the portrait card reaches down behind the armor (its label and card lie over the portrait's foot) */}
                 <div className="lo-hero lo-gear-hero">
                   <b className="lo-hero-name"><span>{ui.raw(H[String(h)]?.NameKey)}</span></b>
                   <span className="lo-hero-pic">{(a?.portrait || a?.icon) ? <img src={ui.pic(a.portrait ?? a.icon)} alt="" /> : <i>{ui.raw(H[String(h)]?.NameKey).slice(0, 1)}</i>}</span>
+                  <div className="lo-gear-armor">
+                    <small>{t("armor")}</small>
+                    {itemCard(row[0] ?? null, () => setReplace({ hero: i, slot: 0 }))}
+                  </div>
                 </div>
-                <small>{t("armor")}</small>
-                {itemCard(row[0] ?? null, () => setReplace({ hero: i, slot: 0 }))}
                 <small>{t("inHands")}</small>
                 {itemCard(row[1] ?? null, () => setReplace({ hero: i, slot: 1 }))}
                 {second && itemCard(row[2] ?? null, () => setReplace({ hero: i, slot: 2 }))}
