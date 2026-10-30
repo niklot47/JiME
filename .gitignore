@@ -29,3 +29,6 @@ New_screenshot/
 
 # the user's scans of the game (FFG content, never committed)
 /scans/
+
+# Blender's backup copies
+*.blend1
