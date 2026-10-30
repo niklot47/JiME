@@ -239,13 +239,12 @@
   "logo": {
    "src": "images/ui-skin/parts/logo.png",
    "slice": [
-    164,
     0,
-    164,
-    235
+    0,
+    0,
+    0
    ],
-   "scale": 3,
-   "fit": "height"
+   "scale": 3
   },
   "gear": {
    "rect": [

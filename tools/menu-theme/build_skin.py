@@ -515,7 +515,10 @@ def build_parts(parts_dir, out_d, preview_dir=None):
                 continue
             loaded[name] = (img, sl, fit)
         else:
-            img = largest_piece(Image.open(own).convert("RGBA"))
+            img = Image.open(own).convert("RGBA")
+            # a sheet of loose pieces -> its biggest piece (the frame); the logo is many pieces (words): kept whole,
+            # only trimmed to its opaque part
+            img = img.crop(img.getbbox() or (0, 0, *img.size)) if name == "logo" else largest_piece(img)
             cfg_path = os.path.join(parts_dir, f"{name}.json")
             cfg = json.load(open(cfg_path, encoding="utf-8")) if os.path.exists(cfg_path) else {}
             sl = cfg.get("slice")

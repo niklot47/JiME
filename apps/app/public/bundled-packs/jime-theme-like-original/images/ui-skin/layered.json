@@ -19,7 +19,7 @@
     "tile": 1.0,
     "dx": -2,
     "dy": 1,
-    "speed": 110,
+    "speed": 37,
     "opacity": 0.8,
     "band": [
      0.3,
@@ -35,7 +35,7 @@
     "tile": 0.6,
     "dx": -2,
     "dy": 1,
-    "speed": 55,
+    "speed": 18,
     "opacity": 0.5,
     "band": [
      0.35,
