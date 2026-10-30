@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { Difficulty } from "@jime/engine";
 import { LayeredArt, preloadLayeredArt, useLayeredArt } from "./LayeredArt.tsx";
 import type { TrKey } from "../../ui/i18n.ts";
+import { UiSparks } from "../../ui/UiSparks.tsx";
 
 /** the entrance (s) before the chosen card's effects may show; the exit; the longest wait for the pictures */
 const ENTER_S = 1.5, LEAVE_S = 0.45, LOAD_MAX_S = 4;
@@ -18,6 +19,8 @@ function Card({ mode, name, cls, on, ready, t, onPick, onGo }: {
   const art = useLayeredArt(`difficulty-${mode}`);
   return (
     <div className={`lo-diff-slot ${cls}`}>
+      {/* the original's Effects: sparks off the chosen card's edges (hard has its embers instead), under the card */}
+      {on && ready && mode !== "hard" && <UiSparks kind={mode} />}
       <button className={`lo-diff${on ? " on" : ""}${art ? " layered" : ""}`} onClick={onPick} onDoubleClick={onGo}>
         {/* the theme's layered picture (ui/art/difficulty-<mode>/), else its flat one (ui/art/difficulty-<mode>.png) */}
         {art ? <LayeredArt art={art} active={on && ready} hoverFx={false} />

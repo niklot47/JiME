@@ -3,6 +3,8 @@
 //   layers:  [{ src, depth, z }]          depth 0 = still ... 1 = moves most (the nearest layer); z = drawing order
 //   effects: { type: "fog", texture, z, y, height, opacity, speed, flip?, depth? }   a drifting band of fog
 //            { type: "rays", texture?, z, x, y, opacity, depth? }                    sun rays from (x, y) (screen 0..1)
+//            { type: "clouds", texture, z, tile, dx, dy, speed, opacity, mask?, fadeFrom?, fadeTo? }   a tiled cloud
+//              texture over the whole box (tile: its width, a share of the box's), moving dx, dy tiles per `speed` s
 //            { type: "leaves", atlas, frames: [[x, y, w, h]], z, count, size: [min, max], wind }   falling leaves
 //   camera:  { rx, ry, angle, period, zoom }   an ellipse (radii in % of the screen) turned by `angle` degrees,
 //            one round in `period` s; the pointer adds a little parallax. zoom keeps the edges off screen.
@@ -14,7 +16,9 @@ import { LOW_GFX } from "../../data/perf.ts";
 
 interface Layer { src: string; depth?: number; z?: number }
 export interface Effect {
-  type: "fog" | "rays" | "leaves" | "water" | "steam" | "embers" | "distort";
+  type: "fog" | "rays" | "leaves" | "water" | "steam" | "embers" | "distort" | "clouds";
+  /** clouds: tile width (share of the box), tiles moved per cycle, a vertical fade when there is no mask */
+  tile?: number; dx?: number; dy?: number; fadeFrom?: number; fadeTo?: number;
   /** distort: how fast the waver rises (heat haze; 0 = it only sways), the noise's fineness, a brightness flicker */
   rise?: number; scale?: number; flicker?: number;
   /** embers: their colour; hover: shown only while the layered art is hovered / chosen (LayeredArt) */
@@ -401,8 +405,40 @@ function Distort({ e }: { e: Effect }) {
   return <canvas ref={canvas} className="pm-water" />;
 }
 
+/**
+ * Clouds like the original's ScrollingWithMask (the adventure card): a seamless texture tiled over the box, moving a
+ * whole number of tiles per cycle (dx, dy; the original's clouds: 2 left, 1 down in 80 s, tiles 0.6 of the card
+ * wide, opacity 0.7), cut by a mask picture (white = clouds) or faded out downwards
+ */
+function Clouds({ e }: { e: Effect }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let w = el.clientWidth, raf = 0;
+    const ro = new ResizeObserver(() => { w = el.clientWidth; });
+    ro.observe(el);
+    const tile = e.tile ?? 0.6, dur = e.speed ?? 80, dx = e.dx ?? -2, dy = e.dy ?? 1, t0 = performance.now();
+    const still = reduced();
+    const tick = (now: number) => {
+      const u = (((now - t0) / 1000) / dur) % 1, tw = w * tile;
+      el.style.backgroundSize = `${tw}px ${tw}px`;
+      el.style.backgroundPosition = `${u * dx * tw}px ${u * dy * tw}px`;
+      if (!still) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [e]);
+  if (!e.texture) return null;
+  const mask = e.mask ? `url("${assetUrl(e.mask)}")`
+    : `linear-gradient(to bottom, #000 ${(e.fadeFrom ?? 1) * 100}%, transparent ${(e.fadeTo ?? 1) * 100}%)`;
+  return <div ref={ref} className="pm-clouds" style={{ opacity: e.opacity ?? 0.7, backgroundImage: `url("${assetUrl(e.texture)}")`,
+    maskImage: mask, WebkitMaskImage: mask, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", ...(e.mask ? { maskMode: "luminance" } : {}) } as React.CSSProperties} />;
+}
+
 export function EffectView({ e }: { e: Effect }) {
   if (e.type === "distort") return <Distort e={e} />;
+  if (e.type === "clouds") return <Clouds e={e} />;
   if (e.type === "embers") return <Embers e={e} />;
   if (e.type === "leaves") return <Leaves e={e} />;
   if (e.type === "steam") return <Steam e={e} />;

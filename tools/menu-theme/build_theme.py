@@ -147,6 +147,24 @@ def fog_texture(w=1024, h=384, seed=7):
     return Image.fromarray(np.dstack([rgb, alpha]), "RGBA")
 
 
+def clouds_texture(n=512, seed=11):
+    """Seamless clouds (wraps both ways): octaves of blurred noise as alpha, a cool white"""
+    rng = np.random.default_rng(seed)
+    acc = np.zeros((n, n), np.float32)
+    for cell, weight in [(128, 0.5), (64, 0.28), (32, 0.14), (16, 0.08)]:
+        g = n // cell
+        small = rng.random((g, g)).astype(np.float32)
+        ring = np.tile(small, (3, 3))
+        img = Image.fromarray((ring * 255).astype(np.uint8)).resize((3 * n, 3 * n), Image.BICUBIC)
+        img = img.filter(ImageFilter.GaussianBlur(cell / 3)).crop((n, n, 2 * n, 2 * n))
+        acc += np.asarray(img, np.float32) / 255 * weight
+    acc = (acc - acc.min()) / (acc.max() - acc.min())
+    acc = np.clip((acc - 0.35) * 1.9, 0, 1) ** 1.2
+    alpha = (acc * 235).astype(np.uint8)
+    rgb = np.full((n, n, 3), (236, 238, 246), np.uint8)
+    return Image.fromarray(np.dstack([rgb, alpha]), "RGBA")
+
+
 def rays_texture(sx, sy, w=1280, h=720, seed=3):
     """Sun rays from (sx, sy) (0..1 of the picture): soft beams of random width and strength, fading with distance"""
     rng = np.random.default_rng(seed)
@@ -280,7 +298,10 @@ def layered_art(folder, name):
     Layer N (counting from 1 at the back) is drawn at z = N * 10: an effect with z 15 goes between layers 1 and 2.
     "hover": the effect shows only while the card is hovered or chosen; "depth" on an effect: it moves like the layers
     of that depth. Effects' fields as in the menu's parallax, x / y / width fractions of the whole picture (fog: y,
-    height, opacity, speed, flip; embers: x, y, width, count, color, size [min, max] px, speed; steam: x, y, width,
+    height, opacity, speed, flip; clouds: like the original's adventure card, a seamless texture tiled over the picture
+    (texture: own file, else generated), tile (its width, share of the picture's; 0.6), dx, dy (tiles moved per cycle;
+    -2, 1), speed (the cycle, s; 80), opacity (0.7), mask (a picture in this folder: white = clouds) or fadeFrom /
+    fadeTo (a fade downwards, 0..1 of the height); embers: x, y, width, count, color, size [min, max] px, speed; steam: x, y, width,
     count, opacity; rays: x, y, opacity; leaves: "sheet" a picture of one or more leaves in this folder, count,
     size [min, max] px, wind, speed).
     """
@@ -318,6 +339,18 @@ def layered_art(folder, name):
             if not os.path.exists(os.path.join(OUT, rel)):
                 save_webp(fog_texture(), rel, 85)
             e["texture"] = rel
+        elif k == "clouds":
+            if "texture" in e:
+                e["texture"] = save_webp(Image.open(os.path.join(folder, e["texture"])).convert("RGBA"), f"images/ui-skin/art/{name}/clouds.webp", 85)
+            else:
+                rel = "images/ui-skin/art/clouds.webp"
+                if not os.path.exists(os.path.join(OUT, rel)):
+                    save_webp(clouds_texture(), rel, 85)
+                e["texture"] = rel
+            if "mask" in e:
+                m = Image.open(os.path.join(folder, e["mask"])).convert("L")
+                m.thumbnail((1024, 1024), Image.LANCZOS)
+                e["mask"] = save_webp(m.convert("RGB"), f"images/ui-skin/art/{name}/mask.webp", 85)
         elif k == "rays" and "texture" not in e:
             e["texture"] = save_webp(rays_texture(e.get("x", 0.5), e.get("y", 0.2)), f"images/ui-skin/art/{name}/rays.webp", 80)
         elif k == "steam":

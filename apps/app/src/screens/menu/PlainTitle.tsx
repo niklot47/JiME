@@ -15,7 +15,7 @@ import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
 import { DIFFICULTY_ART, DifficultyStep } from "./DifficultyStep.tsx";
 import { preloadLayeredArt } from "./LayeredArt.tsx";
-import { EdgeSparks } from "./EdgeSparks.tsx";
+import { UiSparks } from "../../ui/UiSparks.tsx";
 import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
@@ -141,11 +141,14 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
               const a = ui.art.campaigns[String(c._id)];
               const pic = a?.ThumbnailImage ?? a?.Image;
               return (
-                <button key={c._id} className={`lo-thumb${campaign === c._id ? " on" : ""}`} title={ui.raw(c.TitleKey) || c.m_Name}
-                  onClick={() => { setCampaign(c._id); setHeroes([]); }}>
-                  {pic ? <img src={ui.pic(pic)} alt="" /> : <b>{ui.raw(c.TitleKey) || c.m_Name}</b>}
-                  {campaign === c._id && <EdgeSparks />}
-                </button>
+                <div key={c._id} className="lo-thumb-slot">
+                  {/* the original's sparks off the chosen card's edges, under it */}
+                  {campaign === c._id && <UiSparks kind="campaign" />}
+                  <button className={`lo-thumb${campaign === c._id ? " on" : ""}`} title={ui.raw(c.TitleKey) || c.m_Name}
+                    onClick={() => { setCampaign(c._id); setHeroes([]); }}>
+                    {pic ? <img src={ui.pic(pic)} alt="" /> : <b>{ui.raw(c.TitleKey) || c.m_Name}</b>}
+                  </button>
+                </div>
               );
             })}
           </div>

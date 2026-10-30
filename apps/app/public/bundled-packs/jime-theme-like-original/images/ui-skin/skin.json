@@ -237,18 +237,15 @@
    ]
   },
   "logo": {
-   "rect": [
-    280,
-    488,
-    600,
-    220
-   ],
+   "src": "images/ui-skin/parts/logo.png",
    "slice": [
+    164,
     0,
-    0,
-    0,
-    0
-   ]
+    164,
+    235
+   ],
+   "scale": 3,
+   "fit": "height"
   },
   "gear": {
    "rect": [

@@ -14,33 +14,16 @@
   ],
   "effects": [
    {
-    "type": "fog",
+    "type": "clouds",
     "z": 15,
-    "y": 0.62,
-    "height": 0.42,
-    "opacity": 0.85,
-    "speed": 55,
-    "texture": "images/ui-skin/art/fog.webp"
-   },
-   {
-    "type": "fog",
-    "z": 15,
-    "y": 0.82,
-    "height": 0.36,
-    "opacity": 0.7,
+    "tile": 0.6,
+    "dx": -2,
+    "dy": 1,
     "speed": 80,
-    "flip": true,
-    "texture": "images/ui-skin/art/fog.webp"
-   },
-   {
-    "type": "fog",
-    "z": 25,
-    "y": 0.97,
-    "height": 0.2,
-    "opacity": 0.35,
-    "speed": 95,
-    "hover": true,
-    "texture": "images/ui-skin/art/fog.webp"
+    "opacity": 0.7,
+    "fadeFrom": 0.35,
+    "fadeTo": 0.8,
+    "texture": "images/ui-skin/art/clouds.webp"
    }
   ],
   "size": [
@@ -149,10 +132,10 @@
     "src": "images/ui-skin/art/difficulty-normal/3.webp",
     "z": 30,
     "depth": 0.7,
-    "strength": 0.006,
-    "speed": 0.6,
+    "strength": 0.016,
+    "speed": 0.9,
     "rise": 0,
-    "scale": 22
+    "scale": 12
    },
    {
     "type": "leaves",

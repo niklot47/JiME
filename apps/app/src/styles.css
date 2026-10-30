@@ -877,8 +877,17 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
   background: #120f0c; border: 2px solid #4c3c28; color: #f0dcae; font: inherit; font-size: calc(22 * var(--u)); }
 .lo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lo-thumb b { display: block; overflow: hidden; max-height: 100%; }
-/* EdgeSparks' canvas: placed and sized by the component around its parent */
-.edge-sparks { position: absolute; pointer-events: none; z-index: 2; }
+/* a thumbnail with its sparks under it */
+.lo-thumb-slot { position: relative; }
+.lo-thumb-slot > .lo-thumb { position: relative; z-index: 1; }
+/* UiSparks: the particle player around its parent (a wrapper of the element), under the element */
+.ui-sparks { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.ui-sparks .ng-ps { position: absolute; pointer-events: none; }
+.lo-diff-slot > .ui-sparks { transition: transform 0.35s; }
+.lo-diff-slot:has(.lo-diff.on) > .ui-sparks { transform: scale(1.094); }
+.lo-diff-slot > .lo-diff { z-index: 1; }
+/* the clouds effect (MenuBackground Clouds) */
+.pm-clouds { position: absolute; inset: 0; pointer-events: none; background-repeat: repeat; }
 .lo-thumb.on { border-color: #e2b766; box-shadow: 0 0 calc(14 * var(--u)) rgba(226, 183, 102, 0.7); }
 @media (hover: hover) { .lo-thumb:not(.on):hover { border-color: #8a7445; } }
 .lo-arrow { width: calc(60 * var(--u)); height: calc(120 * var(--u)); border: none; padding: 0; cursor: pointer; background: #d8d4cc;
@@ -956,6 +965,9 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .lo-hero-pic { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .lo-hero-pic img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
 .lo-hero-pic i, .lo-slot i { font-style: normal; font-family: "JiME Title", Georgia, serif; font-size: calc(90 * var(--u)); color: #6b5a3e; }
+/* the original's hero list is a soft-clipped panel: the portraits fade out towards its bottom (from 59 % of the card,
+   gone at 95 %) */
+.lo-hero { -webkit-mask-image: linear-gradient(to bottom, #000 59%, transparent 95%); mask-image: linear-gradient(to bottom, #000 59%, transparent 95%); }
 .lo-hero.on { border-color: #e2b766; box-shadow: 0 0 calc(22 * var(--u)) rgba(226, 183, 102, 0.75); }
 @media (hover: hover) { .lo-hero:hover { transform: translateY(calc(-6 * var(--u))); } .lo-hero:not(.on):hover { border-color: #8a7445; } }
 .lo-slots { position: absolute; left: 50%; top: calc(770 * var(--u)); transform: translateX(-50%); display: flex; gap: calc(10 * var(--u)); padding: calc(14 * var(--u));
@@ -1254,7 +1266,14 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
    chosen one glows around its outline; the parts outside the frame may cover the neighbours */
 .lo-diff.layered { overflow: visible; border-color: transparent !important; border-image: none !important; background: none; box-shadow: none; }
 .lo-diff.layered .la.framed { filter: brightness(0.8) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); }
-.lo-diff.layered.on .la.framed { filter: drop-shadow(0 0 calc(10 * var(--u)) rgba(255, 210, 120, 0.9)) drop-shadow(0 0 calc(24 * var(--u)) rgba(226, 160, 70, 0.6)); }
+.lo-diff.layered.on .la.framed { filter: drop-shadow(0 0 calc(10 * var(--u)) rgba(255, 210, 120, 0.9)) drop-shadow(0 0 calc(24 * var(--u)) rgba(226, 160, 70, 0.6));
+  animation: dif-glow 2s ease-in-out infinite; }
+/* the chosen card's Highlight like the original's (Generic_Border_Glow, alpha 0.8 -> 0.1, 1 s, ping-pong), its colour per card */
+.lo-diff-slot.wide .lo-diff.layered.on .la.framed { --glow: 238, 238, 238; }
+.lo-diff-slot.right .lo-diff.layered.on .la.framed { --glow: 255, 120, 40; }
+@keyframes dif-glow {
+  0%, 100% { filter: drop-shadow(0 0 calc(8 * var(--u)) rgba(var(--glow, 255, 192, 58), 0.85)) drop-shadow(0 0 calc(22 * var(--u)) rgba(var(--glow, 255, 192, 58), 0.55)); }
+  50% { filter: drop-shadow(0 0 calc(4 * var(--u)) rgba(var(--glow, 255, 192, 58), 0.15)) drop-shadow(0 0 calc(10 * var(--u)) rgba(var(--glow, 255, 192, 58), 0.08)); } }
 @media (hover: hover) { .lo-diff.layered:hover .la.framed { filter: brightness(1.05) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); } .lo-diff.layered:hover .lo-diff-art { transform: none; } }
 .lo-diff.layered:hover, .lo-diff.layered.on { z-index: 2; }
 .lo-diff.layered b { background: none; z-index: 3; }
@@ -1315,10 +1334,11 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .lo-campaigns .lo-text h3, .lo-campaigns .lo-text .lo-rule { animation: ct-fade 0.35s 0.6s linear both; }
 .lo-campaigns .lo-text .lo-desc { animation: ct-fade 0.35s 0.95s linear both; }
 .lo-campaigns .lo-shelf { animation: ct-fade 0.4s linear both; }
-.lo-campaigns .lo-thumb.on { animation: lo-pulse 1.6s ease-in-out infinite; }
+/* the chosen card's glow: the original's tween (alpha 0.3 -> 1, 1 s, ping-pong) */
+.lo-campaigns .lo-thumb.on { animation: lo-pulse 2s ease-in-out infinite; }
 @keyframes lo-from-top { from { transform: translate(-50%, calc(-160 * var(--u))); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 @keyframes lo-from-left { from { transform: translateX(calc(-325 * var(--u))); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes lo-pulse { 0%, 100% { box-shadow: 0 0 calc(10 * var(--u)) rgba(226, 183, 102, 0.55); } 50% { box-shadow: 0 0 calc(26 * var(--u)) rgba(255, 210, 120, 0.95); } }
-.skinned .lo-campaigns .lo-thumb.on { animation: lo-pulse-skin 1.6s ease-in-out infinite; }
+.skinned .lo-campaigns .lo-thumb.on { animation: lo-pulse-skin 2s ease-in-out infinite; }
 @keyframes lo-pulse-skin { 0%, 100% { filter: drop-shadow(0 0 calc(6 * var(--u)) rgba(226, 183, 102, 0.5)); } 50% { filter: drop-shadow(0 0 calc(16 * var(--u)) rgba(255, 210, 120, 0.95)); } }
 @media (prefers-reduced-motion: reduce) { .lo-campaigns * { animation: none !important; } }

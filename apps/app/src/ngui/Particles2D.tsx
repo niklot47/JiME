@@ -19,6 +19,25 @@ export const WORLD_UI = 360;
 interface P { x: number; y: number; vx: number; vy: number; age: number; life: number; size: number; rot: number; spin: number; r: number[] }
 
 const images = new Map<string, Promise<HTMLImageElement>>();
+
+/** the dot drawn for a system without a picture (like the original's round particle: a gaussian, its colour falling
+ *  off with its alpha) */
+let dot: HTMLCanvasElement | null = null;
+function softDot(): HTMLCanvasElement {
+  if (dot) return dot;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  const img = g.createImageData(64, 64);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+    const r = Math.hypot(x - 31.5, y - 31.5);
+    const v = Math.round(255 * Math.exp(-((r / 15) ** 2)) * Math.max(0, Math.min(1, (32 - r) / 2)));
+    const i = (y * 64 + x) * 4;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = img.data[i + 3] = v;
+  }
+  g.putImageData(img, 0, 0);
+  return (dot = c);
+}
 const load = (src: string) => {
   let p = images.get(src);
   if (!p) {
@@ -60,11 +79,11 @@ export function Particles2D({ ps, x, y, k, z, mirror = false, rate = 1, speed = 
     let sprite: HTMLCanvasElement | null = null;
     let alive = true;
     // the picture tinted once: its material tint (legacy particle shaders double it) times the start colour
-    if (ps.tex) {
-      void load(assetUrl(ps.tex)).then((img) => {
+    {
+      void (ps.tex ? load(assetUrl(ps.tex)) : Promise.resolve(softDot()) as Promise<HTMLImageElement | HTMLCanvasElement>).then((img) => {
         if (!alive) return;
         const c = document.createElement("canvas");
-        c.width = img.naturalWidth || 64; c.height = img.naturalHeight || 64;
+        c.width = (img as HTMLImageElement).naturalWidth || img.width || 64; c.height = (img as HTMLImageElement).naturalHeight || img.height || 64;
         const g = c.getContext("2d")!;
         g.drawImage(img, 0, 0, c.width, c.height);
         const t = ps.tint ?? [0.5, 0.5, 0.5, 0.5];
