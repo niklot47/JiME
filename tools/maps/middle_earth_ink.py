@@ -415,6 +415,14 @@ def V(fill, ink, kind, x, y, s, rng):
             fill.pieslice([cx - sz * s, y - sz * s * 0.9, cx + sz * s, y + sz * s * 0.9], 180, 360, fill=F)
             ink.arc([cx - sz * s, y - sz * s * 0.9, cx + sz * s, y + sz * s * 0.9], 180, 360, fill=I, width=w)
             ink.rectangle([cx - s * 0.04, y - sz * s * 0.9 - s * 0.22, cx + s * 0.04, y - sz * s * 0.9 + s * 0.02], fill=INK + (240,))
+    elif kind == "ruin_city":
+        ruined_city(fill, ink, x, y, s, rng)
+    elif kind == "ruin_lake":
+        ruined_city(fill, ink, x, y, s, rng, tall=True)
+    elif kind == "great_tree":
+        great_tree(fill, ink, x, y, s, rng)
+    elif kind == "willow":
+        great_tree(fill, ink, x, y, s, rng, willow=True)
     elif kind == "bigtree":  # one great gnarled tree (the Old Willow, an Ent)
         ink.line([(x, y), (x - s * 0.05, y - s * 0.6)], fill=I, width=w * 3)
         for a in (-1, 1):
@@ -511,17 +519,133 @@ def V(fill, ink, kind, x, y, s, rng):
             ink.ellipse([x + dx * s - s * 0.04, y - s * (0.6 if dx == 0 else 0.5) - s * 0.08, x + dx * s + s * 0.04, y - s * (0.6 if dx == 0 else 0.5)], fill=I)
 
 
+
+def ruined_city(fill, ink, x, y, s, rng, tall=False):
+    """a fallen city: a broken tower with arched windows, an arcade whose top has crumbled, columns, one lying
+    in the rubble"""
+    w = max(1, int(s * 0.06))
+    I, F = INK + (245,), FILL + (255,)
+
+    def jag(x0, x1, top, depth, n):
+        # a broken top edge from x0 to x1 around `top`
+        pts = []
+        for i in range(n + 1):
+            pts.append((x0 + (x1 - x0) * i / n, top + (rng.random() * depth if 0 < i < n else 0)))
+        return pts
+
+    # the tower (tall: the slender tower by the lake)
+    tx0, tx1 = x - s * 0.78, x - s * (0.50 if not tall else 0.56)
+    th = s * (1.05 if not tall else 1.45)
+    top = jag(tx0, tx1, y - th, s * 0.18, 4)
+    poly = [(tx0, y)] + top + [(tx1, y)]
+    fill.polygon(poly, fill=F)
+    ink.line(poly, fill=I, width=w, joint="curve")
+    for k in range(2 if not tall else 3):
+        wy = y - th * (0.35 + 0.25 * k)
+        cx = (tx0 + tx1) / 2
+        ink.rectangle([cx - s * 0.045, wy - s * 0.08, cx + s * 0.045, wy + s * 0.06], fill=INK + (225,))
+        ink.pieslice([cx - s * 0.045, wy - s * 0.13, cx + s * 0.045, wy - s * 0.03], 180, 360, fill=INK + (225,))
+    # stone courses on the shaded side
+    for k in range(5):
+        yy = y - th * (0.12 + 0.15 * k)
+        ink.line([(tx1 - s * 0.08, yy), (tx1, yy)], fill=INK + (150,), width=max(1, w // 2))
+    # the arcade: three arches, its top broken lower toward the right
+    ax0, ax1 = tx1, x + s * 0.35
+    top = [(ax0, y - s * 0.62)] + jag(ax0 + s * 0.05, ax1, y - s * 0.5, s * 0.2, 6)[1:]
+    top[-1] = (ax1, y - s * 0.28)
+    poly = [(ax0, y)] + top + [(ax1, y)]
+    fill.polygon(poly, fill=F)
+    ink.line(poly[1:-1], fill=I, width=w, joint="curve")
+    ink.line([poly[-2], poly[-1]], fill=I, width=w)
+    aw = (ax1 - ax0) / 3
+    for k in range(3):
+        cx = ax0 + aw * (k + 0.5)
+        r = aw * 0.32
+        top_y = y - s * (0.36 - 0.06 * k)
+        ink.pieslice([cx - r, top_y - r, cx + r, top_y + r], 180, 360, fill=INK + (215,))
+        ink.rectangle([cx - r, top_y, cx + r, y], fill=INK + (215,))
+    # columns: one standing with its capital, one broken
+    for cx, ch in ((x + s * 0.52, s * 0.62), (x + s * 0.72, s * 0.34)):
+        fill.rectangle([cx - s * 0.05, y - ch, cx + s * 0.05, y], fill=F)
+        ink.rectangle([cx - s * 0.05, y - ch, cx + s * 0.05, y], outline=I, width=w)
+        if ch > s * 0.5:
+            ink.rectangle([cx - s * 0.09, y - ch - s * 0.05, cx + s * 0.09, y - ch], fill=F, outline=I, width=w)
+        else:
+            ink.line([(cx - s * 0.05, y - ch), (cx, y - ch - s * 0.05), (cx + s * 0.05, y - ch + s * 0.02)], fill=I, width=w)
+    # a fallen drum and rubble along the ground
+    ink.ellipse([x + s * 0.82, y - s * 0.09, x + s * 0.92, y + s * 0.01], outline=I, width=w)
+    ink.line([(x + s * 0.87, y - s * 0.09), (x + s * 1.15, y - s * 0.07)], fill=I, width=w)
+    ink.line([(x + s * 0.87, y + s * 0.01), (x + s * 1.15, y + s * 0.0)], fill=I, width=w)
+    for k in range(9):
+        rx = x - s * 0.9 + rng.random() * s * 2.1
+        rr = s * (0.025 + 0.03 * rng.random())
+        ink.ellipse([rx - rr * 1.4, y - rr, rx + rr * 1.4, y + rr * 0.6], fill=F, outline=I, width=max(1, w // 2))
+    ink.line([(x - s * 0.95, y + s * 0.02), (x + s * 1.2, y + s * 0.02)], fill=INK + (170,), width=max(1, w // 2))
+
+
+def great_tree(fill, ink, x, y, s, rng, willow=False):
+    """an old great tree: roots flaring from a thick trunk, branches, a crown of many lobes with leaf strokes and
+    shade on its right (willow: a low dome with long hanging strands)"""
+    w = max(1, int(s * 0.045))
+    I, F = INK + (245,), FILL + (255,)
+    tw = s * 0.13
+    trunk = [(x - tw * 2.2, y), (x - tw * 1.1, y - s * 0.08), (x - tw * 0.8, y - s * 0.55), (x - tw * 0.4, y - s * 0.8),
+             (x + tw * 0.5, y - s * 0.8), (x + tw * 0.9, y - s * 0.5), (x + tw * 1.2, y - s * 0.08), (x + tw * 2.4, y)]
+    fill.polygon(trunk, fill=F)
+    ink.line(trunk, fill=I, width=w, joint="curve")
+    # bark: a few long strokes, shade on the right
+    for k in range(3):
+        bx = x + tw * (-0.4 + 0.45 * k)
+        ink.line([(bx, y - s * 0.06), (bx + tw * 0.1, y - s * 0.45)], fill=INK + (170,), width=max(1, w // 2))
+    for k in range(4):
+        ink.line([(x + tw * 0.75, y - s * (0.1 + 0.1 * k)), (x + tw * 1.0, y - s * (0.14 + 0.1 * k))], fill=INK + (190,), width=max(1, w // 2))
+    # roots
+    for a in (-1, 1):
+        ink.arc([x + a * tw * 1.4 - tw * 1.3, y - tw * 0.6, x + a * tw * 1.4 + tw * 1.3, y + tw * 0.6], 180 if a < 0 else 270, 270 if a < 0 else 360, fill=I, width=w)
+    # branches into the crown
+    for a, h in ((-1, 0.75), (1, 0.72), (-0.4, 0.95), (0.5, 0.98)):
+        ink.line([(x + a * tw * 0.3, y - s * 0.7), (x + a * s * 0.32, y - s * h)], fill=I, width=w * 2)
+    # the crown: lobes around an ellipse (a dark rim drawn first, the paper over it: one scalloped outline)
+    cx, cy = x, y - s * (1.05 if not willow else 0.95)
+    rx, ry = s * (0.62 if not willow else 0.7), s * (0.42 if not willow else 0.32)
+    lobes = []
+    n = 13
+    for i in range(n):
+        a = i * 2 * math.pi / n + rng.random() * 0.2
+        r = s * (0.17 + 0.06 * rng.random())
+        lobes.append((cx + math.cos(a) * rx * 0.82, cy + math.sin(a) * ry * 0.82, r))
+    lobes.append((cx, cy, min(rx, ry) * 0.95))
+    for lx, ly, r in lobes:
+        ink.ellipse([lx - r - w, ly - r - w, lx + r + w, ly + r + w], fill=I)
+    for lx, ly, r in lobes:
+        fill.ellipse([lx - r, ly - r, lx + r, ly + r], fill=F)
+    # leaf strokes inside, denser on the shaded right side
+    for k in range(26):
+        a = rng.random() * 2 * math.pi
+        rr = math.sqrt(rng.random())
+        lx, ly = cx + math.cos(a) * rx * 0.8 * rr, cy + math.sin(a) * ry * 0.8 * rr
+        if lx < cx - rx * 0.2 and rng.random() < 0.6:
+            continue
+        r = s * 0.06
+        ink.arc([lx - r, ly - r, lx + r, ly + r], 20, 160, fill=INK + (190,), width=max(1, w // 2 + 1))
+    if willow:
+        for k in range(15):
+            hx = cx - rx * 0.95 + k * rx * 1.9 / 14
+            top = cy + ry * (0.3 + 0.5 * (1 - ((hx - cx) / rx) ** 2) ** 0.5)
+            ink.line([(hx, top), (hx + s * 0.02, top + s * (0.25 + 0.15 * rng.random()))], fill=INK + (210,), width=max(1, w // 2 + 1))
+
+
 # what to draw at the adventures' places (u, v, kind, size in v) - the stories, not their markers
 VIGNETTES = {
     "south_downs_fort": (0.300, 0.304, "fort", 0.020),
     "bree_ranger": (0.274, 0.262, "town", 0.016),
     "forsaken_inn": (0.297, 0.250, "inn", 0.016),
-    "fornost": (0.255, 0.150, "ruin", 0.022),
+    "fornost": (0.252, 0.152, "ruin_city", 0.028),
     "troll_cave": (0.336, 0.196, "cave", 0.018),
     "brandywine_crossing": (0.212, 0.205, "bridge", 0.014),
-    "annuminas": (0.178, 0.157, "ruin", 0.020),
+    "annuminas": (0.168, 0.162, "ruin_lake", 0.024),
     "barrows": (0.246, 0.290, "barrows", 0.016),
-    "old_willow": (0.236, 0.270, "bigtree", 0.020),
+    "old_willow": (0.236, 0.274, "willow", 0.022),
     "michel_delving": (0.176, 0.258, "holes", 0.016),
     "eastfarthing": (0.205, 0.252, "farm", 0.012),
     "trading_post": (0.150, 0.250, "hut", 0.013),
@@ -545,7 +669,7 @@ VIGNETTES = {
     "dunharrow": (0.506, 0.688, "keep", 0.016),
     "osgiliath": (0.624, 0.702, "broken_bridge", 0.018),
     "calembel": (0.526, 0.748, "town", 0.016),
-    "fangorn_ent": (0.448, 0.566, "bigtree", 0.026),
+    "fangorn_ent": (0.466, 0.574, "great_tree", 0.034),
     "adorn": (0.416, 0.658, "swords", 0.014),
     "pelargir": (0.620, 0.792, "city", 0.018),
     "entwash_inn": (0.530, 0.636, "inn", 0.014),
@@ -605,6 +729,114 @@ def label_style(key):
     if key in {"MISTY", "BLUE", "WHITE", "GREY", "MIRKWOOD", "LORIEN", "FANGORN", "BROWN_LANDS", "DEAD_MARSHES", "SHIRE", "DUNLAND"}:
         return "italic", 0.12
     return "regular", 0.02
+
+
+# the names that follow a line: a river or a ridge (its shape moved through the name's place), a path of their
+# own, or a gentle arc (the big regions); the rest are written straight
+FOLLOW = {
+    "ANDUIN": ("river", "anduin"), "BRANDYWINE": ("river", "baranduin"), "GREYFLOOD": ("river", "gwathlo"),
+    "RUNNING": ("river", "celduin"), "MISTY": ("ridge", "misty"), "BLUE": ("ridge", "luin_s"), "WHITE": ("ridge", "white"),
+    "GREY": ("ridge", "grey"), "MIRKWOOD": ("path", [(0.612, 0.380), (0.626, 0.290), (0.644, 0.200)]),
+    "LINDON": ("path", [(0.071, 0.380), (0.078, 0.320), (0.080, 0.260)]),
+}
+ARC = {"ERIADOR": 0.10, "ROHAN": 0.10, "GONDOR": 0.10, "MORDOR": 0.08, "RHUN": 0.10, "HARAD": 0.08, "ANGMAR": 0.10,
+       "ENEDWAITH": 0.10, "MINHIRIATH": 0.08, "FORODWAITH": 0.06, "SEA": 0.12, "SHIRE": 0.10, "BROWN_LANDS": 0.06,
+       "DEAD_MARSHES": 0.06, "DUNLAND": 0.08}
+
+
+def _measure(pts):
+    acc = [0.0]
+    for i in range(1, len(pts)):
+        acc.append(acc[-1] + math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]))
+    return acc
+
+
+def _at(pts, acc, s):
+    s = max(0.0, min(acc[-1], s))
+    i = max(1, next((k for k in range(1, len(acc)) if acc[k] >= s), len(acc) - 1))
+    seg = acc[i] - acc[i - 1] or 1e-9
+    t = (s - acc[i - 1]) / seg
+    (x0, y0), (x1, y1) = pts[i - 1], pts[i]
+    return x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, math.atan2(y1 - y0, x1 - x0)
+
+
+def label_path(cv, key, x, y, width):
+    """the line a name is written along, in px, through (x, y), read left to right (or upward); None: straight"""
+    if key in FOLLOW:
+        kind, src = FOLLOW[key]
+        if kind == "river":
+            path, *_ = G.RIVERS[src]
+            pts = chaikin(roughen(path, 0.16, np.random.default_rng(sid(src)), depth=4), 4)
+            pts = chaikin(pts[::14] + [pts[-1]], 4)  # the river's bends, without its wiggles
+        elif kind == "ridge":
+            pts = chaikin(G.MOUNTAINS[src][0], 4)
+        else:
+            pts = chaikin(src, 4)
+        px = [cv.P(*p) for p in pts]
+        if kind != "path":
+            # moved so that the point of the line nearest to the name passes through it
+            j = min(range(len(px)), key=lambda k: (px[k][0] - x) ** 2 + (px[k][1] - y) ** 2)
+            dx, dy = x - px[j][0], y - px[j][1]
+            px = [(a + dx, b + dy) for a, b in px]
+        return px
+    if key in ARC:
+        b = ARC[key]
+        hw = width * 0.75
+        return [(x + t * hw, y + b * hw * t * t) for t in np.linspace(-1, 1, 41)]
+    return None
+
+
+def text_along(lay, pts, x, y, s, size, style, track, alpha=245):
+    """a name written along a line: each letter turned to the line, centred on the point of the line nearest (x, y)"""
+    # read left to right; a line going mostly up or down is read upward (judged where the name sits)
+    j = min(range(len(pts)), key=lambda k: (pts[k][0] - x) ** 2 + (pts[k][1] - y) ** 2)
+    p, q = pts[max(0, j - 3)], pts[min(len(pts) - 1, j + 3)]
+    a0 = math.atan2(q[1] - p[1], q[0] - p[0])
+    if math.cos(a0) < -0.3 or (abs(math.cos(a0)) <= 0.3 and math.sin(a0) > 0):
+        pts = pts[::-1]
+    # a name longer than its line goes on straight past the line's ends
+    ext = size * len(s)
+    (x0, y0), (x1, y1) = pts[0], pts[min(3, len(pts) - 1)]
+    a = math.atan2(y1 - y0, x1 - x0)
+    head = (x0 - math.cos(a) * ext, y0 - math.sin(a) * ext)
+    (x0, y0), (x1, y1) = pts[max(0, len(pts) - 4)], pts[-1]
+    a = math.atan2(y1 - y0, x1 - x0)
+    tail = (x1 + math.cos(a) * ext, y1 + math.sin(a) * ext)
+    pts = [head] + list(pts) + [tail]
+    acc = _measure(pts)
+    j = min(range(len(pts)), key=lambda k: (pts[k][0] - x) ** 2 + (pts[k][1] - y) ** 2)
+    s0 = acc[j]
+    f = font(style, max(8, int(size)))
+    halo = max(2, int(size * 0.08))
+    widths = [f.getlength(c) for c in s]
+    total = sum(widths) + track * size * (len(s) - 1)
+    pos = s0 - total / 2
+    for c, cw in zip(s, widths):
+        if c != " ":
+            px, py, a = _at(pts, acc, pos + cw / 2)
+            g = int(size * 1.6) + 2 * halo
+            im = Image.new("RGBA", (g, g), (0, 0, 0, 0))
+            d = ImageDraw.Draw(im)
+            d.text((g / 2, g / 2), c, font=f, fill=INK + (alpha,), anchor="mm", stroke_width=halo, stroke_fill=PAPER + (110,))
+            d.text((g / 2, g / 2), c, font=f, fill=INK + (alpha,), anchor="mm")
+            im = im.rotate(-math.degrees(a), resample=Image.BICUBIC)
+            lay.alpha_composite(im, (int(px - g / 2), int(py - g / 2)))
+        pos += cw + track * size
+
+
+def write_names(cv, lay, keys, alpha=245):
+    for key in keys:
+        u, v, size, angle, en, _ru, _it = G.LABELS[key]
+        style, track = label_style(key)
+        x, y = cv.P(u, v)
+        px_size = size * cv.s
+        f = font(style, max(8, int(px_size)))
+        width = sum(f.getlength(c) for c in en) + track * px_size * (len(en) - 1)
+        path = label_path(cv, key, x, y, width)
+        if path:
+            text_along(lay, path, x, y, en, px_size, style, track, alpha)
+        else:
+            text(lay, x, y, en, angle, px_size, style, track, alpha)
 
 
 def cartouche(cv, lay, fill, ink):
@@ -667,6 +899,14 @@ def render(W, H, seed=7):
     waves(cv, ink, rng, sea_m)
     composite(img, lay)
 
+    # the biggest names (regions, the sea) lie under everything drawn on the land, a little paler: the bigger a
+    # name, the further back it is
+    order = sorted(G.LABELS, key=lambda k: -G.LABELS[k][2])
+    big = [k for k in order if G.LABELS[k][2] >= 34]
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    write_names(cv, lay, big, alpha=215)
+    composite(img, lay)
+
     # everything that stands on the land, back to front: its paper fill then its ink, one by one
     trees = forests(cv, rng, sea_m, None, None)
     items = [(y, x, "tree", r, k) for y, x, r, k in trees] + relief(cv, rng)
@@ -702,10 +942,7 @@ def render(W, H, seed=7):
 
     # the names
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    for key, (u, v, size, angle, en, _ru, _it) in G.LABELS.items():
-        style, track = label_style(key)
-        x, y = cv.P(u, v)
-        text(lay, x, y, en, angle, size * cv.s, style, track)
+    write_names(cv, lay, [k for k in order if k not in big])
     d = ImageDraw.Draw(lay)
     frame(cv, img, d)
     composite(img, lay)
