@@ -1061,6 +1061,11 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .cm2, .cm3 { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; }
 .cm2:active, .cm3:active { cursor: grabbing; }
 .cm3 canvas { display: block; width: 100%; height: 100%; }
+/* the map room behind the title pages (RoomBackdrop): sharp on the title screen, out of focus and darker behind the
+   new campaign's pages; a little larger than the screen so the blur has no edges */
+.pm-room { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: #0c0907; }
+.pm-room .cm3 { inset: -3%; cursor: default; transition: filter 0.8s ease; }
+.pm-room.blurred .cm3 { filter: blur(calc(9 * var(--u))) brightness(0.72); }
 .cm2-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
 .cm2-pic { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; pointer-events: none; }
 .cm2-parchment { background: radial-gradient(ellipse at center, #e2c896 0%, #cfa96c 60%, #7a5530 100%); }

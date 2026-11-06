@@ -105,11 +105,11 @@ wick = bpy.data.objects["Flame_Candle"].matrix_world.translation
 # the strengths are physical (the scene is in metres, the table 72 m long) and the app lights it as the glTF says,
 # in candela and lux (lamps: W / 4 pi * 683, the sun: W/m2 * 683); a few lux on the map is a well lit room
 # the candle: warm, a little above the wick (about 45 cd: a glow on the map's corner, not a hot spot on Eriador)
-light("Flicker_Candle", "POINT", wick + Vector((0, 0, 0.6)), 0.8, (1.0, 0.58, 0.26), size=0.4)
-# a lamp hanging over the table, warm, its cone holding the map (about 2.5 lux on it)
-light("Lamp", "SPOT", centre + Vector((-2, 4, 34)), 50, (1.0, 0.86, 0.68), size=3, spot=(1.15, 0.6), target=centre)
-# cool fill from the window side (moonlight), weak (about 0.5 lux)
-light("Moon", "SUN", centre + Vector((-30, 20, 30)), 0.0008, (0.62, 0.72, 1.0), target=centre)
+light("Flicker_Candle", "POINT", wick + Vector((0, 0, 0.6)), 0.8, (1.0, 0.50, 0.18), size=0.4)
+# a lamp hanging over the table, orange, its cone holding the map (about 1.3 lux on it: a dim room)
+light("Lamp", "SPOT", centre + Vector((-2, 4, 34)), 26, (1.0, 0.64, 0.34), size=3, spot=(1.15, 0.6), target=centre)
+# cool fill from the window side (moonlight), weak (about 0.2 lux)
+light("Moon", "SUN", centre + Vector((-30, 20, 30)), 0.0003, (0.62, 0.72, 1.0), target=centre)
 # the overview: from the south edge of the table, looking down onto the map (north up)
 cd = bpy.data.cameras.get("Camera") or bpy.data.cameras.new("Camera")
 cd.lens = 32

@@ -13,6 +13,7 @@ import { useSound } from "../../audio/SoundPanel.tsx";
 import type { SoundSettings } from "../../audio/sound.ts";
 import { mapKind, setMapKind, type MapKind } from "./PlainCampaign.tsx";
 import { MenuBackground } from "./MenuBackground.tsx";
+import { RoomBackdrop, menuBg, setMenuBg, type MenuBg } from "./RoomBackdrop.tsx";
 import { DIFFICULTY_ART, DifficultyStep } from "./DifficultyStep.tsx";
 import { preloadLayeredArt } from "./LayeredArt.tsx";
 import { UiSparks } from "../../ui/UiSparks.tsx";
@@ -20,6 +21,8 @@ import { refId, useMenuData, type MenuUi } from "./useMenuData.ts";
 import { useEffect } from "react";
 
 type Page = "main" | "campaign" | "difficulty" | "heroes" | "items" | "party" | "load" | "settings";
+/** the new campaign's pages (over the map table, like the original's) */
+const SETUP: Page[] = ["campaign", "difficulty", "heroes", "items", "party"];
 const LANG_NAME: Record<string, string> = { ru: "Русский", en: "English", it: "Italiano", de: "Deutsch", fr: "Français", es: "Español", pl: "Polski", uk: "Українська" };
 
 /** HeroModel ids a campaign may use (its products, else every hero), sorted by name */
@@ -65,6 +68,7 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   const [ask, setAsk] = useState<string | null>(null); // the save slot asked to be deleted
   const [map, setMap] = useState<MapKind>(mapKind);
   const [mapScene, setMapScene] = useState<string | null>(null);
+  const [bg, setBg] = useState<MenuBg>(menuBg);
   useEffect(() => { void loadMapScene().then(setMapScene); }, []);
   // the difficulty cards' layers: decoded while the player looks at the campaigns (the next page shows them)
   useEffect(() => { if (page === "campaign") void preloadLayeredArt(DIFFICULTY_ART); }, [page]);
@@ -353,6 +357,11 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
             <button className={mapScene && map === "3d" ? "on" : ""} disabled={!mapScene} onClick={() => { setMapKind("3d"); setMap("3d"); }}>{t("map3d")}</button>
           </div>
           {!mapScene && <p className="muted">{t("map3dMissing")}</p>}
+          <h3>{t("menuBg")}</h3>
+          <div className="pm-seg">
+            <button className={!mapScene || bg === "theme" ? "on" : ""} onClick={() => { setMenuBg("theme"); setBg("theme"); }}>{t("menuBgTheme")}</button>
+            <button className={mapScene && bg === "map" ? "on" : ""} disabled={!mapScene} onClick={() => { setMenuBg("map"); setBg("map"); }}>{t("menuBgMap")}</button>
+          </div>
           <h3>{t("sound")}</h3>
           {vols.map(([k, label]) => (
             <label key={k} className="lo-row"><span>{t(label)}</span>
@@ -366,7 +375,11 @@ export function PlainTitle({ onPlay, onTools, hasOriginal }: {
   }
   return (
     <div className="pm-screen">
-      <MenuBackground dim={page !== "main"} />
+      {/* like the original: the new campaign's pages lie over the map table, out of focus; the title screen shows the
+          theme's background or, chosen in the settings, the map table */}
+      {mapScene && (SETUP.includes(page) || bg === "map")
+        ? <RoomBackdrop scene={mapScene} blurred={page !== "main"} />
+        : <MenuBackground dim={page !== "main"} />}
       <div className={`pm-page pm-page-${page}`} key={page}>{body}</div>
     </div>
   );

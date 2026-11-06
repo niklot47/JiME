@@ -56,14 +56,19 @@ function flameTexture(): THREE.Texture {
   return t;
 }
 
-export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, panel = 0, onFocusPx, onError }: {
+export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, panel = 0, onFocusPx, onError, still = false, shift = 0 }: {
   scene: string; view: MapView; trail: number[]; focus: number | null; zoomed: boolean; panel?: number;
+  /** a background: no wheel / drag, the camera drifts slowly around the overview, a lower resolution */
+  still?: boolean;
+  /** the overview moved sideways by this share of the map (positive: the map further right on the screen), eased */
+  shift?: number;
   onFocusPx?: (p: [number, number] | null) => void;
   onError?: (e: unknown) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const state = useRef({ zoomed, focus, panel, dist: 1, pan: new THREE.Vector3() });
+  const state = useRef({ zoomed, focus, panel, shift, dist: 1, pan: new THREE.Vector3() });
   state.current.zoomed = zoomed;
+  state.current.shift = shift;
   state.current.focus = focus;
   state.current.panel = panel;
   const props = useRef({ view, trail, onFocusPx });
@@ -74,7 +79,7 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
     const el = box.current!;
     let disposed = false;
     const renderer = new THREE.WebGLRenderer({ antialias: ANTIALIAS, alpha: false });
-    renderer.setPixelRatio(PIXEL_RATIO);
+    renderer.setPixelRatio(still ? Math.min(1, PIXEL_RATIO) : PIXEL_RATIO);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     el.appendChild(renderer.domElement);
@@ -265,6 +270,18 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
       } else {
         wantT.copy(home.target).add(st.pan);
         wantP.copy(wantT).addScaledVector(back, st.dist);
+        if (st.shift) {
+          const right = new THREE.Vector3().crossVectors(back, new THREE.Vector3(0, 1, 0)).normalize();
+          wantT.addScaledVector(right, st.shift * home.size);
+          wantP.addScaledVector(right, st.shift * home.size);
+        }
+        if (still) {
+          // a slow drift over the table (like the menus' parallax camera)
+          const tm = clock.elapsedTime;
+          wantP.x += Math.sin(tm * 0.07) * home.size * 0.025;
+          wantP.z += Math.sin(tm * 0.05 + 1) * home.size * 0.012;
+          wantT.x += Math.sin(tm * 0.06 + 2) * home.size * 0.012;
+        }
       }
       if (first && home.size > 0) { curPos.copy(wantP); curTarget.copy(wantT); first = false; }
       const a = 1 - Math.exp(-dt * 2.2);
@@ -295,10 +312,12 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
       dragFrom = [e.clientX, e.clientY];
     };
     const onUp = () => { dragFrom = null; };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    if (!still) {
+      el.addEventListener("wheel", onWheel, { passive: false });
+      el.addEventListener("pointerdown", onDown);
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    }
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
