@@ -93,7 +93,7 @@ export function PlainMap({ ui, save, onConfirm, onQuit }: { ui: MenuUi; save: Ca
         </div>
       )}
       {zoomed && (
-        <aside className="cm-details" key={adv}>
+        <aside className={`cm-details${art ? " art" : ""}`} key={adv}>
           <h3>{ui.raw(a.NameKey) || a.m_Name}</h3>
           <div className="lo-rule" />
           <div className="cm-story" dangerouslySetInnerHTML={{ __html: story }} />

@@ -17,7 +17,8 @@ export function RoomBackdrop({ scene, blurred }: { scene: string; blurred: boole
   return (
     <div className={`pm-room${blurred ? " blurred" : ""}`} aria-hidden="true">
       {/* the title screen: the map a little to the right, clear of the logo and the buttons */}
-      <CampaignMap3D scene={scene} view={view} trail={[]} focus={null} zoomed={false} still shift={blurred ? 0 : 0.17} />
+      <CampaignMap3D scene={scene} view={view} trail={[]} focus={null} zoomed={false} still shift={blurred ? 0 : 0.17}
+        nudge={blurred ? undefined : [0.1, 0.1]} />
     </div>
   );
 }

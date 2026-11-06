@@ -72,6 +72,17 @@ REGIONS = [
     # the frame of an item's picture (left on the item card)
     ("frame.hero", 230, 440, [16, 16, 16, 16]),
     ("frame.icon", 90, 72, [10, 10, 10, 10]),
+    # the rest: a role's plate (on a hero card, in the skills' role list; .none: no role yet), a skill's plate
+    # (.learned), the frame around those cards (.on: chosen / learned), the XP and cost badges; a hero's small portrait
+    ("card.role", 200, 48, [12, 16, 12, 16]),
+    ("card.role.none", 200, 48, [12, 16, 12, 16]),
+    ("card.skill", 240, 60, [12, 16, 12, 16]),
+    ("card.skill.learned", 240, 60, [12, 16, 12, 16]),
+    ("frame.card", 160, 80, [8, 8, 8, 8]),
+    ("frame.card.on", 160, 80, [8, 8, 8, 8]),
+    ("badge.xp", 48, 48, [0, 0, 0, 0]),
+    ("badge.cost", 48, 48, [0, 0, 0, 0]),
+    ("frame.portrait", 80, 80, [8, 8, 8, 8]),
 ]
 # where the app uses each region (guides/regions.md)
 USE = {
@@ -88,6 +99,13 @@ USE = {
     "frame.diff": "the borders of the difficulty cards (layers.json frameSkin, over the back layer, under the figures)",
     "frame.hero": "hero cards: hero selection, starting gear (around the name plate and the portrait)",
     "frame.icon": "the frame over an item's picture on its card",
+    "card.role": "a role's plate: hero cards of the rest, the skills panel's role list (.none: no role chosen)",
+    "card.skill": "a skill's plate in the skills panel (.learned: learned)",
+    "frame.card": "the frame around a skill / role card and a hero card's foot (.on: chosen, learned)",
+    "badge.xp": "the XP number (hero cards, role list)", "badge.cost": "a skill's cost",
+    "frame.portrait": "small hero portraits: saved games, the party's inventory",
+    "divider": "a divider line: under the campaign's title, the adventure's title on the map",
+    "card": "cards: saved games (load page)",
 }
 # regions that always take the element's whole height (top + bottom slices meet; only the middle stretches sideways)
 FIT_HEIGHT = ("banner", "plate", "button.back", "button.back.hover", "button.next", "button.next.hover")
@@ -299,6 +317,46 @@ def draw(name, w, h):
             d.rectangle([i * 2, i * 2, w - 1 - i * 2, h - 1 - i * 2], outline=(*c, 255), width=2)
         for x, y in ((7, 7), (w - 8, 7), (7, h - 8), (w - 8, h - 8)):
             d.polygon([(x, y - 5), (x + 5, y), (x, y + 5), (x - 5, y)], fill=(190, 194, 200, 255), outline=(30, 32, 35, 255))
+        return img
+    if name.startswith("card.role") or name.startswith("card.skill"):
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        if name == "card.role.none":
+            top, bot, edge = (82, 70, 58), (62, 52, 44), (40, 34, 30)
+        elif name == "card.skill":
+            top, bot, edge = (168, 162, 152), (138, 132, 122), (70, 64, 58)
+        else:
+            top, bot, edge = (246, 240, 226), (222, 212, 190), (120, 96, 60)
+        for y in range(h):
+            k = y / (h - 1)
+            d.line([(0, y), (w, y)], fill=tuple(int(top[i] + (bot[i] - top[i]) * k) for i in range(3)) + (255,))
+        d.rectangle([0, 0, w - 1, h - 1], outline=edge + (255,), width=2)
+        if name == "card.skill.learned":
+            d.rectangle([3, 3, w - 4, h - 4], outline=(201, 163, 90, 255), width=2)
+        return img
+    if name.startswith("frame.card"):
+        on = name.endswith(".on")
+        img = Image.new("RGBA", (w, h), (42, 36, 32, 255))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, w - 1, h - 1], outline=(226, 183, 102, 255) if on else (90, 80, 72, 255), width=3)
+        d.rectangle([4, 4, w - 5, h - 5], outline=(255, 230, 170, 110) if on else (26, 22, 20, 255), width=1)
+        return img
+    if name.startswith("badge."):
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        if name == "badge.cost":
+            c = w / 2
+            d.polygon([(c, 1), (w - 2, c), (c, h - 2), (1, c)], fill=(122, 90, 42, 255), outline=(201, 163, 90, 255), width=3)
+        else:
+            d.rounded_rectangle([1, 1, w - 2, h - 2], 8, fill=(138, 106, 58, 255), outline=(201, 163, 90, 255), width=3)
+            d.line([(8, 6), (w - 9, 6)], fill=(255, 235, 190, 90), width=2)
+        return img
+    if name == "frame.portrait":
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, w - 1, h - 1], outline=(60, 52, 46, 255), width=2)
+        d.rectangle([2, 2, w - 3, h - 3], outline=(176, 139, 74, 255), width=3)
+        d.rectangle([5, 5, w - 6, h - 6], outline=(40, 34, 30, 255), width=1)
         return img
     if name == "frame.icon":
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))

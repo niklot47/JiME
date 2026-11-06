@@ -56,19 +56,22 @@ function flameTexture(): THREE.Texture {
   return t;
 }
 
-export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, panel = 0, onFocusPx, onError, still = false, shift = 0 }: {
+export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, panel = 0, onFocusPx, onError, still = false, shift = 0, nudge }: {
   scene: string; view: MapView; trail: number[]; focus: number | null; zoomed: boolean; panel?: number;
   /** a background: no wheel / drag, the camera drifts slowly around the overview, a lower resolution */
   still?: boolean;
   /** the overview moved sideways by this share of the map (positive: the map further right on the screen), eased */
   shift?: number;
+  /** the overview's camera moved [right, forward] by these shares of the table ("Table": its width, its depth), eased */
+  nudge?: [number, number];
   onFocusPx?: (p: [number, number] | null) => void;
   onError?: (e: unknown) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const state = useRef({ zoomed, focus, panel, shift, dist: 1, pan: new THREE.Vector3() });
+  const state = useRef({ zoomed, focus, panel, shift, nudge, dist: 1, pan: new THREE.Vector3() });
   state.current.zoomed = zoomed;
   state.current.shift = shift;
+  state.current.nudge = nudge;
   state.current.focus = focus;
   state.current.panel = panel;
   const props = useRef({ view, trail, onFocusPx });
@@ -97,7 +100,7 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
     fire.add(light, flame);
     scene.add(fire);
     // the overview camera's place and target; the current camera eases towards the wanted one
-    const home = { pos: new THREE.Vector3(), target: new THREE.Vector3(), size: 1 };
+    const home = { pos: new THREE.Vector3(), target: new THREE.Vector3(), size: 1, table: new THREE.Vector3(1, 1, 1) };
     const curPos = new THREE.Vector3(), curTarget = new THREE.Vector3();
     let first = true;
 
@@ -192,6 +195,8 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
         };
         img.src = props.current.view.image;
       }
+      const table = root.getObjectByName("Table");
+      new THREE.Box3().setFromObject(table ?? map ?? root).getSize(home.table);
       const bb = new THREE.Box3().setFromObject(map ?? root);
       const c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
       home.size = Math.max(sz.x, sz.z, 1e-3);
@@ -274,6 +279,16 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
           const right = new THREE.Vector3().crossVectors(back, new THREE.Vector3(0, 1, 0)).normalize();
           wantT.addScaledVector(right, st.shift * home.size);
           wantP.addScaledVector(right, st.shift * home.size);
+        }
+        if (st.nudge) {
+          const fwd = wantT.clone().sub(wantP).setY(0).normalize();
+          const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+          // the table's width runs across the view, its depth along it (whichever way the room is turned)
+          const across = Math.abs(right.x) * home.table.x + Math.abs(right.z) * home.table.z;
+          const along = Math.abs(fwd.x) * home.table.x + Math.abs(fwd.z) * home.table.z;
+          const move = right.multiplyScalar(st.nudge[0] * across).addScaledVector(fwd, st.nudge[1] * along);
+          wantP.add(move);
+          wantT.add(move);
         }
         if (still) {
           // a slow drift over the table (like the menus' parallax camera)

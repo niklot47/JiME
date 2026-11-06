@@ -1102,6 +1102,11 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .cm-details h3 { margin: 0; text-align: center; font-family: "JiME Title", Georgia, serif; font-weight: normal; font-size: calc(38 * var(--u)); color: #f3e2b8; }
 .cm-story { flex: 1 1 auto; min-height: 0; overflow-y: auto; font-size: max(12px, calc(21 * var(--u))); line-height: 1.45; color: #ece0c4; }
 .cm-details img { flex: 0 1 calc(300 * var(--u)); min-height: 0; width: 100%; object-fit: cover; border: 2px solid #3a3026; }
+/* the adventure's picture fills the whole panel (inside its frame), the text over a darkening that thins downward */
+.cm-details { isolation: isolate; overflow: hidden; }
+.cm-details > img { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; border: none; object-fit: cover; }
+.cm-details.art::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(rgba(8, 7, 6, 0.9) 0%, rgba(8, 7, 6, 0.82) 45%, rgba(8, 7, 6, 0.35) 78%, rgba(8, 7, 6, 0.15) 100%); }
 .cm-alts { display: flex; align-items: center; justify-content: center; gap: 14px; color: #d8c8a6; }
 .cm-alts .lo-arrow { width: calc(30 * var(--u)); height: calc(60 * var(--u)); }
 .cm-place { position: absolute; transform: translateX(-50%); padding: calc(6 * var(--u)) calc(26 * var(--u)); white-space: nowrap; pointer-events: none;
@@ -1111,6 +1116,21 @@ textarea.ed-input { resize: vertical; white-space: pre-wrap; }
 .cm-buttons { position: absolute; right: calc(40 * var(--u)); bottom: calc(22 * var(--u)); display: flex; flex-direction: column; align-items: flex-end; gap: calc(16 * var(--u)); }
 .cm-buttons .lo-corner { position: static; }
 .cm-buttons .pm-btn.lo-btn { width: calc(290 * var(--u)); height: calc(60 * var(--u)); font-size: calc(22 * var(--u)); }
+.skinned .lo-rule { height: calc(14 * var(--u)); background: none; border-style: solid; border-color: transparent;
+  border-image: var(--sk-divider) var(--sk-divider-slice) / var(--sk-divider-w); }
+.skinned .rs-role, .skinned .rs-skill-role span, .skinned .rs-skill span { background: none; border-style: solid; border-color: transparent;
+  border-image: var(--sk-card-role) var(--sk-card-role-slice) / var(--sk-card-role-w); }
+.skinned .rs-role.none { border-image-source: var(--sk-card-role-none); }
+.skinned .rs-skill span { border-image: var(--sk-card-skill) var(--sk-card-skill-slice) / var(--sk-card-skill-w); }
+.skinned .rs-skill.learned span { border-image-source: var(--sk-card-skill-learned); }
+.skinned .rs-skill, .skinned .rs-skill-role, .skinned .rs-hero-foot { background: none; border-style: solid; border-color: transparent; box-shadow: none;
+  border-image: var(--sk-frame-card) var(--sk-frame-card-slice) / var(--sk-frame-card-w); }
+.skinned .rs-skill.learned, .skinned .rs-skill-role.on { border-image-source: var(--sk-frame-card-on); }
+.skinned .rs-xp { background: var(--sk-badge-xp) center / 100% 100% no-repeat; border: none; }
+.skinned .rs-cost { background: var(--sk-badge-cost) center / 100% 100% no-repeat; border: none; }
+.skinned .lo-save-heroes img, .skinned .lo-save-heroes i, .skinned .rs-inv-hero { border-style: solid; border-color: transparent;
+  border-image: var(--sk-frame-portrait) var(--sk-frame-portrait-slice) / var(--sk-frame-portrait-w); }
+.skinned .rs-pick.on { border-color: transparent; border-image: var(--sk-frame-thumb-on) var(--sk-frame-thumb-on-slice) / var(--sk-frame-thumb-on-w); }
 .skinned .cm-details { background: none; border-color: transparent; border-image: var(--sk-frame-art) var(--sk-frame-art-slice) / var(--sk-frame-art-w); }
 .skinned .cm-place, .skinned .cm-chapter { background: none; border-style: solid; border-color: transparent; border-image: var(--sk-plate) var(--sk-plate-slice) / var(--sk-plate-w); }
 @media (max-aspect-ratio: 4/5) {
