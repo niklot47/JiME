@@ -1,7 +1,10 @@
 // The campaign map in a theme's 3D room (a glTF exported from Blender, images/menu/campaign-map.json). The scene's
 // naming convention (docs THEMES.md):
 //   "Map"      the mesh the map lies on: its UVs place the adventures (x, y of maps.json = the glTF u, v); its texture is
-//              replaced by the campaign's map picture when the campaign has one
+//              replaced by the campaign's map picture when the campaign has one, unless maps.json says the room's own
+//              picture is that map ("sceneTexture": the Middle-earth map of tools/maps/middle_earth_ink.py)
+//   "Flame*"   a candle's wick: a little flame drawn there
+//   "Flicker*" a light that flickers (around its own intensity), e.g. the candle's
 //   "Camera"   the overview camera (optional: else one is placed above the map); the zoom flies towards the adventure
 //   lights     the scene's own (KHR_lights_punctual); none: a soft light is added
 //   "Fire*"    (optional) an object copied onto the coming adventure as its campfire; else a light and a flame sprite
@@ -82,6 +85,7 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
     scene.add(marks);
     let map: THREE.Mesh | null = null;
     let fireModel: THREE.Object3D | null = null;
+    const candles: { sprite: THREE.Sprite | null; light: THREE.Light | null; base: number; phase: number }[] = [];
     const fire = new THREE.Group();
     const light = new THREE.PointLight(0xff9a40, 2, 0, 2);
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
@@ -129,6 +133,20 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
         if (!fireModel && /^fire/i.test(n)) fireModel = o;
       });
       if (fireModel) { fireModel.removeFromParent(); fire.add(fireModel); flame.visible = false; }
+      // candles: a flame on each wick, their lights flickering
+      root.traverse((o) => {
+        const n = nameOf(o);
+        if (/^flame/i.test(n)) {
+          const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+          s.center.set(0.5, 0.25);
+          o.add(s);
+          candles.push({ sprite: s, light: null, base: 0, phase: Math.random() * 10 });
+        }
+        if ((o as THREE.Light).isLight && /^flicker/i.test(n)) {
+          const l = o as THREE.Light;
+          candles.push({ sprite: null, light: l, base: l.intensity, phase: Math.random() * 10 });
+        }
+      });
       let lights = 0;
       root.traverse((o) => { if ((o as THREE.Light).isLight) lights++; });
       if (!lights) {
@@ -138,7 +156,7 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
         scene.add(d);
       }
       // the campaign's map picture on the map
-      if (map && props.current.view.image) {
+      if (map && props.current.view.image && !props.current.view.sceneTexture) {
         // the picture with the map's names written on it (the 2D map draws them over the picture)
         const img = new Image();
         img.onload = () => {
@@ -190,6 +208,12 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
       camera.far = home.size * 50;
       light.distance = home.size * 0.6;
       flame.scale.setScalar(home.size * 0.05);
+      // a candle's flame: about a fortieth of the table (the scene's own scale)
+      for (const c of candles) if (c.sprite) {
+        const s = new THREE.Vector3();
+        c.sprite.parent!.getWorldScale(s);
+        c.sprite.scale.set(home.size * 0.022 / s.x, home.size * 0.045 / s.y, 1);
+      }
       if (fireModel) fireModel.position.set(0, 0, 0);
       resize();
       first = true;
@@ -217,8 +241,16 @@ export function CampaignMap3D({ scene: scenePath, view, trail, focus, zoomed, pa
       if (f) {
         fire.position.copy(f).add(new THREE.Vector3(0, home.size * (fireModel ? 0 : 0.025), 0));
         const tm = clock.elapsedTime;
-        light.intensity = (1.6 + 0.5 * Math.sin(tm * 13) + 0.3 * Math.sin(tm * 7.3)) * home.size * home.size * 0.6;
+        // physical units (candela): a few lux on the map around the fire, whatever the scene's scale
+        const r = home.size * 0.04;
+        light.intensity = (1.6 + 0.5 * Math.sin(tm * 13) + 0.3 * Math.sin(tm * 7.3)) * r * r * 1.2;
         flame.material.opacity = 0.8 + 0.2 * Math.sin(tm * 11);
+      }
+      for (const c of candles) {
+        const tm = clock.elapsedTime + c.phase;
+        const k = 1 + 0.12 * Math.sin(tm * 9.1) + 0.08 * Math.sin(tm * 14.3) + 0.05 * Math.sin(tm * 23.7);
+        if (c.light) c.light.intensity = c.base * k;
+        if (c.sprite) { c.sprite.material.opacity = 0.85 + 0.15 * Math.sin(tm * 12); c.sprite.material.rotation = 0.04 * Math.sin(tm * 3.1); }
       }
       // the wanted view: the overview, or close over the focused adventure (it a little right of the centre)
       const wantT = new THREE.Vector3(), wantP = new THREE.Vector3();

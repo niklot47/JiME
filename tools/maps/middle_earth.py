@@ -449,7 +449,8 @@ def write_pack(cv, img, out_root, pack_id, preview=False):
     img.save(os.path.join(base, rel), quality=90, optimize=True, progressive=True)
     labels = [{"key": f"ME_MAP_{k}", "x": cv.frac(u, v)[0], "y": cv.frac(u, v)[1], "size": s, **({"angle": a} if a else {})}
               for k, (u, v, s, a, *_names) in G.LABELS.items()]
-    maps = {str(c): {"image": rel, "zoom": 3.0, "labels": labels,
+    # sceneTexture: the theme's 3D map room has this very map on its table (middle_earth_ink.py): it is kept there
+    maps = {str(c): {"image": rel, "zoom": 3.0, "labels": labels, "sceneTexture": True,
                      "locations": {str(a): list(cv.frac(u, v)) for a, (u, v) in locs.items()}} for c, locs in G.LOCATIONS.items()}
     with open(os.path.join(base, "images/campaigns/maps.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(maps, f, ensure_ascii=False, indent=1)

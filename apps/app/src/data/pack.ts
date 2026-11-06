@@ -352,6 +352,8 @@ export interface CampaignMapData {
   locations?: Record<string, [number, number]>;
   zoom?: number;
   labels?: { key: string; x: number; y: number; size?: number; angle?: number }[];
+  /** the theme's 3D map room already has this map on its table (names written in): it is kept, not replaced */
+  sceneTexture?: boolean;
 }
 export const loadCampaignMaps = () => once("campaignMaps", async () => {
   try {

@@ -1,10 +1,12 @@
 [
+ "images/menu/campaign-map.json",
  "images/menu/fog.webp",
  "images/menu/layer1.webp",
  "images/menu/layer2.webp",
  "images/menu/layer3.webp",
  "images/menu/layer4.webp",
  "images/menu/leaves.webp",
+ "images/menu/mapscene.glb",
  "images/menu/menu.json",
  "images/menu/rays.webp",
  "images/menu/water.webp",

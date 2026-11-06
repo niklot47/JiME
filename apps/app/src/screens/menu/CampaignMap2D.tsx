@@ -11,6 +11,8 @@ export interface MapView {
   at: (adv: number) => [number, number];
   labels: { text: string; x: number; y: number; size: number; angle: number }[];
   zoom: number;
+  /** the 3D room's own map picture stands for this one (CampaignMapData.sceneTexture) */
+  sceneTexture: boolean;
 }
 
 /** Where the campaign's adventures are: the pack's positions, else spread along the map (left to right, a slow wave) */
@@ -30,6 +32,7 @@ export function mapView(data: CampaignMapData | undefined, adventures: number[],
     at,
     labels: (data?.labels ?? []).map((l) => ({ text: say(l.key), x: l.x, y: l.y, size: l.size ?? 30, angle: l.angle ?? 0 })),
     zoom: data?.zoom ?? 2.4,
+    sceneTexture: !!data?.sceneTexture,
   };
 }
 
